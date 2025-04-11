@@ -2,7 +2,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react'
-import { createClientSupabaseClient } from '@/utils/supabase/client'
+import { createClient } from '@/utils/supabase/client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { User } from '@supabase/supabase-js'
 
@@ -25,7 +25,7 @@ export function SupabaseProvider({
   const [user, setUser] = useState<User | null>(initialUser)
   const [userDetails, setUserDetails] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClientSupabaseClient()
+  const supabase = createClient()
 
   useEffect(() => {
     const getUserDetails = async () => {
@@ -45,9 +45,8 @@ export function SupabaseProvider({
     }
 
     getUserDetails()
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (event: any, session: any) => {
         if (session?.user) {
           setUser(session.user)
           getUserDetails()

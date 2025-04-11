@@ -5,38 +5,36 @@ export async function getTournaments() {
     try {
         const { data, error } = await supabase
             .from("tournaments")
-            .select("*");
+            .select(`
+                *,
+                club:clubes (
+                    id,
+                    name,
+                    address
+                )
+            `);
 
         if (error) {
             console.error("Error fetching tournaments:", error);
             return [];
         }
 
-        // Log raw data from database
-        console.log("Raw data from database:", data);
-
         // Map the raw data to our Tournament type
         const tournaments = data?.map((rawTournament): Tournament => {
-            // Log individual tournament data before mapping
-            console.log("Raw tournament data:", rawTournament);
-            
             return {
                 id: rawTournament.id,
                 name: rawTournament.name,
-                clubId: rawTournament.club_id,      // DB: club_id -> TS: clubId
-                createdAt: rawTournament.created_at, // DB: created_at -> TS: createdAt
-                startDate: rawTournament.start_date, // DB: start_date -> TS: startDate
-                endDate: rawTournament.end_date,     // DB: end_date -> TS: endDate
+                club: rawTournament.club,
+                createdAt: rawTournament.created_at,
+                startDate: rawTournament.start_date,
+                endDate: rawTournament.end_date,
                 category: rawTournament.category,
-                gender: rawTournament.gender || "MALE", // Default to MALE if not specified
-                status: rawTournament.status || "NOT_STARTED" // Default to NOT_STARTED if not specified
+                gender: rawTournament.gender || "MALE",
+                status: rawTournament.status || "NOT_STARTED",
+                type: rawTournament.type || "AMERICAN"
             };
         }) || [];
 
-        // Log mapped tournaments
-        console.log("Mapped tournaments:", tournaments);
-        console.log("Number of tournaments:", tournaments.length);
-        
         return tournaments;
     } catch (error) {
         console.error("Error in getTournaments:", error);
@@ -57,3 +55,40 @@ export async function getCategories() {
   
     return data as Category[]
 }
+
+export async function getTournamentById(id: string) {
+    try {
+        const { data: tournamentData, error: tournamentError } = await supabase
+        .from('tournaments')
+        .select(`
+        *,
+        club:clubes (
+        id,
+        name,
+        address
+      )
+    `)
+        .eq('id', id)
+        .single()
+    
+            // Map the raw data to our Tournament type
+            const tournament: Tournament = {
+                id: tournamentData.id,
+                name: tournamentData.name,
+                club: tournamentData.club,
+                createdAt: tournamentData.created_at,
+                startDate: tournamentData.start_date,
+                endDate: tournamentData.end_date,
+                category: tournamentData.category,
+                gender: tournamentData.gender || "MALE",
+                status: tournamentData.status || "NOT_STARTED",
+                type: tournamentData.type || "AMERICAN"
+            };
+    
+            return tournament;
+        } catch (error) {
+            console.error("Error in getTournamentById:", error);
+            return null;
+        }
+    }
+    

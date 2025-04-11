@@ -261,7 +261,7 @@ function TournamentCard({
       <CardContent>
         <div className="flex items-center text-sm text-gray-600 mb-4">
           <MapPin className="h-4 w-4 mr-1" />
-          <span>Club ID: {tournament.clubId}</span>
+          <span>Club: {tournament.club.name}</span>
         </div>
         <div className="inline-block bg-padel-green-50 text-padel-green-700 px-3 py-1 rounded-full text-sm font-medium">
           {getCategoryName(tournament.category)}

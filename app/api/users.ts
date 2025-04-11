@@ -101,11 +101,9 @@ export async function getCategories() {
     return data as Category[];
 }
 
-export async function createPlayer(player: Player) {
+export async function completeProfile(player: Player) {
     const { data, error } = await supabase
         .from("players")
         .insert(player)
         .select()
-        
-    return { data, error }
 }

@@ -1,5 +1,6 @@
 'use client'
 
+// Verificar que esta importación es correcta
 import { register } from '../login/actions'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -12,43 +13,57 @@ export default function RegisterPage() {
   const { toast } = useToast()
   const router = useRouter()
 
-  async function handleRegister(formData: FormData) {
-    setIsSubmitting(true)
+  // Esta función es un wrapper para la acción del servidor
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
     
     try {
-      const result = await register(formData)
+      // Obtener el formulario y crear un nuevo FormData
+      const form = e.currentTarget;
+      const formData = new FormData(form);
+      
+      console.log("Enviando datos al servidor:", {
+        email: formData.get('email'),
+        password: formData.get('password') ? '******' : 'no password' // No mostrar la contraseña real
+      });
+      
+      // Llamar directamente a la acción del servidor
+      const result = await register(formData);
+      console.log("Resultado del servidor:", result);
       
       if (result?.error) {
         toast({
           title: 'Error',
           description: result.error,
           variant: 'destructive',
-        })
-        setIsSubmitting(false)
+        });
+        setIsSubmitting(false);
       } else if (result?.success) {
         toast({
           title: 'Éxito',
           description: result.message,
-        })
+        });
         
         // Si hay una URL de redirección, redirigir después de mostrar el mensaje
         if (result.redirectUrl) {
           setTimeout(() => {
-            router.push(result.redirectUrl)
-          }, 1500) // Dar tiempo para que se muestre el toast
+            router.push(result.redirectUrl);
+          }, 1500); // Dar tiempo para que se muestre el toast
         } else {
-          setIsSubmitting(false)
+          setIsSubmitting(false);
         }
       }
     } catch (error) {
+      console.error("Error al procesar el registro:", error);
       toast({
         title: 'Error',
         description: 'Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo.',
         variant: 'destructive',
-      })
-      setIsSubmitting(false)
+      });
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-padel-green-50">
@@ -63,7 +78,7 @@ export default function RegisterPage() {
               Ingresa tus datos para comenzar
             </p>
           </div>
-          <form className="mt-8 space-y-6" action={handleRegister}>
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4 rounded-md shadow-sm">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">

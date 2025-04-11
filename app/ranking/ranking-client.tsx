@@ -144,10 +144,10 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
                         <TableCell className="text-center font-medium">
                           {index < 3 ? <Medal className={`inline ${getMedalColor(index)}`} size={18} /> : index + 1}
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell className="text-left font-bold text-padel-green-700">
                           {player.firstName} {player.lastName}
                         </TableCell>
-                        <TableCell>{getCategoryName(player.category)}</TableCell>
+                        <TableCell className="text-left font-bold text-padel-green-700">{getCategoryName(player.category)}</TableCell>
                         <TableCell className="text-right font-bold text-padel-green-700">{player.score}</TableCell>
                       </TableRow>
                     ))
