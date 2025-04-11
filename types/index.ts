@@ -7,33 +7,34 @@ export type Category = {
 
 export type Player = {
   id: string
-  userId?: string // If the player has an account
   firstName: string
   lastName: string
   score: number
-  category: string // Category ID, calculated automatically based on score
-  dominantHand?: "left" | "right" // Mano hábil
-  paddle?: string // Paleta
-  preferredSide?: "forehand" | "backhand" // Lado del que juega
+  category: string // Category name, calculated automatically based on score, foreign key to category table
+  preferredHand?: "LEFT" | "RIGHT" // Mano hábil
+  racket?: string // Paleta
+  preferredSide?: "FOREHAND" | "BACKHAND" // Lado del que juega
   createdAt: string
-  createdBy: string // Club ID that created the player
+  club_id: string
+  gender: "MALE" | "FEMALE"
 }
 
 export type Tournament = {
   id: string
   name: string
   clubId: string
+  createdAt: string
+  category: string // Category ID
+  gender: string
+  status: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED"
   startDate: string
   endDate: string
-  category: string // Category ID
-  status: "not_started" | "in_progress" | "finished"
 }
 
-export type Team = {
+export type Couple = {
   id: string
   player1Id: string
   player2Id: string
-  tournamentId?: string // Optional, if the team is for a specific tournament
 }
 
 export type Match = {
@@ -45,7 +46,7 @@ export type Match = {
   team2Score?: number[]
   date: string
   round: string // "final", "semifinal", "quarterfinal", "round1", etc.
-  status: "scheduled" | "completed" | "cancelled"
+  status: "SCHEDULED" | "COMPLETED" | "CANCELLED"
   courtNumber?: number
   category: string // Category ID
 }

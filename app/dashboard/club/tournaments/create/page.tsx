@@ -81,10 +81,10 @@ export default function CreateTournament() {
         .insert([
           {
             name,
-            startDate,
-            endDate,
+            start_date: startDate,
+            end_date: endDate,
             category: categoryId,
-            clubId: user.id,
+            club_id: user.id,
             status: "not_started",
           },
         ])

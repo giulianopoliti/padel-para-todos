@@ -156,10 +156,10 @@ export default function PlayerDashboard() {
           </TabsList>
 
           <TabsContent value="upcoming">
-            {tournaments.filter((t) => t.status === "not_started").length > 0 ? (
+            {tournaments.filter((t) => t.status === "NOT_STARTED").length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {tournaments
-                  .filter((t) => t.status === "not_started")
+                  .filter((t) => t.status === "NOT_STARTED")
                   .map((tournament) => (
                     <TournamentCard
                       key={tournament.id}
@@ -246,4 +246,3 @@ function TournamentCard({
     </Card>
   )
 }
-
