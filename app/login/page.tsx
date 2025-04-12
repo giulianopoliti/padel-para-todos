@@ -13,7 +13,7 @@ import Navbar from '@/components/navbar'
 
 export default function LoginPage() {
   const { toast } = useToast()
-  const [role, setRole] = useState<'JUGADOR' | 'CLUB' | 'ENTRENADOR'>('JUGADOR')
+  const [role, setRole] = useState<'PLAYER' | 'CLUB' | 'COACH'>('PLAYER')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function handleLogin(formData: FormData) {
@@ -41,7 +41,7 @@ export default function LoginPage() {
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-2xl text-center text-padel-green-700">
-              Acceso para {role === 'JUGADOR' ? 'Jugadores' : role === 'CLUB' ? 'Clubes' : 'Entrenadores'}
+              Acceso para {role === 'PLAYER' ? 'Jugadores' : role === 'CLUB' ? 'Clubes' : 'Entrenadores'}
             </CardTitle>
             <CardDescription className="text-center">
               Ingresa a tu cuenta para continuar
@@ -93,18 +93,18 @@ export default function LoginPage() {
                 Club
               </Button>
               <Button 
-                variant={role === 'JUGADOR' ? 'default' : 'outline'} 
+                variant={role === 'PLAYER' ? 'default' : 'outline'} 
                 size="sm" 
-                onClick={() => setRole('JUGADOR')}
-                className={role === 'JUGADOR' ? 'bg-padel-green-600 hover:bg-padel-green-700' : ''}
+                onClick={() => setRole('PLAYER')}
+                className={role === 'PLAYER' ? 'bg-padel-green-600 hover:bg-padel-green-700' : ''}
               >
                 Jugador
               </Button>
               <Button
-                variant={role === 'ENTRENADOR' ? 'default' : 'outline'}
+                variant={role === 'COACH' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setRole('ENTRENADOR')}
-                className={role === 'ENTRENADOR' ? 'bg-padel-green-600 hover:bg-padel-green-700' : ''}
+                onClick={() => setRole('COACH')}
+                className={role === 'COACH' ? 'bg-padel-green-600 hover:bg-padel-green-700' : ''}
               >
                 Entrenador
               </Button>
