@@ -1,4 +1,4 @@
-export type Role = "CLUB" | "JUGADOR" | "ENTRENADOR"
+export type Role = "CLUB" | "PLAYER" | "COACH"
 
 export type Category = {
   id: string
@@ -107,5 +107,8 @@ export type User = {
   playerId?: string // If the user is a player
   clubId?: string // If the user is a club
   coachId?: string // If the user is a coach
+  avatar_url?: string // User profile avatar URL
+  auth_id?: string
+  created_at?: string
 }
 

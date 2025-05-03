@@ -1,8 +1,11 @@
 // app/layout.tsx
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { SupabaseProvider } from '@/components/supabase-provider'
 import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
+import { UserProvider } from '@/contexts/user-context'
+import AuthProvider from '@/components/auth-provider'
+import { Toaster } from '@/components/ui/toaster'
 
 export const metadata = {
   title: 'Sistema de Torneos de Pádel',
@@ -16,19 +19,24 @@ export default async function RootLayout({
 }) {
   const supabase = await createClient()
   
-  // Obtener la sesión inicial del servidor
+  // Get authenticated user instead of just session
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  const initialUser = session?.user || null
+  const initialUser = user || null
 
   return (
     <html lang="es" suppressHydrationWarning>
       <body>
         <SupabaseProvider initialUser={initialUser}>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            {children}
+            <UserProvider>
+              <AuthProvider>
+                {children}
+                <Toaster />
+              </AuthProvider>
+            </UserProvider>
           </ThemeProvider>
         </SupabaseProvider>
       </body>

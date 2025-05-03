@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default async function PlayerDashboard() {
@@ -10,7 +10,7 @@ export default async function PlayerDashboard() {
   } = await supabase.auth.getUser()
 
   // Get player data
-  const { data: playerData } = await supabase.from("players").select("*").eq("user_id", user?.id).single()
+  const { data: playerData } = await supabase.from("players").select("*").eq("user_id", user?.id || "").single()
   console.log("playerData", playerData);
   return (
     <div className="container mx-auto py-8">

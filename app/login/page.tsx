@@ -1,7 +1,8 @@
 // app/login/page.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { login } from '@/app/login/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,24 +14,78 @@ import Navbar from '@/components/navbar'
 
 export default function LoginPage() {
   const { toast } = useToast()
+  const router = useRouter()
   const [role, setRole] = useState<'PLAYER' | 'CLUB' | 'COACH'>('PLAYER')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
+  const MAX_RETRIES = 2
+
+  // Use a debounce to prevent hammering the server
+  useEffect(() => {
+    if (isSubmitting && retryCount > 0) {
+      const timer = setTimeout(() => {
+        setIsSubmitting(false)
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [isSubmitting, retryCount])
 
   async function handleLogin(formData: FormData) {
-    setIsSubmitting(true)
-    formData.append('role', role)
-    
-    const result = await login(formData)
-    
-    if (result?.error) {
+    try {
+      setError(null)
+      setIsSubmitting(true)
+      formData.append('role', role)
+      
+      console.log("Submitting login form with role:", role);
+
+      if (retryCount >= MAX_RETRIES) {
+        toast({
+          title: 'Demasiados intentos',
+          description: 'Por favor, intenta de nuevo más tarde.',
+          variant: 'destructive',
+        })
+        setError('Demasiados intentos. Por favor, intenta de nuevo más tarde.')
+        setIsSubmitting(false)
+        return
+      }
+
+      const result = await login(formData)
+      
+      if (result?.error) {
+        console.error("Login error from server:", result.error);
+        toast({
+          title: 'Error de acceso',
+          description: result.error,
+          variant: 'destructive',
+        })
+        setError(result.error)
+        setRetryCount(prev => prev + 1)
+      } else if (result?.success) {
+        // Handle client-side redirection on success
+        toast({
+          title: 'Acceso exitoso',
+          description: 'Redirigiendo al panel de control...',
+        })
+        router.push('/dashboard')
+      }
+    } catch (e) {
+      // This will catch network errors
+      console.error("Login network error:", e);
+      const errorMessage = typeof e === 'object' && e !== null && 'message' in e 
+        ? `Error de conexión: ${(e as Error).message}`
+        : "Error de conexión. Por favor intenta de nuevo más tarde.";
+      
       toast({
-        title: 'Error',
-        description: result.error,
+        title: 'Error de red',
+        description: errorMessage,
         variant: 'destructive',
       })
+      setError(errorMessage)
+      setRetryCount(prev => prev + 1)
+    } finally {
+      setIsSubmitting(false)
     }
-    
-    setIsSubmitting(false)
   }
 
   return (
@@ -48,6 +103,11 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-600 rounded-md text-sm">
+                {error}
+              </div>
+            )}
             <form action={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Correo Electrónico</Label>

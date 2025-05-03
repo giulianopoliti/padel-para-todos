@@ -4,16 +4,12 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/navbar"
 
-export default async function DashboardLayout({
+export default async function ProfileLayout({
   children,
-  club,
   player,
-  coach,
 }: {
   children: ReactNode
-  club: ReactNode
   player: ReactNode
-  coach: ReactNode
 }) {
   const supabase = await createClient()
 
@@ -42,10 +38,11 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      {userData.role === "CLUB" && club}
-      {userData.role === "PLAYER" && player}
-      {userData.role === "COACH" && coach}
-      {!["CLUB", "PLAYER", "COACH"].includes(userData.role || "") && children}
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6 text-padel-green-600">Mi Perfil</h1>
+        {userData.role === "PLAYER" && player}
+        {userData.role !== "PLAYER" && children}
+      </div>
     </div>
   )
 } 

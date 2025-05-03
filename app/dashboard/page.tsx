@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/utils/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   }
 
   // Si llegamos aquí y el rol no es válido, redirigir al inicio de sesión
-  if (!["CLUB", "PLAYER", "COACH"].includes(userData.role)) {
+  if (!["CLUB", "PLAYER", "COACH"].includes(userData.role || "")) {
     redirect("/login")
   }
 
