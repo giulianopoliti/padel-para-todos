@@ -4,15 +4,23 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase/client"; // Use the new client
 import type { User as AuthUser } from "@supabase/supabase-js"; // Supabase Auth User type
-import type { User as DbUserType } from "@/types"; // Your custom DB user type
+import type { User as DbUserType } from "@/types"; // Import role-specific types if defined
 import { signout as serverSignout } from "@/app/auth/login/actions"; // Server action for signout
 
+// Define a more detailed UserDetails type
+// Adjust based on your actual DbUserType and related tables
+interface DetailedUserDetails extends DbUserType {
+    player_id?: string | null; // Add optional fields for related IDs
+    club_id?: string | null;
+    coach_id?: string | null;
+}
+
 interface UserContextType {
-  user: AuthUser | null;      // Use Supabase Auth User type here
-  userDetails: DbUserType | null; // Keep your specific user details separate
+  user: AuthUser | null;      
+  userDetails: DetailedUserDetails | null; // Use the detailed type
   loading: boolean;
   error: string | null;
-  fetchUserDetails: (userId: string) => Promise<void>; // Function to fetch DB details
+  fetchUserDetails: (userId: string) => Promise<void>; 
   logout: () => Promise<void>;
 }
 
@@ -27,36 +35,72 @@ const UserContext = createContext<UserContextType>({
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [userDetails, setUserDetails] = useState<DbUserType | null>(null);
+  const [userDetails, setUserDetails] = useState<DetailedUserDetails | null>(null); // Use detailed type
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   // Function to fetch specific user details from your database
   const fetchUserDetails = useCallback(async (userId: string) => {
-    if (!userId) return; // Guard against fetching without an ID
-    console.log(`[UserContext] Fetching DB user details for ID: ${userId}`);
+    if (!userId) return;
+    console.log(`[UserContext] Fetching DB user details for auth ID: ${userId}`);
+    setError(null); // Clear previous error
+    // No need to set loading here, handled by caller effect
+
     try {
-      const { data, error: dbError } = await supabase
-        .from("users") // Your user table name
-        .select("id, email, role") // Select the fields you need
-        .eq("id", userId)
-        .single();
+        // First, get the basic user info (role, email, etc.)
+        const { data: basicUserData, error: dbError } = await supabase
+            .from("users") 
+            .select("id, email, role") // Select required fields including role
+            .eq("id", userId) // Query using auth_id from Auth user
+            .single();
 
-      if (dbError) {
-        console.error("[UserContext] Error fetching user details from DB:", dbError.message);
-        setUserDetails(null); // Clear details on error
-        setError("Error fetching user details.");
-        return;
-      }
+        if (dbError || !basicUserData) {
+            console.error("[UserContext] Error fetching basic user details:", dbError?.message);
+            setUserDetails(null); 
+            setError(dbError?.code === 'PGRST116' ? "Perfil de usuario no encontrado." : "Error fetching user details.");
+            return;
+        }
 
-      console.log("[UserContext] DB User details fetched:", data);
-      setUserDetails(data as DbUserType);
-      setError(null); // Clear previous errors
-    } catch (err) {
-      console.error("[UserContext] Unexpected error fetching user details:", err);
-      setUserDetails(null);
-      setError("Unexpected error fetching user details.");
+        console.log("[UserContext] Basic user details fetched:", basicUserData);
+        let finalUserDetails: DetailedUserDetails = { ...basicUserData };
+
+        // Now, conditionally fetch the role-specific ID
+        if (basicUserData.role === 'PLAYER') {
+            const { data: playerData, error: playerError } = await supabase
+                .from('players')
+                .select('id')
+                .eq('user_id', basicUserData.id) // Match players.user_id with users.id
+                .single();
+            if (playerError) console.error("[UserContext] Error fetching player ID:", playerError.message);
+            else if (playerData) finalUserDetails.player_id = playerData.id;
+        } else if (basicUserData.role === 'CLUB') {
+            // Fetch club ID similarly
+             const { data: clubData, error: clubError } = await supabase
+                .from('clubes')
+                .select('id')
+                .eq('user_id', basicUserData.id) 
+                .single();
+            if (clubError) console.error("[UserContext] Error fetching club ID:", clubError.message);
+            else if (clubData) finalUserDetails.club_id = clubData.id;
+        } else if (basicUserData.role === 'COACH') {
+            // Fetch coach ID similarly
+             const { data: coachData, error: coachError } = await supabase
+                .from('coaches')
+                .select('id')
+                .eq('user_id', basicUserData.id) 
+                .single();
+            if (coachError) console.error("[UserContext] Error fetching coach ID:", coachError.message);
+            else if (coachData) finalUserDetails.coach_id = coachData.id;
+        }
+
+        console.log("[UserContext] Final user details (with role ID):", finalUserDetails);
+        setUserDetails(finalUserDetails);
+
+    } catch (err: any) {
+        console.error("[UserContext] Unexpected error fetching user details:", err);
+        setUserDetails(null);
+        setError(`Unexpected error: ${err.message}`);
     }
   }, []);
 

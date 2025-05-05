@@ -1,6 +1,22 @@
 import { createClient } from '@/utils/supabase/server'
 import TournamentDetailsClient from './tournament-details-client'
-import type { Tournament, Match, Category, Couple } from '@/types'
+import type { Tournament, Match, Category } from '@/types'
+import type { Database } from '@/database.types';
+import type { Tables } from '@/database.types';
+
+// Define base Couple type from generated types
+type Couple = Database["public"]["Tables"]["couples"]["Row"];
+type PlayerInfo = { id: string; first_name: string | null; last_name: string | null };
+
+// Define the processed couple type used during data fetching in this component
+// Note: This is defined locally. The client component uses its own definition or the one from tournament-types.ts
+type ProcessedCouple = Couple & {
+    player_1_info: PlayerInfo | null;
+    player_2_info: PlayerInfo | null;
+};
+
+// Define Inscription type
+type Inscription = Tables<"inscriptions">;
 
 // Define el tipo para las props, incluyendo params
 type TournamentDetailsPageProps = {
@@ -48,34 +64,96 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
     .eq('tournament_id', tournamentId);
   console.log(' Server  matchesData', matchesData)
 
-    // Fetch couples (adjust based on your schema - how are couples linked to tournament?)
-    // Example: Assuming couples register *for* a tournament via an inscription table
-    const { data: inscriptionsData, error: inscriptionsError } = await supabase
+    // Fetch inscriptions for the tournament without trying to join couples
+    const { data: inscriptionsRawData, error: inscriptionsErrorRaw } = await supabase
         .from('inscriptions')
-        .select(`
-            couples (*)
-        `)
-        .eq('tournament_id', tournamentId)
+        .select('id, player_id, couple_id, tournament_id') // Select necessary fields
+        .eq('tournament_id', tournamentId);
 
-    let couplesData: Couple[] = [];
-    if (inscriptionsData && !inscriptionsError) {
-        // Extract unique couples from inscriptions
-        const coupleMap = new Map<string, Couple>();
-        inscriptionsData.forEach(inscription => {
-            const coupleData = inscription.couples; // Assign to variable for checking
-            // Ensure 'couples' is a valid object with an 'id'
-            if (coupleData && typeof coupleData === 'object' && !Array.isArray(coupleData) && 'id' in coupleData) {
-                 const couple = coupleData as Couple; // Assert type after checks
-                 coupleMap.set(couple.id, couple);
-            } else {
-                // Optional: Log if the data structure is unexpected
-                // console.warn("[TournamentDetailsPage] Skipping inscription due to unexpected 'couples' data:", coupleData);
-            }
-        });
-        couplesData = Array.from(coupleMap.values());
-    } else if (inscriptionsError) {
-        console.error(" Server   Error fetching inscriptions/couples:", inscriptionsError);
+    if (inscriptionsErrorRaw) {
+        console.error(" Server   Error fetching raw inscriptions:", inscriptionsErrorRaw);
+        // Handle error appropriately - maybe return default empty array
     }
+    const inscriptionsDataRaw = (inscriptionsRawData || []) as Inscription[];
+
+    // Now let's fetch couples separately if needed
+    let couplesData: ProcessedCouple[] = [];
+    const coupleIds = inscriptionsDataRaw
+        .filter(insc => insc.couple_id)
+        .map(insc => insc.couple_id)
+        .filter((id): id is string => id !== null);
+
+    if (coupleIds.length > 0) {
+        const { data: couplesRawData, error: couplesError } = await supabase
+            .from('couples')
+            .select(`
+                id,
+                player_1,
+                player_2
+            `)
+            .in('id', coupleIds);
+
+        if (couplesError) {
+            console.error(" Server   Error fetching couples:", couplesError);
+        } else if (couplesRawData) {
+            // Now fetch player data for these couples
+            const playerIds = couplesRawData.flatMap(couple => [
+                couple.player_1, 
+                couple.player_2
+            ]).filter((id): id is string => id !== null);
+
+            if (playerIds.length > 0) {
+                const { data: playersData, error: playersError } = await supabase
+                    .from('players')
+                    .select('id, first_name, last_name')
+                    .in('id', playerIds);
+
+                if (playersError) {
+                    console.error(" Server   Error fetching couple player details:", playersError);
+                } else if (playersData) {
+                    // Create a map of players for easy lookup
+                    const playerMap = new Map<string, PlayerInfo>();
+                    playersData.forEach(player => {
+                        playerMap.set(player.id, player);
+                    });
+
+                    // Build processed couples data
+                    couplesData = couplesRawData.map(couple => {
+                        const player1Info = couple.player_1 ? playerMap.get(couple.player_1) || null : null;
+                        const player2Info = couple.player_2 ? playerMap.get(couple.player_2) || null : null;
+
+                        return {
+                            id: couple.id,
+                            created_at: new Date().toISOString(), // Default creation date
+                            player_1: couple.player_1,
+                            player_2: couple.player_2,
+                            player_1_info: player1Info,
+                            player_2_info: player2Info
+                        };
+                    });
+                }
+            }
+        }
+    }
+
+  // Identify single player inscriptions and fetch their names
+  const singlePlayerIds = inscriptionsDataRaw
+      .filter(insc => !insc.couple_id && insc.player_id)
+      .map(insc => insc.player_id);
+      
+  let singlePlayersData: PlayerInfo[] = [];
+  if (singlePlayerIds.length > 0) {
+    const { data: playersData, error: playersError } = await supabase
+        .from('players')
+        .select('id, first_name, last_name')
+        .in('id', singlePlayerIds);
+
+    if (playersError) {
+        console.error(" Server   Error fetching single player names:", playersError);
+    } else {
+        singlePlayersData = (playersData || []) as PlayerInfo[];
+    }
+  }
 
   // Handle potential errors during data fetching
   if (tournamentError) {
@@ -95,6 +173,8 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
       initialCategory={categoryData}
       initialMatches={(matchesData as Match[]) || []}
       initialCouples={couplesData || []}
+      initialInscriptions={inscriptionsDataRaw}
+      initialSinglePlayers={singlePlayersData}
     />
   );
 }
