@@ -1,9 +1,9 @@
-import { supabase } from "@/lib/supabase"
+import { supabase } from "@/utils/supabase/client"
 
 import type { Tournament, Category } from "@/types"
 import TournamentsClient from "./tournaments-client"
 export const revalidate = 3600 // Revalidate data every hour
-import { getTournaments, getCategories } from "../api/tournaments"
+import { getTournaments, getCategories } from "@/app/api/tournaments"
 
 
 

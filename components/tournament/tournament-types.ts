@@ -1,15 +1,17 @@
-import type { Tournament, Category, AmericanMatch, LargeMatch, Couple } from "@/types"
+import type { Tournament, Category, AmericanMatch, LargeMatch, Couple, User } from "@/types"
 
-export interface TournamentDetailsProps {
+// Esta interfaz ahora solo contiene datos básicos del torneo
+export interface BaseTournamentProps {
   tournament: Tournament
   category: Category | null
   matches: AmericanMatch[] | LargeMatch[]
   couples: Couple[]
-  user: any
+  user: User | null
   isRegistered: boolean
   loading: boolean
-  router: any
+  isAuthenticated: boolean
   onRegister: () => void
+  // Eliminamos: user, isRegistered, loading, isAuthenticated, router, onRegister
 }
 
 export interface MatchTableProps {
@@ -17,14 +19,5 @@ export interface MatchTableProps {
   formatDate: (dateString: string) => string
 }
 
-export interface RegistrationButtonProps {
-  tournament: Tournament
-  category: Category | null
-  user: any
-  isRegistered: boolean
-  isRegistering?: boolean
-  loading: boolean
-  router: any
-  onRegister: () => void
-  formatDate: (dateString: string) => string
-} 
+// Eliminamos RegistrationButtonProps por ahora, ya que no se usará
+// export interface RegistrationButtonProps { ... } 

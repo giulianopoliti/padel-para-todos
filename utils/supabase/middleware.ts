@@ -1,5 +1,9 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { checkRoutePermission, getRedirectPath } from "@/config/permissions"
+
+// Define user roles (ensure this matches config/permissions.ts and your user data)
+type Role = "PLAYER" | "CLUB" | "COACH" | "ADMIN"
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -29,39 +33,49 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Do not run code between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
+  // Get user session
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user
+  const currentPath = request.nextUrl.pathname
 
-  // IMPORTANT: DO NOT REMOVE auth.getUser()
+  let userRole: Role | null = null
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // If user is logged in, try to fetch their role from your database
+  if (user) {
+    try {
+      const { data: userData, error: userError } = await supabase
+        .from("users") // Make sure 'users' is your user table name
+        .select("role") // Make sure 'role' is the column name for the user's role
+        .eq("id", user.id)
+        .single()
 
-  // if (
-  //   !user &&
-  //   !request.nextUrl.pathname.startsWith('/login') &&
-  //   !request.nextUrl.pathname.startsWith('/auth')
-  // ) {
-  //   // no user, potentially respond by redirecting the user to the login page
-  //   const url = request.nextUrl.clone();
-  //   url.pathname = '/login';
-  //   return NextResponse.redirect(url);
-  // }
+      if (userError) {
+        console.error("[Middleware] Error fetching user role:", userError.message)
+      } else if (userData) {
+        userRole = userData.role as Role // Cast to Role type
+      }
+    } catch (dbError) {
+      console.error("[Middleware] Database error fetching role:", dbError)
+    }
+  }
 
-  // IMPORTANT: You *must* return the supabaseResponse object as it is.
-  // If you're creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely!
+  console.log(`[Middleware] Path: ${currentPath}, User: ${user?.id || 'None'}, Role: ${userRole || 'None'}`)
 
+  // Check permission based on the fetched role
+  const hasPermission = checkRoutePermission(currentPath, userRole)
+  const isAuthenticated = !!user
+
+  console.log(`[Middleware] IsAuthenticated: ${isAuthenticated}, HasPermission: ${hasPermission}`)
+
+  // Redirect if user lacks permission or isn't authenticated for a protected route
+  if (!hasPermission) {
+    const redirectPath = getRedirectPath(currentPath, isAuthenticated, hasPermission)
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = redirectPath
+    console.log(`[Middleware] Redirecting to: ${redirectUrl.pathname}`)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // Return the original response with updated cookies
   return supabaseResponse
 }

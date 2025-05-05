@@ -1,30 +1,17 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, Trophy, MapPin } from "lucide-react"
 import type { Tournament, Category } from "@/types"
-import RegistrationButton from "./registration-button"
 import { formatDate } from "./utils"
 
 interface TournamentHeaderProps {
   tournament: Tournament
   category: Category | null
-  user: any
-  isRegistered: boolean
-  loading: boolean
-  isRegistering: boolean
-  router: any
-  onRegister: () => void
   type: "AMERICAN" | "ELIMINATION"
 }
 
 export default function TournamentHeader({
   tournament,
   category,
-  user,
-  isRegistered,
-  loading,
-  isRegistering,
-  router,
-  onRegister,
   type
 }: TournamentHeaderProps) {
   const typeLabel = type === "AMERICAN" ? "Torneo Americano (1 set)" : "Torneo de Eliminación"
@@ -66,19 +53,6 @@ export default function TournamentHeader({
           </div>
         </div>
       </CardContent>
-      <CardFooter>
-        <RegistrationButton
-          tournament={tournament}
-          category={category}
-          user={user}
-          isRegistered={isRegistered}
-          isRegistering={isRegistering}
-          loading={loading}
-          router={router}
-          onRegister={onRegister}
-          formatDate={formatDate}
-        />
-      </CardFooter>
     </Card>
   )
 } 
