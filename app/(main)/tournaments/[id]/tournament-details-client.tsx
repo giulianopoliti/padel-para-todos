@@ -4,27 +4,43 @@ import { useState, useEffect } from "react"
 import AmericanTournament from "@/components/tournament/american-tournament"
 import EliminationTournament from "@/components/tournament/elimination-tournament"
 import TournamentNotFound from "@/components/tournament/not-found"
-import type { Tournament, Match, Category, AmericanMatch, LargeMatch, Couple, User } from "@/types"
-import type { BaseTournamentProps } from "@/components/tournament/tournament-types"
+import RegisteredPlayers from "@/components/tournament/registered-players"
+import type { Tournament, Match, Category, AmericanMatch, LargeMatch } from "@/types"
+import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
+import type { Database } from "@/database.types"; // Import Database
+import type { Tables } from "@/database.types";
+type Inscription = Tables<"inscriptions">;
+import type { BaseTournamentProps } from "@/components/tournament/tournament-types" // Keep this for now
 import { useRouter } from 'next/navigation'
 import { useUser } from "@/contexts/user-context"
+import { registerPlayerForTournament } from "./actions"; // Import the server action
+import { Button } from "@/components/ui/button"; // Import Button for potential use in handler
+
+// Define base Couple type from generated types
+type Couple = Database["public"]["Tables"]["couples"]["Row"];
+type PlayerInfo = { id: string; first_name: string | null; last_name: string | null };
+
+// Define the processed couple type used in this client and passed down
+// We might need to export this or redefine in tournament-types.ts later
+ type ProcessedCouple = Couple & {
+    player_1_info: PlayerInfo | null;
+    player_2_info: PlayerInfo | null;
+};
 
 interface TournamentDetailsClientProps {
   initialTournament: Tournament | null
   initialCategory: Category | null
   initialMatches: Match[]
-  initialCouples: Couple[]
+  initialCouples: ProcessedCouple[] // Expect ProcessedCouple
+  initialInscriptions: Inscription[] // Add initial inscriptions
+  initialSinglePlayers: PlayerInfo[]; // Add prop for single players
 }
 
 // --- Estrategia: Mapa de Tipos de Torneo a Componentes ---
-// Definimos qué componente usar para cada tipo de torneo.
-// La clave es el string 'tournament.type', el valor es el componente React.
-// Los componentes deben aceptar las props definidas en BaseTournamentProps.
-const tournamentComponents: { [key: string]: React.ComponentType<BaseTournamentProps> } = {
-  AMERICAN: AmericanTournament as React.ComponentType<BaseTournamentProps>, // Casteamos para asegurar compatibilidad
-  ELIMINATION: EliminationTournament as React.ComponentType<BaseTournamentProps>,
-  // FUTURO: Si añades 'SWISS', solo necesitas añadirlo aquí:
-  // SWISS: SwissTournamentComponent,
+// Adjust the type assertion for the components if needed, though BaseTournamentProps update should handle it
+const tournamentComponents: { [key: string]: React.ComponentType<any> } = { // Use any temporarily
+  AMERICAN: AmericanTournament, 
+  ELIMINATION: EliminationTournament,
 };
 // ----------------------------------------------------------
 
@@ -36,115 +52,123 @@ export default function TournamentDetailsClient({
   initialTournament,
   initialCategory,
   initialMatches,
-  initialCouples
+  initialCouples, 
+  initialInscriptions,
+  initialSinglePlayers // Receive single players
 }: TournamentDetailsClientProps) {
   // Mantenemos estado local para los datos del torneo
   const [tournament, setTournament] = useState<Tournament | null>(initialTournament)
   const [matches, setMatches] = useState<Match[]>(initialMatches)
-  const [couples, setCouples] = useState<Couple[]>(initialCouples)
+  const [couples, setCouples] = useState<ProcessedCouple[]>(initialCouples) // Use ProcessedCouple[] state
   const [category, setCategory] = useState<Category | null>(initialCategory)
-  const [user, setUser] = useState<User | null>(null)
-  const { user: contextUser, loading: contextLoading } = useUser();
-  const [isRegistered, setIsRegistered] = useState(false)
+  const [inscriptions, setInscriptions] = useState<Inscription[]>(initialInscriptions); // Add state for inscriptions
+  const [singlePlayers, setSinglePlayers] = useState<PlayerInfo[]>(initialSinglePlayers); // Add state
+  const { user: contextUser, userDetails, loading: contextLoading } = useUser();
+  const [isRegistering, setIsRegistering] = useState(false);
 
   const router = useRouter()
   
-  // Si no hay torneo, mostrar componente de "no encontrado"
-  if (!tournament) {
-    return <TournamentNotFound onBackToTournaments={() => router.push("/tournaments")} />
-  }
-  useEffect(() => {
-    setUser(contextUser)
-  }, [contextUser])
-
-  // Si no hay torneo, mostrar componente de "no encontrado"
   if (!tournament) {
     return <TournamentNotFound onBackToTournaments={() => router.push("/tournaments")} />
   }
 
-  // Obtenemos el componente (estrategia) correcto desde nuestro mapa
   const SelectedTournamentComponent = tournamentComponents[tournament.type];
 
-  // Preparamos las props comunes para la estrategia seleccionada
-  const tournamentProps: BaseTournamentProps = {
-      tournament,
-      category,
-      // Casteamos matches según el tipo, aunque los componentes ya lo hacían internamente.
-      // Podrías simplificar esto si BaseTournamentProps usa un tipo más genérico para matches.
-      matches: tournament.type === "AMERICAN" ? matches as AmericanMatch[] : matches as LargeMatch[],
-      couples,
-      user,
-      isAuthenticated: true,
-      loading: false,
-      onRegister: () => {},
-      isRegistered
+  // Define the registration handler
+  const handleRegister = async () => {
+    if (!contextUser || !tournament) {
+        console.error("Cannot register: User or tournament data missing.");
+        alert("Error: No se pudo obtener la información del usuario o torneo.");
+        return;
+    }
+    
+    setIsRegistering(true); // Set loading state
+    console.log(`Attempting registration for user ${contextUser.id} in tournament ${tournament.id}`);
+
+    try {
+        const result = await registerPlayerForTournament(tournament.id);
+        alert(result.message); // Show result message to user
+
+        if (result.success) {
+            console.log("Registration successful via action.");
+        }
+    } catch (error) {
+        console.error("Error calling registration action:", error);
+        alert("Ocurrió un error inesperado durante la inscripción.");
+    } finally {
+        setIsRegistering(false); // Unset loading state regardless of outcome
+    }
   };
 
-  // Si encontramos un componente para ese tipo, lo renderizamos
+  // Pass props down - remove isRegistered
+  const tournamentProps = {
+      tournament,
+      category,
+      matches,
+      couples, 
+      singlePlayers, 
+      user: contextUser,
+      isAuthenticated: !!contextUser,
+      loading: contextLoading || isRegistering, 
+      onRegister: handleRegister, // Pass the handler (will likely be simplified/moved)
+  };
+
+  // Añadir efecto de depuración
+  useEffect(() => {
+    console.log("Tournament details loaded:");
+    console.log("Single Players:", singlePlayers);
+    console.log("Inscriptions:", inscriptions);
+    console.log("Couples:", couples);
+  }, [singlePlayers, inscriptions, couples]);
+
   if (SelectedTournamentComponent) {
     return (
       <div className="space-y-4">
-        {/* Información del usuario y botón de inscripción */}
-        <div className="bg-white p-4 rounded-lg shadow">
-          {(() => {
-            console.log("[Debug Inscripción] Estado:", { contextLoading, user: user ? user.email : null });
-            if (contextLoading) {
-              console.log("[Debug Inscripción] Renderizando: Cargando...");
-              return <p>Cargando información de usuario...</p>;
-            } else if (user) {
-              console.log("[Debug Inscripción] Renderizando: Usuario Logueado");
-              return (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold">Usuario: {user.email}</p>
-                    {isRegistered ? 
-                      <p className="text-green-600">Ya estás inscrito en este torneo</p> : 
-                      <p>No estás inscrito en este torneo</p>
-                    }
-                  </div>
-                  {!isRegistered && (
-                    <button 
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-                      onClick={() => {
-                        // Implementar lógica de inscripción aquí
-                        console.log("Inscribiendo usuario al torneo");
-                        // Aquí podrías implementar la lógica de registro
-                        // y luego actualizar el estado isRegistered
-                      }}
-                    >
-                      Inscribirme
-                    </button>
-                  )}
-                </div>
-              );
-            } else {
-              console.log("[Debug Inscripción] Renderizando: No Logueado");
-              return (
-                <div className="flex justify-between items-center">
-                  <p>No has iniciado sesión</p>
-                  <button 
-                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
-                    onClick={() => router.push('/login')}
-                  >
-                    Iniciar sesión
-                  </button>
-                </div>
-              );
-            }
-          })()}
+        {/* Registration button section */}
+        <div className="flex justify-end p-4 bg-white rounded-lg shadow-sm">
+          {contextUser ? (
+            <Button 
+              onClick={handleRegister} 
+              disabled={isRegistering} 
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isRegistering ? "Procesando..." : "Inscribirme"}
+            </Button>
+          ) : (
+            <Button 
+              onClick={() => router.push('/login')} 
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Iniciar sesión para inscribirme
+            </Button>
+          )}
         </div>
 
-        {/* Componente del torneo */}
+        {/* Debug info */}
+        <div className="p-4 bg-gray-100 text-sm rounded">
+          <p>Debug info:</p>
+          <p>Single players count: {singlePlayers?.length || 0}</p>
+          <p>Inscriptions count: {inscriptions?.length || 0}</p> 
+          <p>Couples count: {couples?.length || 0}</p>
+        </div>
+
+        {/* Sección de torneo */}
         <SelectedTournamentComponent {...tournamentProps} />
+        
+        {/* Sección de jugadores inscritos - con condición extra */}
+        <div className="mt-8">
+          <RegisteredPlayers 
+            singlePlayers={singlePlayers || []} 
+            isLoading={contextLoading || isRegistering} 
+          />
+        </div>
       </div>
     );
   }
 
-  // Fallback si el tipo de torneo no tiene un componente definido
   return (
     <div>
       <p className="text-red-500">Error: Tipo de torneo '{tournament.type}' no soportado.</p>
-      {/* Podrías mostrar detalles básicos aquí si quieres */}
     </div>
   );
 } 

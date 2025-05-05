@@ -41,7 +41,7 @@ export default function TournamentHeader({
             <MapPin className="h-5 w-5 text-padel-green-600 mr-2" />
             <div>
               <p className="text-sm text-gray-500">Organizador</p>
-              <p className="font-medium">Club: {tournament.club.name}</p>
+              <p className="font-medium">Club: {tournament.club}</p>
             </div>
           </div>
           <div className="flex items-center">

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
 import Link from 'next/link'
-import Navbar from '@/components/navbar'
+import "../../globals.css"
 
 export default function LoginPage() {
   const { toast } = useToast()
@@ -20,6 +20,12 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
   const MAX_RETRIES = 2
+  const [mounted, setMounted] = useState(false)
+
+  // Only render the component on the client side
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Use a debounce to prevent hammering the server
   useEffect(() => {
@@ -88,9 +94,13 @@ export default function LoginPage() {
     }
   }
 
+  // Don't render anything on the server or during first client render
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-padel-green-50">
-      
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
@@ -169,7 +179,7 @@ export default function LoginPage() {
               </Button>
             </div>
             <div className="text-center">
-              <Link href="/" className="text-sm text-padel-green-600 hover:underline">
+              <Link href="/home" className="text-sm text-padel-green-600 hover:underline">
                 Volver al inicio
               </Link>
             </div>
