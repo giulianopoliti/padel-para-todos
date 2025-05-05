@@ -1,6 +1,8 @@
 import { createClient } from "@/utils/supabase/server";
-import { supabase } from "@/lib/supabase";
-import { Player, Couple, Category } from "@/types";
+import { supabase } from "@/utils/supabase/client";
+import { Player, Couple, Category, Role } from "@/types";
+import { User } from "@supabase/supabase-js";
+
 
 export async function getPlayersMale() {
     const { data, error } = await supabase
@@ -107,3 +109,42 @@ export async function completeProfile(player: Player) {
         .insert(player)
         .select()
 }
+
+export const getUser = async (): Promise<User | null> => {
+    const supabase = await createClient();
+    try {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+      if (error) throw error;
+      return user;
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      return null;
+    }
+  };
+  
+
+  export const getUserRole = async (): Promise<Role | null> => {
+    const supabase = await createClient();
+    const user = await getUser();
+    
+    if (!user) {
+      console.log("No user ID available, user might be logged out");
+      return null;
+    }
+  
+    const { data, error } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+  
+    if (error) {
+      console.error("Error fetching user role:", error);
+      return null;
+    }
+  
+    return data.role as Role;
+  };

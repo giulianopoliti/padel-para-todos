@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { login } from '@/app/login/actions'
+import { login } from '@/app/(login)/login/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -90,7 +90,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-padel-green-50">
-      <Navbar />
       
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
         <Card className="w-full max-w-md">

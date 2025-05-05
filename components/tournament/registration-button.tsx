@@ -1,9 +1,22 @@
 import { Button } from "@/components/ui/button"
 import { CheckCircle, Calendar, Trophy, MapPin } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import type { RegistrationButtonProps } from "./tournament-types"
-import { useEffect } from "react"
-import { useAuth } from "@/components/auth-provider"
+import type { Tournament, Category, User } from "@/types" // Assuming types are here
+import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
+
+// Define the props interface
+interface RegistrationButtonProps {
+  tournament: Tournament;
+  category: Category | null; // Allow category to be null initially
+  user: User | null;
+  isRegistered: boolean;
+  loading: boolean;
+  router: AppRouterInstance;
+  onRegister: () => void; // Or more specific type if arguments are passed
+  formatDate: (date: string | Date) => string; // Adjust based on actual formatDate signature
+  isRegistering?: boolean; // Optional prop
+  isAuthenticated: boolean;
+}
 
 export default function RegistrationButton({ 
   tournament, 
@@ -14,57 +27,48 @@ export default function RegistrationButton({
   router, 
   onRegister,
   formatDate,
-  isRegistering = false 
+  isRegistering = false,
+  isAuthenticated // Recibe el estado de autenticación
 }: RegistrationButtonProps) {
-  const { isAuthenticated, isLoading: authLoading } = useAuth()
-
-  // Añadir logs para depuración
-  useEffect(() => {
-    console.log("[RegistrationButton] Estado:", {
-      user: !!user,
-      loading,
-      isRegistered,
-      isRegistering,
-      isAuthenticated,
-      authLoading
-    })
-    // Si hay usuario, mostrar su ID
-    if (user) {
-      console.log("[RegistrationButton] User ID:", user.id)
-    }
-  }, [user, loading, isRegistered, isRegistering, isAuthenticated, authLoading])
   
-  // Lógica simplificada: si está autenticado según el nuevo provider, y tenemos el user cargado correctamente
-  const isLoggedIn = isAuthenticated && !!user
-  
-  // Mostrar botón cargando si el contexto de usuario está cargando
-  if (loading || authLoading) {
+  // Muestra cargando si el hook principal está cargando
+  if (loading) {
     return (
       <div>
         <Button disabled className="bg-padel-green-600 opacity-70">
           Cargando...
         </Button>
-        <div className="mt-2 text-xs text-gray-500">Verificando estado de autenticación...</div>
+        <div className="mt-2 text-xs text-gray-500">Verificando estado...</div>
       </div>
     )
   }
 
-  // Si no está logueado según nuestra nueva lógica
-  if (!isLoggedIn) {
+  // Si el hook indica que no está autenticado
+  if (!isAuthenticated) {
     return (
       <div>
         <Button onClick={() => router.push('/login')} className="bg-padel-green-600 hover:bg-padel-green-700">
           Inicia sesión para inscribirte
         </Button>
-        <div className="mt-2 text-xs text-gray-500">
-          Estado Auth: {isAuthenticated ? "Autenticado" : "No autenticado"}, 
-          User: {user ? "Cargado" : "No disponible"}
+      </div>
+    )
+  }
+
+  // Si está autenticado pero el usuario no se cargó (problema potencial)
+  if (!user) {
+     return (
+      <div>
+        <Button disabled className="bg-padel-green-600 opacity-70">
+          Obteniendo datos de usuario...
+        </Button>
+        <div className="mt-2 text-xs text-red-500">
+          Error: Autenticado pero datos de usuario no disponibles.
         </div>
       </div>
     )
   }
 
-  // Si el usuario ya está registrado, mostrar mensaje de confirmación
+  // Si el usuario ya está registrado
   if (isRegistered) {
     return (
       <div>
@@ -77,7 +81,7 @@ export default function RegistrationButton({
     )
   }
 
-  // En caso contrario, mostrar botón para registrarse
+  // Si está autenticado, con datos y no registrado, mostrar botón
   return (
     <div>
       <Dialog>

@@ -1,12 +1,11 @@
 'use client'
 
 // Verificar que esta importación es correcta
-import { register } from '../login/actions'
+import { register } from './actions'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useToast } from '@/components/ui/use-toast'
-import Navbar from '@/components/navbar'
 
 export default function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -67,7 +66,6 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-padel-green-50">
-      <Navbar />
       <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center py-2">
         <div className="w-full max-w-md space-y-8">
           <div>

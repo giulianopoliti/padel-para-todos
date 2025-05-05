@@ -1,11 +1,11 @@
-// app/layout.tsx
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/utils/supabase/server'
 import { SupabaseProvider } from '@/components/supabase-provider'
 import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 import { UserProvider } from '@/contexts/user-context'
-import AuthProvider from '@/components/auth-provider'
+// import AuthProvider from '@/components/auth-provider' // Eliminamos la importación
 import { Toaster } from '@/components/ui/toaster'
+import Navbar from '@/components/navbar' // 👈 Asegurate de importar la navbar
 
 export const metadata = {
   title: 'Sistema de Torneos de Pádel',
@@ -18,8 +18,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   const supabase = await createClient()
-  
-  // Get authenticated user instead of just session
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -31,12 +30,11 @@ export default async function RootLayout({
       <body>
         <SupabaseProvider initialUser={initialUser}>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            <UserProvider>
-              <AuthProvider>
-                {children}
-                <Toaster />
-              </AuthProvider>
-            </UserProvider>
+            <UserProvider> 
+              <Navbar /> {/* ✅ Navbar se muestra en todas las páginas */}
+              {children}
+              <Toaster />
+             </UserProvider> 
           </ThemeProvider>
         </SupabaseProvider>
       </body>

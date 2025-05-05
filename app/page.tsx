@@ -6,7 +6,6 @@ import { Trophy, Calendar, Users, ArrowRight } from "lucide-react"
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar />
 
       <main className="flex-1">
         <section className="hero-section py-16 md:py-24">

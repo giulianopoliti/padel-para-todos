@@ -2,22 +2,17 @@ import TournamentLayout from "./tournament-layout"
 import TournamentHeader from "./tournament-header"
 import MatchTable from "./match-table"
 import { formatDate } from "./utils"
-import type { TournamentDetailsProps } from "./tournament-types"
+import type { BaseTournamentProps } from "./tournament-types"
 import type { AmericanMatch } from "@/types"
+import { useRouter } from 'next/navigation'
 
 export default function AmericanTournament({
   tournament,
   category,
   matches,
-  user,
-  isRegistered,
-  loading,
-  router,
-  onRegister,
-}: TournamentDetailsProps) {
-  console.log("[AmericanTournament] Props received - User:", user);
-  console.log("[AmericanTournament] Props received - Loading:", loading);
-  console.log("[AmericanTournament] Props received - Is Registered:", isRegistered);
+  couples,
+}: Omit<BaseTournamentProps, 'matches'> & { matches: AmericanMatch[] }) {
+  const router = useRouter()
 
   return (
     <TournamentLayout onBack={() => router.back()}>
@@ -26,19 +21,13 @@ export default function AmericanTournament({
           <TournamentHeader
             tournament={tournament}
             category={category}
-            user={user}
-            isRegistered={isRegistered}
-            loading={loading}
-            isRegistering={false}
-            router={router}
-            onRegister={onRegister}
             type="AMERICAN"
           />
         </div>
       </div>
 
       <MatchTable 
-        matches={matches as AmericanMatch[]} 
+        matches={matches}
         formatDate={formatDate} 
       />
     </TournamentLayout>

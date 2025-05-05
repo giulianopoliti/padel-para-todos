@@ -41,7 +41,6 @@ export default async function DashboardLayout({
   // Return the appropriate slot based on the user's role
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
       {userData.role === "CLUB" && club}
       {userData.role === "PLAYER" && player}
       {userData.role === "COACH" && coach}
