@@ -1,7 +1,7 @@
 "use server"
 
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { createClient } from "@/utils/supabase/server"
 import { EmailOtpType } from "@supabase/supabase-js"
 
 export async function register(formData: FormData) {
@@ -55,36 +55,36 @@ export async function register(formData: FormData) {
        return { 
          success: true, 
          message: "Registro inicial completado. Revisa tu email si se requiere confirmación, o intenta iniciar sesión.",
-         // redirectUrl: "/login" // Optionally redirect immediately
+         redirectUrl: "/login" // Optionally redirect immediately
        };
   }
 
-  // Add user to public.users table
+  // Add user to public.users table with role null and profile incomplete
   const { error: insertError } = await supabase
     .from("users")
-    .insert({ 
+    .insert({
         id: user.id, // Use the ID from the authenticated user
-        email: user.email, 
-        role: 'PLAYER' // Default role, adjust as needed
+        auth_id: user.id, // Also store auth_id explicitly if needed
+        email: user.email,
+        role: null // Set role to null initially
      });
 
   if (insertError) {
     console.error("[SERVER REGISTER] Error inserting user into public.users:", insertError.message);
-    // Log this error but proceed, as auth signup was successful.
-    // The user might need manual intervention or retry profile setup later.
+    // Even if profile insert fails, auth succeeded. Maybe let them log in and try completion later?
+    // Or display a specific error asking them to contact support.
        return { 
-         success: true, 
-         message: "Registro completado, pero hubo un problema al crear el perfil inicial. Por favor, contacta soporte o intenta configurar tu perfil más tarde.",
-         // redirectUrl: "/profile-setup" // Redirect to a profile setup page?
+         success: false, // Indicate failure because profile setup is crucial here
+         error: "Registro completado, pero hubo un problema al inicializar tu perfil. Por favor, contacta soporte.",
        };
   }
 
-  console.log("[SERVER REGISTER] User registered and added to public.users successfully:", user.id);
+  console.log("[SERVER REGISTER] User registered and added to public.users, needs profile completion:", user.id);
 
-  // Return success message and optional redirect URL
+  // Redirect user to complete their profile
   return { 
      success: true, 
-     message: "¡Registro exitoso! Ahora puedes iniciar sesión.",
-     redirectUrl: "/login" // Redirect to login page after successful registration
+     message: "¡Registro exitoso! Serás redirigido para completar tu perfil.",
+     redirectUrl: "/complete-profile" // Redirect to profile completion page
    };
 } 

@@ -1,4 +1,4 @@
-import { getPlayersMale, getCategories } from "../api/users"
+import { getPlayersMale, getCategories } from "@/app/api/users"
 import RankingClient from "./ranking-client"
 
 export const revalidate = 3600 // Revalidate data every hour

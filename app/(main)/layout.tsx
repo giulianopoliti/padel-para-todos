@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { SupabaseProvider } from '@/components/supabase-provider'
 import { ThemeProvider } from '@/components/theme-provider'
-import './globals.css'
+import '../globals.css'
 import { UserProvider } from '@/contexts/user-context'
 // import AuthProvider from '@/components/auth-provider' // Eliminamos la importación
 import { Toaster } from '@/components/ui/toaster'
