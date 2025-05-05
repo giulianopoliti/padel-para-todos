@@ -59,11 +59,11 @@ export async function login(formData: FormData) {
 
       console.log(`[SERVER] User verified, checking role for user ID: ${user.id}`)
       
-      // Verify role - using minimal data selection
+      // Verify role - fetch only the role
       try {
         const { data: userData, error: userRoleError } = await supabase
           .from("users")
-          .select("role") // Only select the role field, not everything
+          .select("role") // Select only the role column
           .eq("id", user.id)
           .single()
 
@@ -79,19 +79,28 @@ export async function login(formData: FormData) {
           return { error: "Perfil de usuario no encontrado" }
         }
 
-        console.log(`[SERVER] User role from database: ${userData.role}, selected role: ${role}`)
-        
-        if (userData.role !== role) {
-          console.error(`[SERVER] Role mismatch: ${userData.role} vs ${role}`)
-          await supabase.auth.signOut()
-          return { error: `Esta cuenta no tiene permisos de ${role}` }
+        // Check if role is not set
+        const roleSet = userData.role !== null;
+
+        console.log(`[SERVER] User data: role=${userData.role}, selectedRole=${role}`);
+
+        // If role is not set, force profile completion
+        if (!roleSet) {
+          console.log("[SERVER] User role not set. Login allowed, redirecting to profile completion.");
+          return { success: true, redirectUrl: "/complete-profile" }; 
         }
 
+        // Role is set, NOW enforce role match
+        if (userData.role !== role) {
+          console.error(`[SERVER] Role mismatch for completed profile: DB Role=${userData.role} vs Selected Role=${role}`) // Log mismatch
+          await supabase.auth.signOut() // Log out the user
+          return { error: `Esta cuenta está registrada como ${userData.role}, no como ${role}.` } // Informative error
+        }
+
+        // Role matches, proceed to home
         console.log("[SERVER] Role verified, authentication successful")
-        
-        // Return success to redirect on the client side
-        // This avoids the need for a server redirect which might be causing the resource issue
-        return { success: true }
+        return { success: true, redirectUrl: "/home" } 
+
       } catch (dbError) {
         console.error("[SERVER] Database error when checking role:", dbError)
         await supabase.auth.signOut()

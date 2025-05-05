@@ -62,9 +62,14 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
         // Extract unique couples from inscriptions
         const coupleMap = new Map<string, Couple>();
         inscriptionsData.forEach(inscription => {
-            // Ensure 'couples' is not null and has an id
-            if (inscription.couples && typeof inscription.couples === 'object' && inscription.couples.id) {
-                 coupleMap.set(inscription.couples.id, inscription.couples as Couple);
+            const coupleData = inscription.couples; // Assign to variable for checking
+            // Ensure 'couples' is a valid object with an 'id'
+            if (coupleData && typeof coupleData === 'object' && !Array.isArray(coupleData) && 'id' in coupleData) {
+                 const couple = coupleData as Couple; // Assert type after checks
+                 coupleMap.set(couple.id, couple);
+            } else {
+                // Optional: Log if the data structure is unexpected
+                // console.warn("[TournamentDetailsPage] Skipping inscription due to unexpected 'couples' data:", coupleData);
             }
         });
         couplesData = Array.from(coupleMap.values());

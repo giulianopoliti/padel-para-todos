@@ -13,6 +13,20 @@ type Role = "PLAYER" | "CLUB" | "COACH" | "ADMIN";
 import NavbarClient from './navbar-client';
 import SkeletonNavbar from './skeleton-navbar';
 
+// Define the public links that should always be visible
+const publicLinks = [
+  { 
+    path: "/tournaments", 
+    label: "Torneos", 
+    icon: "Trophy" as const, // Use const assertion for stricter typing if IconName is specific
+  },
+  { 
+    path: "/ranking", 
+    label: "Ranking", 
+    icon: "BarChart" as const, // Example icon, adjust as needed
+  },
+];
+
 // Define the expected props for NavbarClient explicitly
 interface NavbarClientProps {
   links: { label: string; icon: string; path: string; }[];
@@ -40,7 +54,7 @@ export default function Navbar() {
   // If no role (not logged in, or details not loaded), generate links for a "PUBLIC" or default state.
   // We need a way to handle the 'PUBLIC' case if needed, or perhaps getLinksForRole handles null?
   // For now, let's assume getLinksForRole needs a valid role, or we show minimal links.
-  const links = userRole ? getLinksForRole(userRole) : []; // Get links or provide an empty array/default links
+  const links = userRole ? getLinksForRole(userRole) : publicLinks; // Get links or provide publicLinks
 
   console.log("[Navbar] State:", { 
     isAuth: !!user, // Check if Supabase auth user exists
