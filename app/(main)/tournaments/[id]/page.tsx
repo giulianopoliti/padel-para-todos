@@ -39,19 +39,26 @@ export default async function TournamentDetailsPage({ params }: TournamentDetail
   // Fetch tournament details
   const { data: tournamentData, error: tournamentError } = await supabase
     .from('tournaments')
-    .select('*')
+    .select(`
+      *,
+      club:club_id (
+        id,
+        name,
+        address
+      )
+    `)
     .eq('id', tournamentId)
     .single();
 
   // Fetch category details (assuming a relation or separate query needed)
   // Placeholder: Adjust query based on your actual schema
-  const categoryId = tournamentData?.category; // Example: get category_id from tournament
+  const categoryName = tournamentData?.category; // Example: get category_id from tournament
   let categoryData: Category | null = null;
-  if (categoryId) {
+  if (categoryName) {
       const { data: catData, error: categoryError } = await supabase
           .from('categories')
           .select('*')
-          .eq('id', categoryId)
+          .eq('name', categoryName)
           .single();
       if (categoryError) console.error(" Server   Error fetching category:", categoryError);
       else categoryData = catData as Category;

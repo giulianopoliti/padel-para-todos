@@ -91,7 +91,6 @@ export async function registerPlayerForTournament(tournamentId: string): Promise
         const { data: newInscription, error: insertError } = await supabase
             .from('inscriptions')
             .insert({
-                id: playerId, // Use the player's ID
                 player_id: playerId,
                 tournament_id: tournamentId
                 // Omit couple_id entirely, assuming the column is nullable
