@@ -77,8 +77,11 @@ export default function TournamentsClient({ initialTournaments, initialCategorie
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas las categorías</SelectItem>
-                    {initialCategories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
+                    {initialCategories.map((category, index) => (
+                      <SelectItem 
+                        key={category.id ? `category-${category.id}` : `category-index-${index}`} 
+                        value={category.id}
+                      >
                         {category.name}
                       </SelectItem>
                     ))}
@@ -116,7 +119,7 @@ export default function TournamentsClient({ initialTournaments, initialCategorie
 
           <TabsContent value="upcoming" className="p-6">
             {filteredTournaments.filter((t) => t.status === "NOT_STARTED").length > 0 ? (
-              <div key="upcoming-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredTournaments
                     .filter((t) => t.status === "NOT_STARTED")
                   .map((tournament) => (
@@ -129,7 +132,7 @@ export default function TournamentsClient({ initialTournaments, initialCategorie
                   ))}
               </div>
             ) : (
-              <div key="upcoming-empty" className="text-center py-12">
+              <div className="text-center py-12">
                 <Calendar className="h-12 w-12 text-padel-green-300 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-padel-green-700 mb-2">No hay próximos torneos</h3>
                 <p className="text-gray-600 max-w-md mx-auto">
@@ -141,7 +144,7 @@ export default function TournamentsClient({ initialTournaments, initialCategorie
 
           <TabsContent value="active" className="p-6">
             {filteredTournaments.filter((t) => t.status === "IN_PROGRESS").length > 0 ? (
-              <div key="active-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredTournaments
                   .filter((t) => t.status === "IN_PROGRESS")
                   .map((tournament) => (
@@ -154,7 +157,7 @@ export default function TournamentsClient({ initialTournaments, initialCategorie
                   ))}
               </div>
             ) : (
-              <div key="active-empty" className="text-center py-12">
+              <div className="text-center py-12">
                 <Trophy className="h-12 w-12 text-padel-green-300 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-padel-green-700 mb-2">No hay torneos activos</h3>
                 <p className="text-gray-600 max-w-md mx-auto">
@@ -166,7 +169,7 @@ export default function TournamentsClient({ initialTournaments, initialCategorie
 
           <TabsContent value="past" className="p-6">
             {filteredTournaments.filter((t) => t.status === "FINISHED").length > 0 ? (
-              <div key="past-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredTournaments
                   .filter((t) => t.status === "FINISHED")
                   .map((tournament) => (
@@ -179,7 +182,7 @@ export default function TournamentsClient({ initialTournaments, initialCategorie
                   ))}
               </div>
             ) : (
-              <div key="past-empty" className="text-center py-12">
+              <div className="text-center py-12">
                 <Archive className="h-12 w-12 text-padel-green-300 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-padel-green-700 mb-2">No hay torneos pasados</h3>
                 <p className="text-gray-600 max-w-md mx-auto">
