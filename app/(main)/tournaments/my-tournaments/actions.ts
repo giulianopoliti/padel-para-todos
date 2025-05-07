@@ -62,7 +62,7 @@ export async function getClubTournaments(): Promise<GetClubTournamentsResult> {
       startDate: tournament.start_date,
       endDate: tournament.end_date,
       type: tournament.type as "AMERICAN" | "LONG",
-      status: tournament.status as "NOT_STARTED" | "IN_PROGRESS" | "FINISHED",
+      status: tournament.status as "NOT_STARTED" | "IN_PROGRESS" | "FINISHED" | "PAIRING",
       category: tournament.category,
       gender: tournament.gender || "MIXED",
       createdAt: tournament.created_at,

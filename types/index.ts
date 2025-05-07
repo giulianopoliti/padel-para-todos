@@ -1,8 +1,9 @@
 export type Role = "CLUB" | "PLAYER" | "COACH"
 
 export type Category = {
-  id: string
   name: string // "2da", "3ra", "4ta", etc.
+  lower_range: number
+  upper_range: number
 }
 
 export type Club = {

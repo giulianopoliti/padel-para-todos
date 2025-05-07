@@ -12,7 +12,7 @@ export const metadata = {
   description: 'Sistema para organizar torneos de pádel amateurs',
 }
 
-export default async function RootLayout({
+export default async function MainLayout({
   children,
 }: {
   children: React.ReactNode
@@ -26,18 +26,14 @@ export default async function RootLayout({
   const initialUser = user || null
 
   return (
-    <html lang="es" suppressHydrationWarning>
-      <body>
-        <SupabaseProvider initialUser={initialUser}>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            <UserProvider> 
-              <Navbar /> {/* ✅ Navbar se muestra en todas las páginas */}
-              {children}
-              <Toaster />
-             </UserProvider> 
-          </ThemeProvider>
-        </SupabaseProvider>
-      </body>
-    </html>
+    <SupabaseProvider initialUser={initialUser}>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <UserProvider> 
+          <Navbar /> {/* ✅ Navbar se muestra en todas las páginas */}
+          {children}
+          <Toaster />
+        </UserProvider> 
+      </ThemeProvider>
+    </SupabaseProvider>
   )
 }
