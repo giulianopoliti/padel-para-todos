@@ -9,6 +9,7 @@ type IconName =
   | 'Layers' // For Categories
   | 'MapPin' // For Club
   | 'Settings'
+  | 'BarChart' // For Ranking
   | 'User'; // For Profile
 
 // Structure for defining route permissions and navigation links
@@ -27,11 +28,22 @@ const routePermissions: RouteConfig[] = [
     icon: "Home", 
     roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
   },
+  {
+    path: "/ranking",
+    label: "Ranking", 
+    icon: "BarChart", 
+    roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
+  },
   { 
     path: "/tournaments", 
     label: "Torneos", 
     icon: "Trophy", 
     roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
+  },
+  {path: "/my-tournaments",
+    label: "Mis Torneos",
+    icon: "Trophy",
+    roles: ["CLUB"], // Accessible to all logged-in users
   },
   // Example Admin/Specific Role Routes (Uncomment/modify as needed)
   // { 

@@ -10,18 +10,25 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Settings, User as UserIcon } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useUser } from "@/contexts/user-context";
 import type { User as AuthUser } from "@supabase/supabase-js";
+import { getIcon, IconName } from "@/components/icons";
 
-interface NavbarUserProfileProps {
-  isMobile?: boolean;
+interface NavLink {
+  label: string;
+  icon: string;
+  path: string;
 }
 
-export default function NavbarUserProfile({ isMobile = false }: NavbarUserProfileProps) {
-  const { user, logout } = useUser();
+interface NavbarUserProfileProps {
+  profileLinks?: NavLink[];
+}
+
+export default function NavbarUserProfile({ profileLinks = [] }: NavbarUserProfileProps) {
+  const { user, logout, userDetails } = useUser();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -40,91 +47,66 @@ export default function NavbarUserProfile({ isMobile = false }: NavbarUserProfil
   }
 
   const getInitials = () => {
-    if (!user?.email) return "?";
-    return user.email.substring(0, 2).toUpperCase();
+    const UDetails = userDetails as any;
+    if (UDetails && typeof UDetails.first_name === 'string' && UDetails.first_name && typeof UDetails.last_name === 'string' && UDetails.last_name) {
+      return `${UDetails.first_name[0]}${UDetails.last_name[0]}`.toUpperCase();
+    }
+    if (UDetails && typeof UDetails.name === 'string' && UDetails.name) {
+      return UDetails.name.substring(0, 2).toUpperCase();
+    }
+    if (user?.email) return user.email.substring(0, 2).toUpperCase();
+    return "U";
   };
-
+  
+  const displayName = 
+    (userDetails && typeof (userDetails as any).first_name === 'string' && (userDetails as any).first_name) ||
+    (userDetails && typeof (userDetails as any).name === 'string' && (userDetails as any).name) ||
+    user.email?.split('@')[0] || 
+    "Usuario";
+  
   const userEmail = user.email || "No email available";
   const userIdShort = user.id.substring(0, 8);
-
-  if (isMobile) {
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center p-2 rounded-md bg-gray-50">
-          <Avatar className="h-10 w-10 mr-4">
-            <AvatarFallback>{getInitials()}</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-medium text-gray-900">{userEmail}</p>
-            <p className="text-sm text-gray-500">ID: {userIdShort}</p>
-          </div>
-        </div>
-        
-        <Link href="/profile" className="flex items-center p-2 rounded-md hover:bg-gray-100">
-          <UserIcon className="mr-3 h-5 w-5 text-gray-500" />
-          <span>Mi Perfil</span>
-        </Link>
-        
-        <Link href="/settings" className="flex items-center p-2 rounded-md hover:bg-gray-100">
-          <Settings className="mr-3 h-5 w-5 text-gray-500" />
-          <span>Configuración</span>
-        </Link>
-        
-        <Button 
-          variant="destructive" 
-          className="w-full mt-2" 
-          onClick={handleLogout}
-          disabled={isLoggingOut}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          {isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"}
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative bg-white text-padel-green-600 rounded-full p-0 h-10 w-10 hover:bg-gray-100">
-          <Avatar>
-            <AvatarFallback>{getInitials()}</AvatarFallback>
+        <Button variant="ghost" className="relative rounded-full p-0 h-10 w-10 text-white hover:bg-teal-500 focus-visible:ring-white focus-visible:ring-offset-0 focus-visible:ring-offset-teal-600">
+          <Avatar className="h-9 w-9">
+            <AvatarFallback className="bg-teal-700 text-sm font-semibold text-white">{getInitials()}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{userEmail}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              ID: {userIdShort}
+      <DropdownMenuContent align="end" className="w-64 bg-white border-slate-200 shadow-lg rounded-md mt-1">
+        <DropdownMenuLabel className="px-3 py-2.5">
+          <div className="flex flex-col space-y-0.5">
+            <p className="text-sm font-semibold leading-none text-slate-800 truncate" title={displayName}>{displayName}</p>
+            <p className="text-xs leading-none text-slate-500 truncate" title={userEmail}>
+              {userEmail}
             </p>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator className="bg-slate-100" />
         
-        <DropdownMenuItem asChild>
-          <Link href="/profile" className="cursor-pointer flex items-center">
-            <UserIcon className="mr-2 h-4 w-4" />
-            <span>Mi Perfil</span>
-          </Link>
-        </DropdownMenuItem>
+        {profileLinks.map(link => {
+          const IconComponent = getIcon(link.icon as IconName);
+          return (
+            <DropdownMenuItem key={link.path} asChild>
+              <Link href={link.path} className="cursor-pointer flex items-center px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-sm focus:bg-slate-100 focus:text-slate-900">
+                {IconComponent && <IconComponent className="mr-2.5 h-4 w-4 text-slate-500" />}
+                <span>{link.label}</span>
+              </Link>
+            </DropdownMenuItem>
+          );
+        })}
         
-        <DropdownMenuItem asChild>
-          <Link href="/settings" className="cursor-pointer flex items-center">
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Configuración</span>
-          </Link>
-        </DropdownMenuItem>
-        
-        <DropdownMenuSeparator />
+        {profileLinks.length > 0 && <DropdownMenuSeparator className="bg-slate-100"/>}
         
         <DropdownMenuItem 
-          className="text-destructive focus:text-destructive cursor-pointer flex items-center"
+          className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer flex items-center px-3 py-2 text-sm rounded-sm"
           onClick={handleLogout}
           disabled={isLoggingOut}
         >
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="mr-2.5 h-4 w-4" />
           <span>{isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

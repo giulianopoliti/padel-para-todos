@@ -14,45 +14,48 @@ interface NavLink {
 }
 
 interface NavbarClientProps {
-  links: NavLink[];
+  mainLinks: NavLink[];
+  profileLinks: NavLink[];
   user: AuthUser | null;
 }
 
-export default function NavbarClient({ links, user }: NavbarClientProps) {
+export default function NavbarClient({ mainLinks, profileLinks, user }: NavbarClientProps) {
   const pathname = usePathname();
   
   return (
-    <header className="bg-padel-green-600 text-white shadow">
+    <header className="bg-teal-600 text-white shadow">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-          <Link href="/" className="text-xl font-bold flex items-center">
+          <Link href="/home" className="text-xl font-bold flex items-center">
             <Trophy className="h-6 w-6 mr-2" />
-            <span>Torneos de Pádel</span>
+            <span>PadelPRO</span>
           </Link>
           
-          <nav className="flex items-center space-x-4">
-            {links.map((link) => (
+          <nav className="flex items-center space-x-1">
+            {mainLinks.map((link) => (
               <Link 
                 key={link.path}
                 href={link.path}
                 className={`px-3 py-2 rounded text-sm font-medium ${
-                  pathname === link.path ? "bg-white text-padel-green-600" : "hover:bg-padel-green-500"
+                  pathname === link.path 
+                    ? "bg-white text-teal-700 hover:bg-white/90" 
+                    : "hover:bg-teal-500"
                 }`}
               >
                 {link.label}
               </Link>
             ))}
-            
-            <div className="ml-4">
-              {user ? (
-                <NavbarUserProfile />
-              ) : (
-                <Button asChild variant="secondary" className="bg-white text-padel-green-600 hover:bg-white/90">
-                  <Link href="/login">Iniciar Sesión</Link>
-                </Button>
-              )}
-            </div>
           </nav>
+            
+          <div className="ml-4">
+            {user ? (
+              <NavbarUserProfile profileLinks={profileLinks} />
+            ) : (
+              <Button asChild variant="secondary" className="bg-white text-teal-700 hover:bg-white/90 rounded-full">
+                <Link href="/login">Iniciar Sesión</Link>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </header>
