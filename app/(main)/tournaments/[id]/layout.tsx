@@ -66,7 +66,7 @@ export default async function TournamentIdLayout({
   club,
   player,
   public: publicView, 
-  params,
+  params: { id: tournamentId },
 }: TournamentIdLayoutProps) {
   const { user, userDetails } = await getUserSessionAndDetails();
   const supabaseClient = await createClient();
@@ -74,11 +74,11 @@ export default async function TournamentIdLayout({
   const { data: tournamentData, error: tournamentError } = await supabaseClient
     .from('tournaments')
     .select('id, name, club_id') 
-    .eq('id', params.id) 
+    .eq('id', tournamentId)
     .single();
 
   if (tournamentError || !tournamentData) {
-    console.error(`[Layout] Error fetching tournament (${params.id}):`, tournamentError?.message);
+    console.error(`[Layout] Error fetching tournament (${tournamentId}):`, tournamentError?.message);
     return (
         <>
             {children} 

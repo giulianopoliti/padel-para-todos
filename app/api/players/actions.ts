@@ -2,7 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-
+import { PlayerDTO } from '@/types';
 /**
  * Buscar jugadores existentes por nombre, apellido o DNI
  */
@@ -253,3 +253,40 @@ export async function registerNewPlayer({
   
   return { success: true, message: "Jugador inscrito con éxito" };
 } 
+
+export async function getPlayerById(playerId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('players')
+    .select('*')
+    .eq('id', playerId);
+  if (error) {
+    console.error("[getPlayerById] Error fetching player:", error);
+    throw new Error("No se pudo obtener el jugador");
+  }
+  return data;
+}
+
+export async function getAllPlayersDTO(): Promise<PlayerDTO[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('players')
+    .select('id, first_name, last_name, dni, score');
+
+  if (error) {
+    console.error("[getAllPlayersDTO] Error fetching players:", error.message);
+    throw new Error("No se pudo obtener los jugadores");
+  }
+  const playersDTO: PlayerDTO[] = [];
+  for (const player of data) {
+    playersDTO.push({
+      id: player.id,
+      first_name: player.first_name,
+      last_name: player.last_name,
+      dni: player.dni,
+      score: player.score
+    });
+  }
+  return playersDTO;
+}
+

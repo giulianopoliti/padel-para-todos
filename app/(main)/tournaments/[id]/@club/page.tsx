@@ -32,8 +32,7 @@ function TournamentLoading() {
   )
 }
 
-export default async function TournamentDetailsPage({ params }: { params: { id: string } }) {
-  const tournamentId = params.id;
+export default async function TournamentDetailsPage({ params: { id: tournamentId } }: { params: { id: string } }) {
   console.log(`[ClubPage] Rendering for tournament ID: ${tournamentId}`);
 
   let tournamentData: any = null;

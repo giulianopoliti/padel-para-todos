@@ -148,3 +148,40 @@ export const getUser = async (): Promise<User | null> => {
   
     return data.role as Role;
   };
+
+
+  export async function getUserByDni(dni: string) {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("players")
+      .select("*")
+      .eq("dni", dni);
+
+    if (error) {
+      console.error("Error fetching user by DNI:", error);
+      return null;
+    }
+
+    return data;
+  }
+
+
+  export async function getClubById(clubId: string) {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("clubes")
+      .select("*")
+      .eq("id", clubId)
+      .single();
+  
+    if (error) {
+      if (error.code === 'PGRST116') {
+        console.log(`Club with ID ${clubId} not found.`);
+        return null;
+      }
+      console.error("Error fetching club by ID:", error);
+      return null;
+    }
+
+    return data;
+  }
