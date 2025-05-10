@@ -26,6 +26,14 @@ export type Player = {
   gender: "MALE" | "FEMALE"
 }
 
+export type PlayerDTO = {
+  id: string
+  first_name: string
+  last_name: string
+  dni: string,
+  score: number
+}
+
 export type Tournament = {
   id: string
   name: string
