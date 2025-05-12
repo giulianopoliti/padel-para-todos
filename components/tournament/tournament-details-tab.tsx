@@ -23,19 +23,19 @@ export default function TournamentDetailsTabs({
     <>
       <Tabs
         defaultValue="players"
-        className="bg-white rounded-lg shadow-sm border border-slate-100 hover:border-teal-100 transition-all duration-300"
+        className="bg-white rounded-xl shadow-sm border border-slate-100 hover:border-violet-100 transition-all duration-300"
       >
-        <TabsList className="w-full border-b border-slate-200 rounded-t-lg bg-slate-50">
+        <TabsList className="w-full border-b border-slate-200 rounded-t-xl bg-slate-50">
           <TabsTrigger
             value="players"
-            className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-teal-500"
+            className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-violet-500"
           >
             <Users className="mr-2 h-4 w-4" />
             Jugadores Individuales ({individualInscriptions.length})
           </TabsTrigger>
           <TabsTrigger
             value="couples"
-            className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-teal-500"
+            className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-violet-500"
           >
             <Users className="mr-2 h-4 w-4" />
             Parejas ({coupleInscriptions.length})
@@ -70,10 +70,10 @@ export default function TournamentDetailsTabs({
             </Table>
           ) : (
             <div className="text-center py-8">
-              <div className="bg-teal-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-teal-100">
-                <Users className="h-8 w-8 text-teal-600" />
+              <div className="bg-violet-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-violet-100">
+                <Users className="h-8 w-8 text-violet-600" />
               </div>
-              <h3 className="text-xl font-light text-teal-700 mb-2">No hay jugadores inscritos</h3>
+              <h3 className="text-xl font-light text-violet-700 mb-2">No hay jugadores inscritos</h3>
               <p className="text-slate-500 max-w-md mx-auto text-sm">
                 Aún no hay jugadores individuales inscritos en este torneo.
               </p>
@@ -121,10 +121,10 @@ export default function TournamentDetailsTabs({
             </Table>
           ) : (
             <div className="text-center py-8">
-              <div className="bg-teal-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-teal-100">
-                <Users className="h-8 w-8 text-teal-600" />
+              <div className="bg-emerald-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                <Users className="h-8 w-8 text-emerald-600" />
               </div>
-              <h3 className="text-xl font-light text-teal-700 mb-2">No hay parejas inscritas</h3>
+              <h3 className="text-xl font-light text-emerald-700 mb-2">No hay parejas inscritas</h3>
               <p className="text-slate-500 max-w-md mx-auto text-sm">Aún no hay parejas inscritas en este torneo.</p>
             </div>
           )}
@@ -135,7 +135,7 @@ export default function TournamentDetailsTabs({
         <Button
           asChild
           variant="outline"
-          className="border-teal-200 text-teal-600 hover:bg-teal-50 hover:text-teal-700"
+          className="border-violet-200 text-violet-600 hover:bg-violet-50 hover:text-violet-700"
         >
           <Link href={`/my-tournaments/${tournamentId}/edit`}>
             <Trophy className="mr-2 h-4 w-4" />
@@ -144,7 +144,7 @@ export default function TournamentDetailsTabs({
         </Button>
 
         {tournamentStatus === "NOT_STARTED" && (
-          <Button asChild className="bg-teal-600 hover:bg-teal-700 text-white">
+          <Button asChild className="bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white">
             <Link href={`/my-tournaments/${tournamentId}/start`}>
               <Trophy className="mr-2 h-4 w-4" />
               Iniciar Torneo

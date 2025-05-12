@@ -40,6 +40,12 @@ const routePermissions: RouteConfig[] = [
     icon: "Trophy", 
     roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
   },
+  {
+    path: "/clubes",
+    label: "Clubes",
+    icon: "MapPin",
+    roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
+  },
   {path: "/my-tournaments",
     label: "Mis Torneos",
     icon: "Trophy",
@@ -101,7 +107,7 @@ export function checkRoutePermission(
   role?: Role | null // Role can be null/undefined if user is not logged in
 ): boolean {
   // Public routes accessible to everyone (even unauthenticated)
-  const publicPaths = ["/login", "/auth/callback", "/tournaments", "/home", "/ranking", "/register"];
+  const publicPaths = ["/login", "/auth/callback", "/tournaments", "/home", "/ranking", "/register", "/clubes"];
   if (publicPaths.some(publicPath => path.startsWith(publicPath))) {
     return true;
   }

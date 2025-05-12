@@ -30,6 +30,11 @@ const publicLinks = [
     label: "Ranking", 
     icon: "BarChart" as const,
   },
+  { 
+    path: "/clubes", 
+    label: "Clubes", 
+    icon: "MapPin" as const,
+  },
 ];
 
 // Define the expected props for NavbarClient explicitly

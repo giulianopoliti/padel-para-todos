@@ -2,37 +2,44 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import TopPlayersSection from "@/components/home/top-players-section"
-import FeaturedClubs from "@/components/home/feature-clubs"
+import FeaturedClubs from "@/components/home/featured-clubs"
 import UpcomingTournaments from "@/components/home/upcoming-tournaments"
-import { Trophy, Users, Calendar, Shield, ChevronRight, Zap, BarChart3, Award } from "lucide-react"
+import { Trophy, Users, Calendar, Shield, ChevronRight, Zap, BarChart3, Award } from 'lucide-react'
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-emerald-50">
-      {/* Hero Section - Más compacto */}
-      <section className="relative overflow-hidden pt-14 pb-10 md:pt-20 md:pb-16">
-        <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,rgba(255,255,255,0.5),rgba(255,255,255,0.8))] -z-10"></div>
-
-        {/* Decorative elements */}
-        <div className="absolute top-0 left-0 w-32 h-32 bg-violet-200 rounded-full blur-3xl opacity-20 -translate-x-1/2 -translate-y-1/2"></div>
-        <div className="absolute bottom-0 right-0 w-48 h-48 bg-emerald-200 rounded-full blur-3xl opacity-20 translate-x-1/3 translate-y-1/3"></div>
-
-        <div className="container mx-auto px-4">
+      {/* Hero Section con espacio para imagen de fondo */}
+      <section className="relative overflow-hidden">
+        {/* Imagen de fondo */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center z-0" 
+          style={{ 
+            backgroundImage: "url('/placeholder.svg?height=600&width=1200')",
+            filter: "brightness(0.4)"
+          }}
+        ></div>
+        
+        {/* Overlay con gradiente */}
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-900/80 to-emerald-900/80 z-10"></div>
+        
+        {/* Contenido */}
+        <div className="relative z-20 container mx-auto px-4 py-16 md:py-24">
           <div className="max-w-3xl mx-auto text-center">
-            <Badge className="mb-3 px-3 py-1 bg-white text-violet-600 border-violet-200 shadow-sm">
+            <Badge className="mb-3 px-3 py-1 bg-white/10 text-white border-white/20 backdrop-blur-sm">
               Plataforma de pádel
             </Badge>
-            <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent mb-4">
+            <h1 className="text-3xl md:text-5xl font-bold text-white mb-4">
               Tu plataforma de pádel
             </h1>
-            <p className="text-slate-600 text-lg md:text-xl font-light mb-6 max-w-2xl mx-auto">
+            <p className="text-white/80 text-lg md:text-xl font-light mb-6 max-w-2xl mx-auto">
               Organiza torneos, gestiona clubes y sigue el rendimiento de los mejores jugadores.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
                 asChild
                 size="default"
-                className="bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white rounded-xl"
+                className="bg-white text-violet-800 hover:bg-white/90 rounded-xl"
               >
                 <Link href="/tournaments">
                   <Trophy className="mr-2 h-4 w-4" />
@@ -43,7 +50,7 @@ export default function HomePage() {
                 asChild
                 variant="outline"
                 size="default"
-                className="bg-white border-slate-200 hover:bg-slate-50 text-slate-800 rounded-xl"
+                className="bg-transparent border-white text-white hover:bg-white/10 rounded-xl"
               >
                 <Link href="/ranking">
                   <BarChart3 className="mr-2 h-4 w-4" />
@@ -53,9 +60,12 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+        
+        {/* Forma decorativa en la parte inferior */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-br from-violet-50 via-white to-emerald-50 clip-wave z-10"></div>
       </section>
 
-      {/* Upcoming Tournaments Section - Nueva sección */}
+      {/* Upcoming Tournaments Section */}
       <UpcomingTournaments />
 
       {/* Features Section - Más compacto */}
@@ -177,13 +187,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Top Players Section - Más compacto */}
+      {/* Top Players Section */}
       <TopPlayersSection />
 
-      {/* Clubs Section - Más compacto */}
+      {/* Clubs Section */}
       <FeaturedClubs />
 
-      {/* CTA Section - Más compacto */}
+      {/* CTA Section */}
       <section className="py-12 md:py-16">
         <div className="container mx-auto px-4">
           <div className="bg-gradient-to-r from-violet-600 to-emerald-500 rounded-2xl overflow-hidden shadow-lg">

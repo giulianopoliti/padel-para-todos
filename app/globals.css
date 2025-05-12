@@ -1,57 +1,170 @@
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: 210 40% 98%;
-  --foreground: 215 25% 27%;
-
-  --card: 0 0% 100%;
-  --card-foreground: 215 25% 27%;
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 215 25% 27%;
-
-  --primary: 173 80% 32%;
-  --primary-foreground: 210 40% 98%;
-
-  --secondary: 173 59% 94%;
-  --secondary-foreground: 173 80% 32%;
-
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215 16% 47%;
-
-  --accent: 173 59% 94%;
-  --accent-foreground: 173 80% 32%;
-
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 173 80% 32%;
-}
-
-.animate-in {
-  animation: fadeIn 0.8s ease forwards;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.5% 48%;
   }
 }
 
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  letter-spacing: -0.01em;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
-h1, h2, h3, h4, h5, h6 {
-  letter-spacing: -0.02em;
+/* Forma de onda para la sección hero */
+.clip-wave {
+  clip-path: polygon(
+    100% 0%,
+    0% 0%,
+    0% 65%,
+    1% 64.95%,
+    2% 64.8%,
+    3% 64.6%,
+    4% 64.3%,
+    5% 63.9%,
+    6% 63.45%,
+    7% 62.9%,
+    8% 62.25%,
+    9% 61.55%,
+    10% 60.8%,
+    11% 59.95%,
+    12% 59.05%,
+    13% 58.1%,
+    14% 57.1%,
+    15% 56.05%,
+    16% 55%,
+    17% 53.9%,
+    18% 52.8%,
+    19% 51.65%,
+    20% 50.5%,
+    21% 49.35%,
+    22% 48.2%,
+    23% 47.05%,
+    24% 45.9%,
+    25% 44.8%,
+    26% 43.75%,
+    27% 42.75%,
+    28% 41.75%,
+    29% 40.8%,
+    30% 39.9%,
+    31% 39.1%,
+    32% 38.35%,
+    33% 37.65%,
+    34% 37.05%,
+    35% 36.5%,
+    36% 36.05%,
+    37% 35.65%,
+    38% 35.35%,
+    39% 35.15%,
+    40% 35.05%,
+    41% 35%,
+    42% 35.05%,
+    43% 35.2%,
+    44% 35.45%,
+    45% 35.75%,
+    46% 36.15%,
+    47% 36.65%,
+    48% 37.2%,
+    49% 37.85%,
+    50% 38.55%,
+    51% 39.35%,
+    52% 40.2%,
+    53% 41.1%,
+    54% 42.05%,
+    55% 43.05%,
+    56% 44.1%,
+    57% 45.15%,
+    58% 46.3%,
+    59% 47.4%,
+    60% 48.55%,
+    61% 49.7%,
+    62% 50.85%,
+    63% 52%,
+    64% 53.15%,
+    65% 54.25%,
+    66% 55.35%,
+    67% 56.4%,
+    68% 57.45%,
+    69% 58.4%,
+    70% 59.35%,
+    71% 60.2%,
+    72% 61.05%,
+    73% 61.8%,
+    74% 62.45%,
+    75% 63.05%,
+    76% 63.6%,
+    77% 64.05%,
+    78% 64.4%,
+    79% 64.7%,
+    80% 64.85%,
+    81% 65%,
+    82% 65%,
+    83% 64.9%,
+    84% 64.75%,
+    85% 64.5%,
+    86% 64.2%,
+    87% 63.75%,
+    88% 63.25%,
+    89% 62.7%,
+    90% 62.05%,
+    91% 61.3%,
+    92% 60.5%,
+    93% 59.65%,
+    94% 58.75%,
+    95% 57.8%,
+    96% 56.8%,
+    97% 55.75%,
+    98% 54.65%,
+    99% 53.55%,
+    100% 52.4%
+  );
 }
