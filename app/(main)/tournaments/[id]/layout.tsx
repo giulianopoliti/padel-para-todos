@@ -79,12 +79,7 @@ export default async function TournamentIdLayout({
 
   if (tournamentError || !tournamentData) {
     console.error(`[Layout] Error fetching tournament (${tournamentId}):`, tournamentError?.message);
-    return (
-        <>
-            {children} 
-            {publicView}
-        </>
-    );
+    return publicView;
   }
 
   const isClubOwnerOfThisTournament =
@@ -92,20 +87,11 @@ export default async function TournamentIdLayout({
     userDetails?.role === 'CLUB' &&
     userDetails.entity_id === tournamentData.club_id; 
 
-  let viewToShow: ReactNode;
-
   if (isClubOwnerOfThisTournament) {
-    viewToShow = club;
+    return club;
   } else if (user) {
-    viewToShow = player;
+    return player;
   } else {
-    viewToShow = publicView;
+    return publicView;
   }
-
-  return (
-    <>
-      {children}
-      {viewToShow}
-    </>
-  );
 } 
