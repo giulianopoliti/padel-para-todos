@@ -8,6 +8,36 @@ import { getUserByDni } from '../users';
 /**
  * Iniciar un torneo - cambiar su estado a "PAIRING" (fase de emparejamiento)
  */
+
+
+export async function getTournamentsByUserId(userId: string) {
+  const supabase = await createClient();
+
+  // 1. Buscar el club del usuario
+  const { data: club, error: clubError } = await supabase
+    .from('clubes')
+    .select('id, name')
+    .eq('user_id', userId)
+    .single();
+
+  if (clubError || !club) {
+    console.error('[getTournamentsByUserId] Error fetching club:', clubError?.message);
+    return [];
+  }
+
+  // 2. Buscar los torneos de ese club
+  const { data: tournaments, error: tournamentsError } = await supabase
+    .from('tournaments')
+    .select('*, clubes (id, name)')
+    .eq('club_id', club.id);
+
+  if (tournamentsError) {
+    console.error('[getTournamentsByUserId] Error fetching tournaments:', tournamentsError.message);
+    return [];
+  }
+
+  return tournaments;
+}
 export async function startTournament(tournamentId: string) {
   const supabase = await createClient();
   console.log(`[startTournament] Iniciando torneo ${tournamentId} (fase de emparejamiento)`);
@@ -478,6 +508,40 @@ export async function registerAuthenticatedPlayerForTournament(
     console.error("[registerAuthenticatedPlayerForTournament] Unexpected error inserting inscription:", error.message);
     return { success: false, message: `Error inesperado al realizar la inscripción: ${error.message}` };
   }
+}
+
+/**
+ * Obtener los detalles completos de un torneo y sus inscripciones (jugadores y parejas)
+ */
+export async function getTournamentDetailsWithInscriptions(tournamentId: string) {
+  const supabase = await createClient();
+
+  // Obtener detalles del torneo (reutiliza getTournamentById)
+  const tournament = await getTournamentById(tournamentId);
+  if (!tournament) {
+    return { tournament: null, inscriptions: [] };
+  }
+
+  // Obtener inscripciones con detalles de jugador y pareja
+  const { data: inscriptions, error: inscriptionsError } = await supabase
+    .from('inscriptions')
+    .select(`
+      id,
+      player:players(id, first_name, last_name, phone, email, dni),
+      couple:couples(
+        id,
+        player1:players!couples_player1_id_fkey(id, first_name, last_name, phone, email, dni),
+        player2:players!couples_player2_id_fkey(id, first_name, last_name, phone, email, dni)
+      )
+    `)
+    .eq('tournament_id', tournamentId);
+
+  if (inscriptionsError) {
+    console.error('[getTournamentDetailsWithInscriptions] Error al obtener inscripciones:', inscriptionsError);
+    return { tournament, inscriptions: [] };
+  }
+
+  return { tournament, inscriptions };
 }
 
 
