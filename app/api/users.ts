@@ -7,7 +7,12 @@ import { User } from "@supabase/supabase-js";
 export async function getPlayersMale() {
     const { data, error } = await supabase
         .from("players")
-        .select("*")
+        .select(`
+            *,
+            clubes (
+                name
+            )
+        `)
         .eq("gender", "MALE")
         .order("score", { ascending: false });
 
@@ -34,7 +39,7 @@ export async function getPlayersMale() {
             racket: rawPlayer.racket,
             preferredSide: rawPlayer.preferred_side,  // DB: preferred_side -> TS: preferredSide
             createdAt: rawPlayer.created_at,    // DB: created_at -> TS: createdAt
-            club_id: rawPlayer.club_id,
+            club_name: rawPlayer.clubes?.name || "Sin club",  // Usamos el nombre del club del join
             gender: rawPlayer.gender || "MALE"
         };
     }) || [];
@@ -45,7 +50,7 @@ export async function getPlayersMale() {
     
     return players;
 }
-
+/*
 export async function getPlayersFemale() {
     const { data, error } = await supabase
         .from("players")
@@ -75,7 +80,7 @@ export async function getPlayersFemale() {
 
     return players;
 }
-
+*/
 export async function getCouples() {
     const { data, error } = await supabase
         .from("couples")

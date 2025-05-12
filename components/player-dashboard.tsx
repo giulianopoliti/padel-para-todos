@@ -47,8 +47,8 @@ export default function PlayerDashboard({
   const pastTournaments = tournaments.filter((t) => t.status === "FINISHED")
 
   // Filtrar partidos por estado
-  const upcomingMatches = matches.filter((m) => m.status === "SCHEDULED")
-  const completedMatches = matches.filter((m) => m.status === "COMPLETED")
+  const upcomingMatches = matches.filter((m) => m.status === "NOT_STARTED")
+  const completedMatches = matches.filter((m) => m.status === "FINISHED")
 
   return (
     <div className="space-y-8">
@@ -207,7 +207,7 @@ export default function PlayerDashboard({
                         <div className="flex justify-between items-center">
                           <div>
                             <p className="font-medium">
-                              Equipo {match.team1Id} vs Equipo {match.team2Id}
+                              Pareja {match.couple_1.id} vs Pareja {match.couple_2.id}
                             </p>
                             <p className="text-sm text-gray-600">
                               {formatDate(match.date)} • {match.round}
@@ -428,7 +428,7 @@ export default function PlayerDashboard({
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                           <div>
                             <p className="font-medium">
-                              Equipo {match.team1Id} vs Equipo {match.team2Id}
+                              Pareja {match.couple_1.id} vs Pareja {match.couple_2.id}
                             </p>
                             <p className="text-sm text-gray-600">
                               {formatDate(match.date)} • {match.round}
@@ -445,7 +445,7 @@ export default function PlayerDashboard({
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => router.push(`/tournaments/${match.tournamentId}`)}
+                              onClick={() => router.push(`/tournaments/${match.tournament_id}`)}
                               className="border-padel-green-200 text-padel-green-700 hover:bg-padel-green-50"
                             >
                               Ver Torneo
@@ -475,13 +475,16 @@ export default function PlayerDashboard({
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                           <div>
                             <p className="font-medium">
-                              Equipo {match.team1Id} vs Equipo {match.team2Id}
+                              Pareja {match.couple_1.id} vs Pareja {match.couple_2.id}
                             </p>
                             <p className="text-sm text-gray-600">
                               {formatDate(match.date)} • {match.round}
                             </p>
-                            <p className="text-sm font-medium">
-                              Resultado: {match.team1Score?.join("-")} / {match.team2Score?.join("-")}
+                            <p className="font-medium">
+                              Resultado: {match.type === "AMERICAN" 
+                                ? `${match.result_couple_1?.games.map(g => g.couple1Score).join("-")} / ${match.result_couple_2?.games.map(g => g.couple2Score).join("-")}`
+                                : `${match.result_couple_1?.sets.map(s => s.couple1Score).join("-")} / ${match.result_couple_2?.sets.map(s => s.couple2Score).join("-")}`
+                              }
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -491,7 +494,7 @@ export default function PlayerDashboard({
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => router.push(`/tournaments/${match.tournamentId}`)}
+                              onClick={() => router.push(`/tournaments/${match.tournament_id}`)}
                               className="border-padel-green-200 text-padel-green-700 hover:bg-padel-green-50"
                             >
                               Ver Torneo

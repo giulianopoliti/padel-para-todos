@@ -1,6 +1,5 @@
 import { ReactNode } from "react"
-import { cookies } from "next/headers"
-import { createClient } from "@/lib/supabase/server"
+import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/navbar"
 
