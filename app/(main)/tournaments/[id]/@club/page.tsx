@@ -1,4 +1,4 @@
-import { Suspense } from "react"
+/*import { Suspense } from "react"
 import { notFound } from "next/navigation"
 import TournamentDetailsClient from "../tournament-details-client"
 import { getTournamentById, getMatchesByTournamentId, getInscriptionsByTournamentId, getPlayersByTournamentId } from "@/app/api/tournaments/actions"
@@ -95,3 +95,4 @@ export default async function TournamentDetailsPage({ params: { id: tournamentId
     </div>
   );
 }
+*/

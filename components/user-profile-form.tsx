@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/form"
 import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@/utils/supabase/server"
+import { create } from "domain"
 
 // Definir el esquema de validación para el perfil
 const profileFormSchema = z.object({
@@ -59,6 +60,7 @@ export default function UserProfileForm({ user }: UserProfileFormProps) {
     setIsLoading(true)
 
     try {
+      const supabase = await createClient()
       // Ejecutar una SQL directa para actualizar el avatar_url
       const { error } = await supabase.from('users').upsert({
         id: user.id,

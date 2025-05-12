@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createClient } from "@/utils/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default async function PlayerDashboard() {

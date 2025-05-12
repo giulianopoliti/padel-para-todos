@@ -1,4 +1,4 @@
-"use client"
+/*"use client"
 
 import type React from "react"
 
@@ -286,13 +286,13 @@ export default function TournamentDetailsClient({
   if (SelectedTournamentComponent) {
     return (
       <div className="space-y-6">
-        {/* Cabecera del torneo */}
+        {/* Cabecera del torneo */  /*
         <div className="text-center mb-8">
           <h1 className="text-3xl font-light text-teal-700 mb-2">{tournament.name}</h1>
           <p className="text-slate-600 max-w-2xl mx-auto">{tournament.club?.name || "Club no especificado"}</p>
         </div>
 
-        {/* Información del torneo */}
+        {/* Información del torneo *//*}
         <Card className="bg-white rounded-lg shadow-sm border border-slate-100 hover:border-teal-100 transition-all duration-300">
           <CardHeader className="pb-2">
             <CardTitle className="text-xl font-medium text-teal-700">Información del Torneo</CardTitle>
@@ -347,10 +347,10 @@ export default function TournamentDetailsClient({
           </CardContent>
         </Card>
 
-        {/* Botones de acción */}
+        {/* Botones de acción */ /*}
         <div className="flex justify-between">
           <div>
-            {/* Botón para iniciar torneo - solo visible para dueños de club cuando el torneo no ha iniciado */}
+            {/* Botón para iniciar torneo - solo visible para dueños de club cuando el torneo no ha iniciado */ /*}
             {isClubOwner && !isTournamentActive && (
               <Button
                 onClick={handleStartTournament}
@@ -383,7 +383,7 @@ export default function TournamentDetailsClient({
           </div>
         </div>
 
-        {/* Tabs para diferentes secciones */}
+        {/* Tabs para diferentes secciones */ /*}
         <Tabs
           defaultValue="tournament"
           className="bg-white rounded-lg shadow-sm border border-slate-100 hover:border-teal-100 transition-all duration-300"
@@ -457,4 +457,4 @@ export default function TournamentDetailsClient({
       <p className="text-red-500">Error: Tipo de torneo '{tournament.type}' no soportado.</p>
     </div>
   )
-}
+} */
