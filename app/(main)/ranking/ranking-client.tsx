@@ -120,7 +120,7 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
       case "1ª":
         return "bg-amber-100 text-amber-800 border-amber-200"
       case "2ª":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200"
+        return "bg-teal-100 text-teal-800 border-teal-200"
       case "3ª":
         return "bg-blue-100 text-blue-800 border-blue-200"
       case "4ª":
@@ -167,7 +167,7 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
   const getTrendIcon = (trend: number) => {
     if (trend > 0) {
       return (
-        <span className="text-emerald-500 flex items-center">
+        <span className="text-teal-500 flex items-center">
           <ChevronUp className="h-4 w-4" />
           {trend}
         </span>
@@ -193,7 +193,7 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-emerald-50">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50">
       <div className="container mx-auto px-4 py-12">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -201,10 +201,10 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent mb-4">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent mb-4">
             Ranking de Jugadores
           </h1>
-          <p className="text-slate-600 max-w-2xl mx-auto text-xl font-light">
+          <p className="text-slate-600 max-w-2xl mx-auto text-lg">
             Descubre a los mejores jugadores y su posición en el ranking oficial
           </p>
         </motion.div>
@@ -222,14 +222,14 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
                 placeholder="Buscar por nombre o club..."
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10 border-slate-200 focus:border-violet-500 focus:ring-violet-500 rounded-xl"
+                className="pl-10 border-slate-100 focus:border-emerald-200 focus:ring-emerald-200 rounded-xl text-slate-500 placeholder:text-slate-400"
               />
             </div>
             <div className="w-full md:w-64">
               <div className="relative">
                 <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
                 <Select value={categoryFilter} onValueChange={handleCategoryFilter}>
-                  <SelectTrigger className="pl-10 border-slate-200 focus:border-violet-500 focus:ring-violet-500 rounded-xl">
+                  <SelectTrigger className="pl-10 border-slate-100 focus:border-emerald-200 focus:ring-emerald-200 rounded-xl text-slate-500 placeholder:text-slate-400">
                     <SelectValue placeholder="Filtrar por categoría" />
                   </SelectTrigger>
                   <SelectContent>
@@ -258,14 +258,14 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
             <TabsList className="w-full border-b border-slate-200 bg-slate-50 p-1">
               <TabsTrigger
                 value="individual"
-                className="flex-1 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-emerald-500 data-[state=active]:text-white rounded-xl"
+                className="flex-1 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-blue-600 data-[state=active]:text-white rounded-xl"
               >
                 <Trophy className="mr-2 h-5 w-5" />
                 Ranking Individual
               </TabsTrigger>
               <TabsTrigger
                 value="pairs"
-                className="flex-1 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-emerald-500 data-[state=active]:text-white rounded-xl"
+                className="flex-1 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-blue-600 data-[state=active]:text-white rounded-xl"
               >
                 <Users className="mr-2 h-5 w-5" />
                 Ranking de Parejas
@@ -406,7 +406,7 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
                               </div>
                               <div className="col-span-3 sm:col-span-2 flex justify-between items-center">
                                 <div className="flex items-center">
-                                  <div className="bg-gradient-to-r from-violet-500 to-emerald-500 text-white font-bold rounded-full w-12 h-12 flex items-center justify-center">
+                                  <div className="bg-gradient-to-r from-teal-500 to-blue-500 text-white font-bold rounded-full w-12 h-12 flex items-center justify-center">
                                     {player.score}
                                   </div>
                                   <div className="ml-2 text-sm">{getTrendIcon(player.trend)}</div>
@@ -448,7 +448,7 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
                                     <div className="space-y-2">
                                       <div className="flex justify-between items-center">
                                         <span className="text-slate-500">Victorias:</span>
-                                        <span className="font-medium text-emerald-600">
+                                        <span className="font-medium text-teal-600">
                                           {Math.round(player.matchesPlayed * (player.winRate / 100))}
                                         </span>
                                       </div>
@@ -468,7 +468,7 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
 
                                   <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
                                     <div className="flex items-center mb-2">
-                                      <Award className="h-5 w-5 text-violet-500 mr-2" />
+                                      <Award className="h-5 w-5 text-teal-500 mr-2" />
                                       <h3 className="font-semibold text-slate-700">Logros</h3>
                                     </div>
                                     <div className="space-y-2">
@@ -479,7 +479,7 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
                                         </Badge>
                                       </div>
                                       <div className="flex items-center">
-                                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                                        <Badge className="bg-teal-100 text-teal-800 border-teal-200">
                                           <TrendingUp className="h-3 w-3 mr-1" />
                                           {player.winRate > 80 ? "Alta Efectividad" : "Jugador Constante"}
                                         </Badge>
@@ -489,7 +489,7 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
 
                                   <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
                                     <div className="flex items-center mb-2">
-                                      <Zap className="h-5 w-5 text-amber-500 mr-2" />
+                                      <Zap className="h-5 w-5 text-blue-500 mr-2" />
                                       <h3 className="font-semibold text-slate-700">Información</h3>
                                     </div>
                                     <div className="space-y-2">
@@ -499,13 +499,15 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
                                       </div>
                                       <div className="flex items-center">
                                         <Shield className="h-4 w-4 text-slate-400 mr-2" />
-                                        <span className="text-slate-600">Categoría {getCategoryName(player.category)}</span>
+                                        <span className="text-slate-600">
+                                          Categoría {getCategoryName(player.category)}
+                                        </span>
                                       </div>
                                       <div className="mt-2">
                                         <Button
                                           asChild
                                           size="sm"
-                                          className="w-full bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90"
+                                          className="w-full bg-gradient-to-r from-teal-600 to-blue-600 hover:opacity-90"
                                         >
                                           <Link href={`/players/${player.id}`}>Ver perfil completo</Link>
                                         </Button>
@@ -542,18 +544,18 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ duration: 0.5 }}
-                    className="bg-gradient-to-r from-violet-100 to-emerald-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-200 shadow-inner"
+                    className="bg-gradient-to-r from-teal-100 to-blue-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-200 shadow-inner"
                   >
                     <Trophy className="h-12 w-12 text-slate-600" />
                   </motion.div>
-                  <h3 className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent mb-4">
+                  <h3 className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent mb-4">
                     Próximamente
                   </h3>
                   <p className="text-slate-600 max-w-md mx-auto text-lg">
                     El ranking de parejas estará disponible próximamente. ¡Mantente atento a las actualizaciones!
                   </p>
                   <div className="mt-8">
-                    <Button className="bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white rounded-xl px-6 py-2">
+                    <Button className="bg-gradient-to-r from-teal-600 to-blue-600 hover:opacity-90 text-white rounded-xl px-6 py-2">
                       Recibir notificaciones
                     </Button>
                   </div>

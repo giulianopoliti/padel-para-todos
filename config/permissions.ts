@@ -51,6 +51,12 @@ const routePermissions: RouteConfig[] = [
     icon: "Trophy",
     roles: ["CLUB"], // Accessible to all logged-in users
   },
+  {
+    path: "/coaches",
+    label: "Entrenadores",
+    icon: "User",
+    roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
+  },
   // Example Admin/Specific Role Routes (Uncomment/modify as needed)
   // { 
   //   path: "/users", 

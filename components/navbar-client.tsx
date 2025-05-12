@@ -26,12 +26,12 @@ export default function NavbarClient({ mainLinks, profileLinks, user }: NavbarCl
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <header className="bg-gradient-to-r from-violet-600 to-emerald-500 text-white shadow-md sticky top-0 z-50">
+    <header className="bg-gradient-to-r from-teal-600 to-blue-600 text-white shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-14">
           <Link href="/home" className="text-lg font-bold flex items-center">
             <div className="bg-white rounded-full p-1.5 mr-2">
-              <Trophy className="h-4 w-4 text-violet-600" />
+              <Trophy className="h-4 w-4 text-teal-600" />
             </div>
             <span>PadelPRO</span>
           </Link>
@@ -43,9 +43,7 @@ export default function NavbarClient({ mainLinks, profileLinks, user }: NavbarCl
                 key={link.path}
                 href={link.path}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 ${
-                  pathname === link.path
-                    ? "bg-white text-violet-600 shadow-sm"
-                    : "hover:bg-white/10 text-white"
+                  pathname === link.path ? "bg-white text-teal-600 shadow-sm" : "hover:bg-white/10 text-white"
                 }`}
               >
                 {link.label}
@@ -69,7 +67,7 @@ export default function NavbarClient({ mainLinks, profileLinks, user }: NavbarCl
                 asChild
                 size="sm"
                 variant="secondary"
-                className="bg-white text-violet-600 hover:bg-white/90 rounded-full shadow-sm"
+                className="bg-white text-teal-600 hover:bg-white/90 rounded-full shadow-sm"
               >
                 <Link href="/login">Iniciar Sesión</Link>
               </Button>
@@ -95,7 +93,7 @@ export default function NavbarClient({ mainLinks, profileLinks, user }: NavbarCl
                     href={link.path}
                     className={`px-3 py-2 rounded-lg text-sm font-medium ${
                       pathname === link.path
-                        ? "bg-gradient-to-r from-violet-100 to-emerald-100 text-violet-600"
+                        ? "bg-gradient-to-r from-teal-100 to-blue-100 text-teal-600"
                         : "text-slate-700 hover:bg-slate-100"
                     }`}
                     onClick={() => setMobileMenuOpen(false)}
@@ -106,7 +104,7 @@ export default function NavbarClient({ mainLinks, profileLinks, user }: NavbarCl
                 {!user && (
                   <Link
                     href="/login"
-                    className="bg-gradient-to-r from-violet-600 to-emerald-500 text-white py-2 px-4 rounded-lg text-sm font-medium text-center"
+                    className="bg-gradient-to-r from-teal-600 to-blue-600 text-white py-2 px-4 rounded-lg text-sm font-medium text-center"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Iniciar Sesión

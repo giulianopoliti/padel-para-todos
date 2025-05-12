@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Trophy, Users, Calendar, MapPin, Phone, UserPlus, UserCog } from "lucide-react"
+import { Trophy, Users, Calendar, MapPin, Phone, UserPlus, UserCog } from 'lucide-react'
 import { useUser } from "@/contexts/user-context"
 import RegisterCoupleForm from "./register-couple-form"
 import {
@@ -157,7 +157,7 @@ export default function PlayerTournamentView({
   const getStatusColor = (status: string) => {
     switch (status) {
       case "NOT_STARTED":
-        return "bg-yellow-50 text-yellow-700 border border-yellow-200"
+        return "bg-amber-50 text-amber-700 border border-amber-200"
       case "IN_PROGRESS":
         return "bg-teal-50 text-teal-700 border border-teal-200"
       case "FINISHED":
@@ -205,14 +205,18 @@ export default function PlayerTournamentView({
     <div className="space-y-6">
       {/* Cabecera del torneo */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-light text-teal-700 mb-2">{tournament.name}</h1>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent mb-2">
+          {tournament.name}
+        </h1>
         <p className="text-slate-600 max-w-2xl mx-auto">{tournament.club?.name || "Club no especificado"}</p>
       </div>
 
       {/* Información del torneo */}
-      <Card className="bg-white rounded-lg shadow-sm border border-slate-100 hover:border-teal-100 transition-all duration-300">
+      <Card className="bg-white rounded-xl shadow-md border border-slate-100 hover:border-teal-100 transition-all duration-300">
         <CardHeader className="pb-2">
-          <CardTitle className="text-xl font-medium text-teal-700">Información del Torneo</CardTitle>
+          <CardTitle className="text-xl font-medium bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
+            Información del Torneo
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -242,7 +246,7 @@ export default function PlayerTournamentView({
             <div className="space-y-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Trophy className="h-5 w-5 mr-2 text-teal-600" />
+                  <Trophy className="h-5 w-5 mr-2 text-blue-600" />
                 </div>
                 <span className="text-slate-700 font-medium">Estado:</span>
                 <span
@@ -253,7 +257,7 @@ export default function PlayerTournamentView({
               </div>
               <div className="flex items-start">
                 <div className="flex-shrink-0 mt-1">
-                  <MapPin className="h-5 w-5 mr-2 text-teal-600" />
+                  <MapPin className="h-5 w-5 mr-2 text-blue-600" />
                 </div>
                 <div>
                   <span className="text-slate-700 font-medium">Club:</span>
@@ -265,7 +269,7 @@ export default function PlayerTournamentView({
               </div>
               {club?.phone && (
                 <div className="flex items-center">
-                  <Phone className="h-5 w-5 mr-2 text-teal-600" />
+                  <Phone className="h-5 w-5 mr-2 text-blue-600" />
                   <span className="text-slate-700 font-medium">Teléfono:</span>
                   <span className="ml-2 text-slate-600">{club.phone}</span>
                 </div>
@@ -281,7 +285,7 @@ export default function PlayerTournamentView({
           {/* Botón para inscripción individual */}
           <Button
             onClick={handleOpenSoloRegisterConfirm}
-            className="bg-teal-600 hover:bg-teal-700 text-white rounded-full font-normal"
+            className="bg-gradient-to-r from-teal-600 to-blue-600 hover:opacity-90 text-white rounded-xl font-normal shadow-md"
             disabled={isUserRegistered() || contextLoading || isRegistering}
           >
             <UserPlus className="mr-2 h-4 w-4" />
@@ -292,7 +296,7 @@ export default function PlayerTournamentView({
           <Dialog open={coupleDialogOpen} onOpenChange={setCoupleDialogOpen}>
             <DialogTrigger asChild>
               <Button
-                className="bg-teal-600 hover:bg-teal-700 text-white rounded-full font-normal"
+                className="bg-gradient-to-r from-teal-600 to-blue-600 hover:opacity-90 text-white rounded-xl font-normal shadow-md"
                 disabled={isUserRegistered() || contextLoading}
               >
                 <Users className="mr-2 h-4 w-4" />
@@ -333,7 +337,7 @@ export default function PlayerTournamentView({
 
           {isUserRegistered() && (
             <Button
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full font-normal"
+              className="bg-black hover:bg-slate-800 text-white rounded-xl font-normal shadow-md"
               onClick={() => router.push(`/player/profile`)}
             >
               <UserCog className="mr-2 h-4 w-4" />
@@ -346,9 +350,9 @@ export default function PlayerTournamentView({
       {/* Tabs para diferentes secciones */}
       <Tabs
         defaultValue="players"
-        className="bg-white rounded-lg shadow-sm border border-slate-100 hover:border-teal-100 transition-all duration-300"
+        className="bg-white rounded-xl shadow-md border border-slate-100 hover:border-teal-100 transition-all duration-300"
       >
-        <TabsList className="w-full border-b border-slate-200 rounded-t-lg bg-slate-50">
+        <TabsList className="w-full border-b border-slate-200 rounded-t-xl bg-slate-50">
           <TabsTrigger
             value="players"
             className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-teal-500"
@@ -358,7 +362,7 @@ export default function PlayerTournamentView({
           </TabsTrigger>
           <TabsTrigger
             value="couples"
-            className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-teal-500"
+            className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-blue-500"
           >
             <Users className="mr-2 h-4 w-4" />
             Parejas
@@ -398,7 +402,7 @@ export default function PlayerTournamentView({
               <div className="bg-teal-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-teal-100">
                 <UserPlus className="h-8 w-8 text-teal-600" />
               </div>
-              <h3 className="text-xl font-light text-teal-700 mb-2">No hay jugadores inscritos</h3>
+              <h3 className="text-xl font-medium text-teal-700 mb-2">No hay jugadores inscritos</h3>
               <p className="text-slate-500 max-w-md mx-auto text-sm">
                 Aún no hay jugadores individuales inscritos en este torneo.
               </p>
@@ -427,7 +431,7 @@ export default function PlayerTournamentView({
                     </TableCell>
                     <TableCell className="text-center">
                       {couple.player_1_info?.score !== null && couple.player_1_info?.score !== undefined ? (
-                        <div className="inline-flex items-center justify-center bg-teal-50 text-teal-700 font-medium rounded-full h-9 w-9 border border-teal-200">
+                        <div className="inline-flex items-center justify-center bg-blue-50 text-blue-700 font-medium rounded-full h-9 w-9 border border-blue-200">
                           {couple.player_1_info.score}
                         </div>
                       ) : (
@@ -441,7 +445,7 @@ export default function PlayerTournamentView({
                     </TableCell>
                     <TableCell className="text-center">
                       {couple.player_2_info?.score !== null && couple.player_2_info?.score !== undefined ? (
-                        <div className="inline-flex items-center justify-center bg-teal-50 text-teal-700 font-medium rounded-full h-9 w-9 border border-teal-200">
+                        <div className="inline-flex items-center justify-center bg-blue-50 text-blue-700 font-medium rounded-full h-9 w-9 border border-blue-200">
                           {couple.player_2_info.score}
                         </div>
                       ) : (
@@ -454,10 +458,10 @@ export default function PlayerTournamentView({
             </Table>
           ) : (
             <div className="text-center py-8">
-              <div className="bg-teal-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-teal-100">
-                <Users className="h-8 w-8 text-teal-600" />
+              <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100">
+                <Users className="h-8 w-8 text-blue-600" />
               </div>
-              <h3 className="text-xl font-light text-teal-700 mb-2">No hay parejas inscritas</h3>
+              <h3 className="text-xl font-medium text-blue-700 mb-2">No hay parejas inscritas</h3>
               <p className="text-slate-500 max-w-md mx-auto text-sm">Aún no hay parejas inscritas en este torneo.</p>
             </div>
           )}

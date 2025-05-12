@@ -105,15 +105,15 @@ export default function LoginPage() {
       {/* Fondo decorativo */}
       <div className="absolute inset-0 z-0">
         <div className="absolute top-0 left-0 w-full h-full bg-[url('/placeholder.svg?height=1080&width=1920')] bg-cover bg-center opacity-5"></div>
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-violet-50/80 via-white/60 to-emerald-50/80"></div>
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-violet-200 rounded-full blur-3xl opacity-20"></div>
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-emerald-200 rounded-full blur-3xl opacity-20"></div>
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-teal-50/80 via-white/60 to-blue-50/80"></div>
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-teal-200 rounded-full blur-3xl opacity-20"></div>
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-200 rounded-full blur-3xl opacity-20"></div>
       </div>
 
       <div className="container relative z-10 mx-auto px-4 py-8">
         <Link
           href="/home"
-          className="inline-flex items-center text-slate-600 hover:text-violet-600 transition-colors mb-8"
+          className="inline-flex items-center text-slate-600 hover:text-teal-600 transition-colors mb-8"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Volver al inicio
@@ -127,14 +127,14 @@ export default function LoginPage() {
             className="w-full max-w-xl"
           >
             <Card className="border border-slate-200 shadow-xl rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm">
-              <div className="h-1.5 bg-gradient-to-r from-violet-600 to-emerald-500"></div>
+              <div className="h-1.5 bg-gradient-to-r from-teal-600 to-blue-600"></div>
               <CardHeader className="pt-8 pb-4">
                 <div className="flex justify-center mb-6">
-                  <div className="bg-gradient-to-r from-violet-600 to-emerald-500 w-16 h-16 rounded-full flex items-center justify-center shadow-md">
+                  <div className="bg-gradient-to-r from-teal-600 to-blue-600 w-16 h-16 rounded-full flex items-center justify-center shadow-md">
                     <Trophy className="h-8 w-8 text-white" />
                   </div>
                 </div>
-                <CardTitle className="text-3xl text-center font-bold bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent">
+                <CardTitle className="text-3xl text-center font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
                   Iniciar Sesión
                 </CardTitle>
                 <CardDescription className="text-center text-slate-500 text-lg mt-2">
@@ -160,7 +160,7 @@ export default function LoginPage() {
                       type="email"
                       placeholder="tu@email.com"
                       required
-                      className="border-slate-200 focus:border-violet-500 focus:ring-violet-500 rounded-xl py-6 text-base"
+                      className="border-slate-200 focus:border-teal-500 focus:ring-teal-500 rounded-xl py-6 text-base"
                     />
                   </div>
 
@@ -173,19 +173,19 @@ export default function LoginPage() {
                       name="password"
                       type="password"
                       required
-                      className="border-slate-200 focus:border-violet-500 focus:ring-violet-500 rounded-xl py-6 text-base"
+                      className="border-slate-200 focus:border-teal-500 focus:ring-teal-500 rounded-xl py-6 text-base"
                     />
                   </div>
 
                   <div className="flex justify-end">
-                    <Link href="/forgot-password" className="text-violet-600 hover:text-violet-700">
+                    <Link href="/forgot-password" className="text-teal-600 hover:text-teal-700">
                       ¿Olvidaste tu contraseña?
                     </Link>
                   </div>
 
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white rounded-xl py-6 text-lg font-medium shadow-md"
+                    className="w-full bg-gradient-to-r from-teal-600 to-blue-600 hover:opacity-90 text-white rounded-xl py-6 text-lg font-medium shadow-md"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? "Iniciando sesión..." : "Iniciar Sesión"}
@@ -201,14 +201,14 @@ export default function LoginPage() {
                       onClick={() => setRole("PLAYER")}
                       className={`flex flex-col items-center justify-center p-4 rounded-xl transition-all ${
                         role === "PLAYER"
-                          ? "bg-gradient-to-r from-violet-50 to-emerald-50 border border-violet-200 shadow-sm"
-                          : "bg-white border border-slate-200 hover:border-violet-200"
+                          ? "bg-gradient-to-r from-teal-50 to-blue-50 border border-teal-200 shadow-sm"
+                          : "bg-white border border-slate-200 hover:border-teal-200"
                       }`}
                     >
                       <div
                         className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
                           role === "PLAYER"
-                            ? "bg-gradient-to-r from-violet-600 to-emerald-500 text-white"
+                            ? "bg-gradient-to-r from-teal-600 to-blue-600 text-white"
                             : "bg-slate-100 text-slate-500"
                         }`}
                       >
@@ -217,7 +217,7 @@ export default function LoginPage() {
                       <span
                         className={`font-medium ${
                           role === "PLAYER"
-                            ? "bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent"
+                            ? "bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent"
                             : "text-slate-700"
                         }`}
                       >
@@ -229,14 +229,14 @@ export default function LoginPage() {
                       onClick={() => setRole("CLUB")}
                       className={`flex flex-col items-center justify-center p-4 rounded-xl transition-all ${
                         role === "CLUB"
-                          ? "bg-gradient-to-r from-violet-50 to-emerald-50 border border-violet-200 shadow-sm"
-                          : "bg-white border border-slate-200 hover:border-violet-200"
+                          ? "bg-gradient-to-r from-teal-50 to-blue-50 border border-teal-200 shadow-sm"
+                          : "bg-white border border-slate-200 hover:border-teal-200"
                       }`}
                     >
                       <div
                         className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
                           role === "CLUB"
-                            ? "bg-gradient-to-r from-violet-600 to-emerald-500 text-white"
+                            ? "bg-gradient-to-r from-teal-600 to-blue-600 text-white"
                             : "bg-slate-100 text-slate-500"
                         }`}
                       >
@@ -245,7 +245,7 @@ export default function LoginPage() {
                       <span
                         className={`font-medium ${
                           role === "CLUB"
-                            ? "bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent"
+                            ? "bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent"
                             : "text-slate-700"
                         }`}
                       >
@@ -257,14 +257,14 @@ export default function LoginPage() {
                       onClick={() => setRole("COACH")}
                       className={`flex flex-col items-center justify-center p-4 rounded-xl transition-all ${
                         role === "COACH"
-                          ? "bg-gradient-to-r from-violet-50 to-emerald-50 border border-violet-200 shadow-sm"
-                          : "bg-white border border-slate-200 hover:border-violet-200"
+                          ? "bg-gradient-to-r from-teal-50 to-blue-50 border border-teal-200 shadow-sm"
+                          : "bg-white border border-slate-200 hover:border-teal-200"
                       }`}
                     >
                       <div
                         className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
                           role === "COACH"
-                            ? "bg-gradient-to-r from-violet-600 to-emerald-500 text-white"
+                            ? "bg-gradient-to-r from-teal-600 to-blue-600 text-white"
                             : "bg-slate-100 text-slate-500"
                         }`}
                       >
@@ -273,7 +273,7 @@ export default function LoginPage() {
                       <span
                         className={`font-medium ${
                           role === "COACH"
-                            ? "bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent"
+                            ? "bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent"
                             : "text-slate-700"
                         }`}
                       >
@@ -285,7 +285,7 @@ export default function LoginPage() {
 
                 <div className="text-center pt-2">
                   <span className="text-slate-500">¿No tienes una cuenta? </span>
-                  <Link href="/register" className="font-medium text-violet-600 hover:text-violet-700">
+                  <Link href="/register" className="font-medium text-teal-600 hover:text-teal-700">
                     Regístrate
                   </Link>
                 </div>
@@ -297,4 +297,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

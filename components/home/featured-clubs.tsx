@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Star, ChevronRight, Users, Clock } from "lucide-react"
+import { MapPin, Star, ChevronRight, Users, Clock } from 'lucide-react'
 import { motion } from "framer-motion"
 
 // Datos de ejemplo para los clubes
@@ -146,7 +146,7 @@ export default function FeaturedClubs() {
         <div className="flex justify-center mt-10">
           <Button
             asChild
-            className="bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white rounded-xl"
+            className="bg-gradient-to-r from-teal-600 to-blue-600 hover:opacity-90 text-white rounded-xl"
           >
             <Link href="/clubs" className="flex items-center">
               Ver todos los clubes

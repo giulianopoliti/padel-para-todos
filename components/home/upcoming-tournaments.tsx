@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, MapPin, ChevronRight, Trophy } from "lucide-react"
+import { Calendar, MapPin, ChevronRight, Trophy } from 'lucide-react'
 import { motion } from "framer-motion"
 
 // Datos de ejemplo para los torneos
@@ -73,7 +73,7 @@ export default function UpcomingTournaments() {
       case "1ª":
         return "bg-amber-100 text-amber-800 border-amber-200"
       case "2ª":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200"
+        return "bg-teal-100 text-teal-800 border-teal-200"
       case "3ª":
         return "bg-blue-100 text-blue-800 border-blue-200"
       case "4ª":
@@ -142,13 +142,13 @@ export default function UpcomingTournaments() {
                     <div className="mt-auto">
                       <div className="flex justify-between items-center text-xs mb-1.5">
                         <span className="text-slate-500">Inscripciones</span>
-                        <span className="font-medium text-violet-600">
+                        <span className="font-medium text-teal-600">
                           {tournament.registeredPlayers}/{tournament.maxPlayers}
                         </span>
                       </div>
                       <div className="w-full bg-slate-100 rounded-full h-1.5 mb-3">
                         <div
-                          className="bg-gradient-to-r from-violet-500 to-emerald-500 h-1.5 rounded-full"
+                          className="bg-gradient-to-r from-teal-500 to-blue-500 h-1.5 rounded-full"
                           style={{
                             width: `${(tournament.registeredPlayers / tournament.maxPlayers) * 100}%`,
                           }}
@@ -174,7 +174,7 @@ export default function UpcomingTournaments() {
         <div className="flex justify-center mt-8">
           <Button
             asChild
-            className="bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white rounded-lg"
+            className="bg-gradient-to-r from-teal-600 to-blue-600 hover:opacity-90 text-white rounded-lg"
           >
             <Link href="/tournaments" className="flex items-center">
               <Trophy className="mr-2 h-4 w-4" />

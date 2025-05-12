@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Trophy, Medal, Star, ChevronRight, Shield } from "lucide-react"
+import { Trophy, Medal, Star, ChevronRight, Shield } from 'lucide-react'
 import { motion } from "framer-motion"
 
 // Datos de ejemplo para los jugadores
@@ -102,7 +102,7 @@ export default function TopPlayersSection() {
       case "1ª":
         return "bg-amber-100 text-amber-800 border-amber-200"
       case "2ª":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200"
+        return "bg-teal-100 text-teal-800 border-teal-200"
       case "3ª":
         return "bg-blue-100 text-blue-800 border-blue-200"
       case "4ª":
@@ -148,7 +148,7 @@ export default function TopPlayersSection() {
 
   const getTrendIcon = (trend: number) => {
     if (trend > 0) {
-      return <span className="text-emerald-500">↑{trend}</span>
+      return <span className="text-teal-500">↑{trend}</span>
     } else if (trend < 0) {
       return <span className="text-rose-500">↓{Math.abs(trend)}</span>
     } else {
@@ -157,7 +157,7 @@ export default function TopPlayersSection() {
   }
 
   return (
-    <section className="py-16 md:py-24 bg-gradient-to-br from-violet-50 via-white to-emerald-50">
+    <section className="py-16 md:py-24 bg-gradient-to-br from-teal-50 via-white to-blue-50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-4">Ranking de Jugadores</h2>
@@ -174,14 +174,14 @@ export default function TopPlayersSection() {
             <TabsList className="w-full border-b border-slate-200 bg-slate-50 p-1">
               <TabsTrigger
                 value="individual"
-                className="flex-1 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-emerald-500 data-[state=active]:text-white rounded-xl"
+                className="flex-1 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-blue-600 data-[state=active]:text-white rounded-xl"
               >
                 <Trophy className="mr-2 h-5 w-5" />
                 Ranking Individual
               </TabsTrigger>
               <TabsTrigger
                 value="pairs"
-                className="flex-1 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-emerald-500 data-[state=active]:text-white rounded-xl"
+                className="flex-1 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-blue-600 data-[state=active]:text-white rounded-xl"
               >
                 <Shield className="mr-2 h-5 w-5" />
                 Ranking de Parejas
@@ -228,7 +228,7 @@ export default function TopPlayersSection() {
                         <div className="flex items-center gap-4">
                           <Badge className={`${getCategoryColor(player.category)}`}>{player.category}</Badge>
                           <div className="flex items-center gap-2">
-                            <div className="bg-gradient-to-r from-violet-500 to-emerald-500 text-white font-bold rounded-full w-10 h-10 flex items-center justify-center">
+                            <div className="bg-gradient-to-r from-teal-500 to-blue-500 text-white font-bold rounded-full w-10 h-10 flex items-center justify-center">
                               {player.score}
                             </div>
                             <div className="text-sm">{getTrendIcon(player.trend)}</div>
@@ -291,7 +291,7 @@ export default function TopPlayersSection() {
                         <div className="flex items-center gap-4">
                           <Badge className={`${getCategoryColor(pair.category)}`}>{pair.category}</Badge>
                           <div className="flex items-center gap-2">
-                            <div className="bg-gradient-to-r from-violet-500 to-emerald-500 text-white font-bold rounded-full w-10 h-10 flex items-center justify-center">
+                            <div className="bg-gradient-to-r from-teal-500 to-blue-500 text-white font-bold rounded-full w-10 h-10 flex items-center justify-center">
                               {pair.score}
                             </div>
                             <div className="text-sm">{getTrendIcon(pair.trend)}</div>
