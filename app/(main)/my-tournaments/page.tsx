@@ -1,49 +1,28 @@
 import { Suspense } from "react"
-import { createClient } from "@/utils/supabase/server"
-import { cookies } from "next/headers"
-import { redirect } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
 import TournamentsTabs from "@/components/tournament/tournament-tabs"
 import { getClubTournaments } from "../tournaments/my-tournaments/actions"
+
 // Componente de carga para usar con Suspense
 function TournamentsLoading() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <Skeleton className="h-10 w-3/4 max-w-md mx-auto" />
-        <Skeleton className="h-6 w-1/2 max-w-sm mx-auto" />
+    <div className="space-y-8">
+      <div className="space-y-4 text-center">
+        <Skeleton className="h-14 w-64 mx-auto rounded-xl" />
+        <Skeleton className="h-6 w-96 max-w-md mx-auto rounded-lg" />
       </div>
-      <div className="max-w-2xl mx-auto space-y-8">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="border border-slate-100 rounded-lg overflow-hidden">
-            <div className="h-3 bg-slate-200"></div>
-            <div className="p-6 pb-3">
-              <Skeleton className="h-8 w-3/4 mb-2" />
-              <Skeleton className="h-5 w-1/2 mb-4" />
-            </div>
-            <div className="px-6 pb-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <Skeleton className="h-5 w-full" />
-                  <Skeleton className="h-5 w-full" />
-                  <Skeleton className="h-5 w-full" />
-                </div>
-                <div className="space-y-3">
-                  <Skeleton className="h-5 w-full" />
-                  <Skeleton className="h-5 w-full" />
-                  <Skeleton className="h-5 w-full" />
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto px-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-lg">
+            <Skeleton className="h-3 w-full" />
+            <div className="p-6">
+              <Skeleton className="h-8 w-3/4 mb-4 rounded-lg" />
+              <Skeleton className="h-5 w-1/2 mb-6 rounded-md" />
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <Skeleton className="h-20 rounded-xl" />
+                <Skeleton className="h-20 rounded-xl" />
               </div>
-              <div className="mt-4 space-y-2">
-                <div className="flex justify-between">
-                  <Skeleton className="h-5 w-1/3" />
-                  <Skeleton className="h-5 w-1/4" />
-                </div>
-                <Skeleton className="h-2.5 w-full rounded-full" />
-              </div>
-            </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-100">
-              <Skeleton className="h-12 w-full rounded-full" />
+              <Skeleton className="h-10 w-full rounded-full" />
             </div>
           </div>
         ))}
@@ -52,12 +31,11 @@ function TournamentsLoading() {
   )
 }
 
-
 // Componente principal (renderizado en el servidor)
 export default async function MyTournamentsPage() {
-  const result = await getClubTournaments(); 
-  const tournaments = result.tournaments;
-  const club = (result as any).club;
+  const result = await getClubTournaments()
+  const tournaments = result.tournaments
+  const club = (result as any).club
 
   // Agrupar torneos por estado
   const notStartedTournaments = tournaments?.filter((t: any) => t.status === "NOT_STARTED")
@@ -67,13 +45,15 @@ export default async function MyTournamentsPage() {
   const canceledTournaments = tournaments?.filter((t: any) => t.status === "CANCELED")
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-      <div className="container mx-auto px-4 py-10">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-emerald-50">
+      <div className="container mx-auto px-4 py-16">
         <Suspense fallback={<TournamentsLoading />}>
-          <div className="space-y-10">
-            <div className="text-center mb-10">
-              <h1 className="text-4xl font-light text-teal-700 mb-3">Mis Torneos</h1>
-              <p className="text-slate-600 max-w-2xl mx-auto text-lg">
+          <div className="space-y-12">
+            <div className="text-center">
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent mb-6">
+                Mis Torneos
+              </h1>
+              <p className="text-slate-600 max-w-2xl mx-auto text-xl font-light">
                 Gestiona todos los torneos organizados por {club?.name || "tu club"}
               </p>
             </div>

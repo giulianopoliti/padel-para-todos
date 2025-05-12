@@ -22,7 +22,7 @@ export type Player = {
   racket?: string // Paleta
   preferredSide?: "FOREHAND" | "BACKHAND" // Lado del que juega
   createdAt: string
-  club_id: string
+  club_name: string
   gender: "MALE" | "FEMALE"
 }
 
