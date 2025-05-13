@@ -22,19 +22,18 @@ import ClubInstructors from "@/components/clubes/club-instructors"
 const clubs = [
   {
     id: "1",
-    name: "Club Padel Madrid",
+    name: "Alvear Club",
     description:
-      "El Club Padel Madrid es uno de los centros deportivos más completos de la capital. Contamos con 12 pistas de pádel de última generación, todas ellas con iluminación LED y paredes de cristal templado. Nuestras instalaciones incluyen vestuarios amplios, cafetería con vistas a las pistas, tienda especializada y parking gratuito para nuestros socios.",
-    location: "Calle Gran Vía 123, Madrid, España",
-    coordinates: { lat: 40.4168, lng: -3.7038 },
+      "Club de pádel en el barrio de Palermo, Buenos Aires. Con 12 pistas de pádel de última generación, vestuarios amplios, cafetería con vistas a las pistas, tienda especializada y parking gratuito para nuestros socios.",
+    address: "Av. del Libertador 1234, Palermo, Buenos Aires",
     rating: 4.8,
     reviewCount: 124,
     courts: 12,
     images: [
-      "/placeholder.svg?height=400&width=600",
-      "/placeholder.svg?height=400&width=600",
-      "/placeholder.svg?height=400&width=600",
-      "/placeholder.svg?height=400&width=600",
+      "https://vulusxqgknaejdxnhiex.supabase.co/storage/v1/object/public/imagenes/prueba/cancha%20prueba.jpg?height=400&width=600",
+      "https://vulusxqgknaejdxnhiex.supabase.co/storage/v1/object/public/imagenes/prueba/cancha%20prueba.jpg?height=400&width=600",
+      "https://vulusxqgknaejdxnhiex.supabase.co/storage/v1/object/public/imagenes/prueba/cancha%20prueba.jpg?height=400&width=600",
+      "https://vulusxqgknaejdxnhiex.supabase.co/storage/v1/object/public/imagenes/prueba/cancha%20prueba.jpg?height=400&width=600",
     ],
     features: [
       "Parking gratuito",
@@ -152,7 +151,7 @@ export default function ClubDetailPage({ params }: { params: { id: string } }) {
               <h1 className="text-3xl font-bold text-white mb-2">{club.name}</h1>
               <div className="flex items-center text-white/90">
                 <MapPin className="h-4 w-4 mr-2" />
-                <span>{club.location}</span>
+                <span>{club.address}</span>
               </div>
             </div>
           </div>
@@ -214,7 +213,7 @@ export default function ClubDetailPage({ params }: { params: { id: string } }) {
                   <div className="space-y-3">
                     <div className="flex items-start">
                       <MapPin className="h-5 w-5 mr-3 text-violet-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-slate-600">{club.location}</span>
+                      <span className="text-slate-600">{club.address}</span>
                     </div>
                     <div className="flex items-center">
                       <Phone className="h-5 w-5 mr-3 text-violet-500" />

@@ -20,6 +20,7 @@ import {
 import Link from "next/link"
 import TournamentDetailsTabs from "@/components/tournament/tournament-details-tab"
 import { getTournamentDetailsWithInscriptions } from "@/app/api/tournaments/actions"
+import { getAllPlayersDTO } from "@/app/api/players/actions"
 
 // Componente de carga para usar con Suspense
 function TournamentDetailsLoading() {
@@ -54,7 +55,7 @@ function TournamentDetailsLoading() {
 
 // Función para obtener los detalles del torneo
 async function getData(tournamentId: string) {
-  const supabase = await createClient() // Added await here
+  const supabase = await createClient()
 
   // 1. Verificar autenticación del usuario
   const {
@@ -66,8 +67,7 @@ async function getData(tournamentId: string) {
     redirect("/login") // Redirect to login if not authenticated
   }
 
-  // 2. Obtener detalles del torneo e inscripciones usando la nueva acción
-  // El chequeo de rol de club se ha quitado según tu indicación
+  // 2. Obtener detalles del torneo e inscripciones
   const { tournament, inscriptions } = await getTournamentDetailsWithInscriptions(tournamentId)
 
   if (!tournament) {
@@ -75,7 +75,49 @@ async function getData(tournamentId: string) {
     notFound()
   }
 
-  return { tournament, inscriptions, user } // Retornar también el usuario si es necesario en la página
+  console.log("Inscripciones recibidas:", JSON.stringify(inscriptions, null, 2));
+
+  // 3. Obtener todos los jugadores para búsqueda
+  const allPlayers = await getAllPlayersDTO()
+
+  // 4. Separar inscripciones individuales y parejas
+  const individualInscriptions = inscriptions
+    .filter((insc) => !insc.couple || insc.couple.length === 0)
+    .map((insc) => ({
+      id: insc.player[0]?.id || insc.id,
+      first_name: insc.player[0]?.first_name || null,
+      last_name: insc.player[0]?.last_name || null,
+      dni: insc.player[0]?.dni || null,
+      phone: insc.player[0]?.phone || null,
+      score: null
+    }));
+    
+  const coupleInscriptions = inscriptions
+    .filter((insc) => insc.couple && insc.couple.length > 0)
+    .map((insc) => ({
+      id: insc.id,
+      tournament_id: tournament.id,
+      player_1_id: insc.couple[0]?.player1[0]?.id || null,
+      player_2_id: insc.couple[0]?.player2[0]?.id || null,
+      player_1_info: {
+        id: insc.couple[0]?.player1[0]?.id || null,
+        first_name: insc.couple[0]?.player1[0]?.first_name || null,
+        last_name: insc.couple[0]?.player1[0]?.last_name || null,
+        dni: insc.couple[0]?.player1[0]?.dni || null,
+        score: null
+      },
+      player_2_info: {
+        id: insc.couple[0]?.player2[0]?.id || null,
+        first_name: insc.couple[0]?.player2[0]?.first_name || null,
+        last_name: insc.couple[0]?.player2[0]?.last_name || null,
+        dni: insc.couple[0]?.player2[0]?.dni || null,
+        score: null
+      },
+      created_at: new Date().toISOString(),
+      status: "ACTIVE"
+    }));
+
+  return { tournament, individualInscriptions, coupleInscriptions, user, allPlayers }
 }
 
 // Obtener icono según el estado
@@ -140,11 +182,10 @@ function formatDate(dateString: string) {
 
 // Componente principal
 export default async function TournamentDetailsPage({ params }: { params: { id: string } }) {
-  const { tournament, inscriptions, user } = await getData(params.id)
+  const { tournament, individualInscriptions, coupleInscriptions, allPlayers } = await getData(params.id)
 
-  // Separar inscripciones individuales y parejas
-  const individualInscriptions = inscriptions.filter((insc) => insc.player && !insc.couple)
-  const coupleInscriptions = inscriptions.filter((insc) => insc.couple)
+  // Configurar el máximo de jugadores (podría venir del torneo en el futuro)
+  const maxPlayers = tournament.max_players || 32
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-emerald-50">
@@ -239,8 +280,8 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
                     </div>
                     <div className="flex gap-4">
                       <span className="text-slate-600">
-                        <span className="font-medium text-violet-700">{individualInscriptions.length}</span> jugadores
-                        individuales
+                        <span className="font-medium text-violet-700">{individualInscriptions.length}</span> de{" "}
+                        <span className="font-medium text-violet-700">{maxPlayers}</span> jugadores individuales
                       </span>
                       <span className="text-slate-600">
                         <span className="font-medium text-emerald-700">{coupleInscriptions.length}</span> parejas
@@ -257,6 +298,8 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
               coupleInscriptions={coupleInscriptions}
               tournamentId={params.id}
               tournamentStatus={tournament.status}
+              maxPlayers={maxPlayers}
+              allPlayers={allPlayers}
             />
           </div>
         </Suspense>

@@ -282,6 +282,13 @@ export async function registerNewPlayerForTournament(tournamentId: string, first
   }
 
   console.log("[registerNewPlayerForTournament] Jugador registrado exitosamente. Inscription data:", data);
+  
+  // Revalidar rutas para actualizar la UI
+  revalidatePath(`/tournaments/${tournamentId}`);
+  revalidatePath(`/my-tournaments/${tournamentId}`);
+  revalidatePath('/tournaments');
+  revalidatePath('/my-tournaments');
+  
   return { success: true, inscription: data };
 }
 
@@ -514,34 +521,153 @@ export async function registerAuthenticatedPlayerForTournament(
  */
 export async function getTournamentDetailsWithInscriptions(tournamentId: string) {
   const supabase = await createClient();
+  console.log(`[getTournamentDetailsWithInscriptions] Iniciando para torneo ID: ${tournamentId}`);
 
-  // Obtener detalles del torneo (reutiliza getTournamentById)
+  // 1. Obtener detalles del torneo
   const tournament = await getTournamentById(tournamentId);
   if (!tournament) {
+    console.log('[getTournamentDetailsWithInscriptions] No se encontró el torneo');
     return { tournament: null, inscriptions: [] };
   }
 
-  // Obtener inscripciones con detalles de jugador y pareja
-  const { data: inscriptions, error: inscriptionsError } = await supabase
-    .from('inscriptions')
-    .select(`
-      id,
-      player:players(id, first_name, last_name, phone, email, dni),
-      couple:couples(
-        id,
-        player1:players!couples_player1_id_fkey(id, first_name, last_name, phone, email, dni),
-        player2:players!couples_player2_id_fkey(id, first_name, last_name, phone, email, dni)
-      )
-    `)
-    .eq('tournament_id', tournamentId);
+  try {
+    // 2. Obtener todas las inscripciones para este torneo
+    const { data: inscriptions, error: inscriptionsError } = await supabase
+      .from('inscriptions')
+      .select('*')
+      .eq('tournament_id', tournamentId);
 
-  if (inscriptionsError) {
-    console.error('[getTournamentDetailsWithInscriptions] Error al obtener inscripciones:', inscriptionsError);
+    if (inscriptionsError) {
+      console.error('[getTournamentDetailsWithInscriptions] Error al obtener inscripciones:', inscriptionsError);
+      return { tournament, inscriptions: [] };
+    }
+
+    console.log(`[getTournamentDetailsWithInscriptions] Encontradas ${inscriptions?.length || 0} inscripciones`);
+
+    // 3. Obtener información de jugadores
+    const playerIds = inscriptions
+      .filter(insc => insc.player_id)
+      .map(insc => insc.player_id);
+
+    const { data: players, error: playersError } = await supabase
+      .from('players')
+      .select('*')
+      .in('id', playerIds.length > 0 ? playerIds : ['no-players']);
+
+    if (playersError) {
+      console.error('[getTournamentDetailsWithInscriptions] Error al obtener jugadores:', playersError);
+    }
+
+    // 4. Obtener información de parejas
+    const coupleIds = inscriptions
+      .filter(insc => insc.couple_id)
+      .map(insc => insc.couple_id)
+      .filter(Boolean);
+
+    let couples = [];
+    if (coupleIds.length > 0) {
+      const { data: couplesData, error: couplesError } = await supabase
+        .from('couples')
+        .select('*')
+        .in('id', coupleIds);
+
+      if (couplesError) {
+        console.error('[getTournamentDetailsWithInscriptions] Error al obtener parejas:', couplesError);
+      } else {
+        couples = couplesData || [];
+      }
+    }
+
+    // 5. Crear un mapa de jugadores por ID para acceso rápido
+    const playersMap = (players || []).reduce((acc, player) => {
+      acc[player.id] = player;
+      return acc;
+    }, {});
+
+    // 6. Procesar la información de parejas para incluir detalles de jugadores
+    const couplesWithPlayers = couples.map(couple => {
+      const player1 = playersMap[couple.player1_id] || null;
+      const player2 = playersMap[couple.player2_id] || null;
+
+      return {
+        ...couple,
+        player1: player1 ? [player1] : [],
+        player2: player2 ? [player2] : []
+      };
+    });
+
+    // 7. Crear un mapa de parejas por ID
+    const couplesMap = couplesWithPlayers.reduce((acc, couple) => {
+      acc[couple.id] = couple;
+      return acc;
+    }, {});
+
+    // 8. Construir la respuesta final combinando inscripciones con sus jugadores/parejas
+    const processedInscriptions = inscriptions.map(inscription => {
+      const result = {
+        ...inscription,
+        player: inscription.player_id ? [playersMap[inscription.player_id]].filter(Boolean) : [],
+        couple: inscription.couple_id ? [couplesMap[inscription.couple_id]].filter(Boolean) : []
+      };
+      return result;
+    });
+
+    console.log(`[getTournamentDetailsWithInscriptions] Proceso completado con ${processedInscriptions.length} inscripciones procesadas`);
+    return { tournament, inscriptions: processedInscriptions };
+  } catch (error) {
+    console.error('[getTournamentDetailsWithInscriptions] Error inesperado:', error);
     return { tournament, inscriptions: [] };
   }
-
-  return { tournament, inscriptions };
 }
 
+export async function registerPlayerForTournament(tournamentId: string, playerId: string) {
+  const supabase = await createClient();
+  console.log(`[registerPlayerForTournament] Registrando jugador ${playerId} para torneo ${tournamentId}`);
+  
+  try {
+    // Verificar si el jugador ya está inscrito
+    const { data: existingInscription, error: checkError } = await supabase
+      .from('inscriptions')
+      .select('id')
+      .eq('tournament_id', tournamentId)
+      .eq('player_id', playerId)
+      .maybeSingle();
+      
+    if (checkError) {
+      console.error("[registerPlayerForTournament] Error al verificar inscripción existente:", checkError);
+    }
+    
+    if (existingInscription) {
+      console.log(`[registerPlayerForTournament] El jugador ${playerId} ya está inscrito en el torneo ${tournamentId}`);
+      return { success: false, message: "El jugador ya está inscrito en este torneo" };
+    }
+    
+    // Registrar el jugador
+    const { data, error } = await supabase
+      .from('inscriptions')
+      .insert({ tournament_id: tournamentId, player_id: playerId })
+      .select()
+      .single();
 
+    if (error) {
+      console.error("[registerPlayerForTournament] Error al registrar jugador:", error);
+      throw new Error("No se pudo registrar el jugador");
+    }
+    
+    console.log("[registerPlayerForTournament] Jugador registrado exitosamente:", data);
+    
+    // Revalidar rutas para actualizar la UI
+    revalidatePath(`/tournaments/${tournamentId}`);
+    revalidatePath(`/my-tournaments/${tournamentId}`);
+    revalidatePath('/tournaments');
+    revalidatePath('/my-tournaments');
+    
+    return { success: true, inscription: data };
+  } catch (error) {
+    console.error("[registerPlayerForTournament] Error inesperado:", error);
+    throw error;
+  }
+}
+    
+    
 

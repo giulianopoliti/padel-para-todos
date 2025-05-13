@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Award,
   Zap,
+  Info,
 } from "lucide-react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
@@ -47,6 +48,7 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
   const [sortConfig, setSortConfig] = useState({ key: "score", direction: "desc" })
   const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null)
   const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null)
+  const [showScoreInfo, setShowScoreInfo] = useState(false)
 
   const handleSearch = (term: string) => {
     setSearchTerm(term)
@@ -222,14 +224,14 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
                 placeholder="Buscar por nombre o club..."
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10 border-slate-100 focus:border-emerald-200 focus:ring-emerald-200 rounded-xl text-slate-500 placeholder:text-slate-400"
+                className="pl-10 border-slate-100 focus:border-teal-200 focus:ring-teal-200 rounded-xl text-slate-500 placeholder:text-slate-400"
               />
             </div>
             <div className="w-full md:w-64">
               <div className="relative">
                 <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
                 <Select value={categoryFilter} onValueChange={handleCategoryFilter}>
-                  <SelectTrigger className="pl-10 border-slate-100 focus:border-emerald-200 focus:ring-emerald-200 rounded-xl text-slate-500 placeholder:text-slate-400">
+                  <SelectTrigger className="pl-10 border-slate-100 focus:border-teal-200 focus:ring-teal-200 rounded-xl text-slate-500 placeholder:text-slate-400">
                     <SelectValue placeholder="Filtrar por categoría" />
                   </SelectTrigger>
                   <SelectContent>
@@ -275,68 +277,79 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
             <TabsContent value="individual" className="p-0">
               <div className="overflow-hidden">
                 <div className="grid grid-cols-1 divide-y divide-slate-100">
-                  <div className="bg-slate-50 p-4 grid grid-cols-12 gap-2 text-sm font-medium text-slate-500">
-                    <div className="col-span-1 flex justify-center items-center">
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => requestSort("score")}>
-                        Pos
-                        {sortConfig.key === "score" &&
-                          (sortConfig.direction === "asc" ? (
-                            <ChevronUp className="ml-1 h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="ml-1 h-4 w-4" />
-                          ))}
-                      </Button>
-                    </div>
-                    <div className="col-span-4 sm:col-span-3 flex items-center">Jugador</div>
-                    <div className="col-span-3 sm:col-span-2 hidden sm:flex items-center">Club</div>
-                    <div className="col-span-2 flex items-center justify-center">
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => requestSort("category")}>
-                        Categoría
-                        {sortConfig.key === "category" &&
-                          (sortConfig.direction === "asc" ? (
-                            <ChevronUp className="ml-1 h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="ml-1 h-4 w-4" />
-                          ))}
-                      </Button>
-                    </div>
-                    <div className="col-span-2 hidden md:flex items-center justify-center">
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => requestSort("winRate")}>
-                        % Victorias
-                        {sortConfig.key === "winRate" &&
-                          (sortConfig.direction === "asc" ? (
-                            <ChevronUp className="ml-1 h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="ml-1 h-4 w-4" />
-                          ))}
-                      </Button>
-                    </div>
-                    <div className="col-span-2 hidden lg:flex items-center justify-center">
+                  {/* Sistema de puntuación */}
+                  <div className="bg-slate-50 p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-medium text-slate-700 flex items-center">Sistema de puntuación</h3>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 px-2"
-                        onClick={() => requestSort("matchesPlayed")}
+                        onClick={() => setShowScoreInfo(!showScoreInfo)}
+                        className="text-slate-500 hover:text-teal-600"
                       >
-                        Partidos
-                        {sortConfig.key === "matchesPlayed" &&
-                          (sortConfig.direction === "asc" ? (
-                            <ChevronUp className="ml-1 h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="ml-1 h-4 w-4" />
-                          ))}
+                        <Info className="h-4 w-4 mr-1" />
+                        {showScoreInfo ? "Ocultar información" : "Ver información"}
                       </Button>
                     </div>
-                    <div className="col-span-3 sm:col-span-2 flex items-center justify-center">
-                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => requestSort("score")}>
-                        Puntos
-                        {sortConfig.key === "score" &&
-                          (sortConfig.direction === "asc" ? (
-                            <ChevronUp className="ml-1 h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="ml-1 h-4 w-4" />
-                          ))}
-                      </Button>
+
+                    <AnimatePresence>
+                      {showScoreInfo && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="text-sm text-slate-600 bg-slate-100 p-3 rounded-lg mb-3"
+                        >
+                          <p>El sistema de puntuación se basa en los resultados obtenidos en torneos oficiales:</p>
+                          <ul className="list-disc pl-5 mt-2 space-y-1">
+                            <li>Victorias en torneos: 10-25 puntos</li>
+                            <li>Semifinales: 5-15 puntos</li>
+                            <li>Cuartos de final: 3-8 puntos</li>
+                            <li>Participación: 1-3 puntos</li>
+                          </ul>
+                          <p className="mt-2">Los puntos varían según la categoría y nivel del torneo.</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Encabezados de columna mejorados y separados */}
+                    <div className="grid grid-cols-12 text-sm font-medium text-slate-500">
+                      <div className="col-span-1 text-center">
+                        <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => requestSort("score")}>
+                          Pos
+                          {sortConfig.key === "score" &&
+                            (sortConfig.direction === "asc" ? (
+                              <ChevronUp className="ml-1 h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="ml-1 h-4 w-4" />
+                            ))}
+                        </Button>
+                      </div>
+                      <div className="col-span-4 sm:col-span-3">Jugador</div>
+                      <div className="col-span-3 sm:col-span-3 hidden sm:block">Club</div>
+                      <div className="col-span-2 text-center">
+                        <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => requestSort("category")}>
+                          Cat.
+                          {sortConfig.key === "category" &&
+                            (sortConfig.direction === "asc" ? (
+                              <ChevronUp className="ml-1 h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="ml-1 h-4 w-4" />
+                            ))}
+                        </Button>
+                      </div>
+                      <div className="col-span-5 sm:col-span-3 text-center">
+                        <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => requestSort("score")}>
+                          Puntos
+                          {sortConfig.key === "score" &&
+                            (sortConfig.direction === "asc" ? (
+                              <ChevronUp className="ml-1 h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="ml-1 h-4 w-4" />
+                            ))}
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
@@ -362,7 +375,10 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
                               transition={{ duration: 0.3, delay: index * 0.05 }}
                               className={`p-4 grid grid-cols-12 gap-2 items-center ${hoveredPlayer === player.id ? "bg-slate-50" : "bg-white"} transition-colors duration-200`}
                             >
+                              {/* Posición */}
                               <div className="col-span-1 flex justify-center">{getMedalIcon(index)}</div>
+
+                              {/* Jugador */}
                               <div className="col-span-4 sm:col-span-3">
                                 <div className="flex items-center">
                                   <div className="font-semibold text-slate-800">
@@ -383,47 +399,38 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
                                   {player.club}
                                 </div>
                               </div>
-                              <div className="col-span-3 sm:col-span-2 hidden sm:flex items-center">
+
+                              {/* Club */}
+                              <div className="col-span-3 sm:col-span-3 hidden sm:flex items-center">
                                 <div className="flex items-center text-slate-600">
                                   <Shield className="h-4 w-4 mr-1.5 text-slate-400" />
                                   <span className="truncate">{player.club}</span>
                                 </div>
                               </div>
+
+                              {/* Categoría */}
                               <div className="col-span-2 flex justify-center">
                                 <Badge className={`${getCategoryColor(player.category)} px-2.5 py-1`}>
                                   {getCategoryName(player.category)}
                                 </Badge>
                               </div>
-                              <div className="col-span-2 hidden md:flex justify-center items-center">
-                                <div className="flex items-center">
-                                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
-                                    <span className="font-bold text-slate-700">{player.winRate}%</span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="col-span-2 hidden lg:flex justify-center items-center">
-                                <div className="text-slate-600 font-medium">{player.matchesPlayed}</div>
-                              </div>
-                              <div className="col-span-3 sm:col-span-2 flex justify-between items-center">
-                                <div className="flex items-center">
-                                  <div className="bg-gradient-to-r from-teal-500 to-blue-500 text-white font-bold rounded-full w-12 h-12 flex items-center justify-center">
-                                    {player.score}
-                                  </div>
-                                  <div className="ml-2 text-sm">{getTrendIcon(player.trend)}</div>
-                                </div>
+
+                              {/* Puntuación simplificada */}
+                              <div className="col-span-5 sm:col-span-3 flex items-center justify-center pr-8">
+                                <div className="font-bold text-2xl text-teal-600">{player.score}</div>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="expand-button"
+                                  className="expand-button h-8 w-8 p-0 ml-2"
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     togglePlayerExpand(player.id)
                                   }}
                                 >
                                   {expandedPlayer === player.id ? (
-                                    <ChevronUp className="h-5 w-5 text-slate-400" />
+                                    <ChevronUp className="h-4 w-4 text-slate-400" />
                                   ) : (
-                                    <ChevronDown className="h-5 w-5 text-slate-400" />
+                                    <ChevronDown className="h-4 w-4 text-slate-400" />
                                   )}
                                 </Button>
                               </div>

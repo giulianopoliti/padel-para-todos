@@ -7,12 +7,12 @@ import { MapPin, Star, ChevronRight, Users, Clock, Search, Filter } from "lucide
 const clubs = [
   {
     id: "1",
-    name: "Club Padel Madrid",
-    location: "Madrid, España",
+    name: "Alvear Club",
+    location: "Parque Avellaneda, Ciudad Autónoma de Buenos Aires",
     rating: 4.8,
     reviewCount: 124,
     courts: 12,
-    image: "/placeholder.svg?height=200&width=400",
+    image: "https://vulusxqgknaejdxnhiex.supabase.co/storage/v1/object/public/imagenes/prueba/cancha%20prueba.jpg?height=200&width=400",
     features: ["Parking gratuito", "Cafetería", "Tienda", "Clases"],
     openingHours: "7:00 - 23:00",
   },

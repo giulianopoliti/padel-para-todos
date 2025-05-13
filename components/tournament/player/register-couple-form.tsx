@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -10,9 +10,20 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { registerCoupleForTournament } from "@/app/api/tournaments/actions"
 import { useUser } from "@/contexts/user-context"
-import { Search, UserPlus } from "lucide-react"
+import { Search, UserPlus, AlertCircle } from "lucide-react"
 import PlayerSearchResults from "./player-search-results"
-import { PlayerDTO } from "@/types"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+
+// Define the PlayerInfo interface locally
+interface PlayerInfo {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  score?: number | null
+  dni?: string | null
+  phone?: string | null
+}
+
 // Esquema de validación para jugador
 const playerFormSchema = z.object({
   firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -32,15 +43,30 @@ type SearchFormValues = z.infer<typeof searchFormSchema>
 interface RegisterCoupleFormProps {
   tournamentId: string
   onComplete: (success: boolean) => void
-  players: PlayerDTO[]
+  players: PlayerInfo[]
 }
 
 export default function RegisterCoupleForm({ tournamentId, onComplete, players }: RegisterCoupleFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [searchResults, setSearchResults] = useState<any[]>([])
-  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null)
+  const [selectedPlayer1Id, setSelectedPlayer1Id] = useState<string | null>(null)
+  const [selectedPlayer2Id, setSelectedPlayer2Id] = useState<string | null>(null)
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
+  const [isClubUser, setIsClubUser] = useState<boolean>(false)
   const { user: contextUser, userDetails } = useUser()
+
+  // Detectar si el usuario es un club o un jugador
+  useEffect(() => {
+    // Esta lógica puede variar según tu implementación
+    // Asumo que si userDetails tiene player_id, es un jugador, si no, es un club
+    setIsClubUser(!userDetails?.player_id)
+    
+    // Si es un jugador, preseleccionamos su ID como player 1
+    if (userDetails?.player_id) {
+      setSelectedPlayer1Id(userDetails.player_id)
+    }
+  }, [userDetails])
 
   // Valores por defecto si el usuario ya tiene un perfil
   const defaultValues: Partial<PlayerFormValues> = {
@@ -73,9 +99,10 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
       console.log("Players for search:", players);
       const searchTermLower = data.searchTerm.toLowerCase();
       const filteredResults = players.filter(player => {
-        const firstNameMatch = player.first_name.toLowerCase().includes(searchTermLower);
-        const lastNameMatch = player.last_name.toLowerCase().includes(searchTermLower);
-        return firstNameMatch || lastNameMatch;
+        const firstNameMatch = player.first_name?.toLowerCase().includes(searchTermLower);
+        const lastNameMatch = player.last_name?.toLowerCase().includes(searchTermLower);
+        const dniMatch = player.dni?.toLowerCase().includes(searchTermLower);
+        return firstNameMatch || lastNameMatch || dniMatch;
       });
       setSearchResults(filteredResults);
       console.log("Filtered results:", filteredResults);
@@ -88,45 +115,108 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
 
   // Manejar selección de jugador
   const handleSelectPlayer = (playerId: string) => {
-    setSelectedPartnerId(playerId)
+    if (isClubUser) {
+      // Si no hay jugador 1 seleccionado, seleccionarlo
+      if (!selectedPlayer1Id) {
+        setSelectedPlayer1Id(playerId)
+      } 
+      // Si el jugador 1 ya está seleccionado y es diferente, seleccionar como jugador 2
+      else if (selectedPlayer1Id !== playerId) {
+        setSelectedPlayer2Id(playerId)
+      }
+      // Si se vuelve a seleccionar el mismo jugador, deseleccionarlo
+      else if (selectedPlayer1Id === playerId) {
+        setSelectedPlayer1Id(null)
+      }
+    } else {
+      // Para usuario jugador, solo se selecciona la pareja
+      setSelectedPlayer2Id(playerId)
+    }
+    
+    // Mantener selectedPlayerId para compatibilidad con el código existente
+    setSelectedPlayerId(playerId)
+  }
+
+  // Manejar deselección de jugador específico
+  const handleUnselectPlayer = (playerNumber: 1 | 2) => {
+    if (playerNumber === 1) {
+      setSelectedPlayer1Id(null)
+    } else {
+      setSelectedPlayer2Id(null)
+    }
   }
 
   // Manejar registro de pareja
   const onSubmitCouple = async () => {
-    if (!contextUser || !selectedPartnerId) {
-      alert("Debe seleccionar un compañero para registrar la pareja")
-      return
-    }
-
-    setIsSubmitting(true)
-
-    try {
-      // Ensure userDetails and userDetails.player_id are available
-      if (!userDetails?.player_id) {
-        alert("No se pudo obtener el ID del jugador actual. Asegúrate de haber iniciado sesión y tener un perfil de jugador.");
-        setIsSubmitting(false);
-        return;
+    if (isClubUser) {
+      // Validar que ambos jugadores estén seleccionados
+      if (!selectedPlayer1Id || !selectedPlayer2Id) {
+        alert("Debe seleccionar dos jugadores para formar la pareja")
+        return
       }
-      const result = await registerCoupleForTournament(tournamentId, userDetails.player_id, selectedPartnerId!)
 
-      if (result.success) {
-        alert("¡Pareja registrada con éxito!")
-        onComplete(true)
-      } else {
-        alert("Error al registrar la pareja.")
+      setIsSubmitting(true)
+      
+      try {
+        const result = await registerCoupleForTournament(tournamentId, selectedPlayer1Id, selectedPlayer2Id)
+
+        if (result.success) {
+          alert("¡Pareja registrada con éxito!")
+          onComplete(true)
+        } else {
+          alert("Error al registrar la pareja.")
+          onComplete(false)
+        }
+      } catch (error) {
+        console.error("Error al registrar pareja:", error)
+        alert("Ocurrió un error al procesar su solicitud")
         onComplete(false)
+      } finally {
+        setIsSubmitting(false)
       }
-    } catch (error) {
-      console.error("Error al registrar pareja:", error)
-      alert("Ocurrió un error al procesar su solicitud")
-      onComplete(false)
-    } finally {
-      setIsSubmitting(false)
+    } else {
+      // Para usuario jugador
+      if (!contextUser || !selectedPlayer2Id) {
+        alert("Debe seleccionar un compañero para registrar la pareja")
+        return
+      }
+
+      setIsSubmitting(true)
+
+      try {
+        // Asegurar que userDetails.player_id está disponible
+        if (!userDetails?.player_id) {
+          alert("No se pudo obtener el ID del jugador actual. Asegúrate de haber iniciado sesión y tener un perfil de jugador.");
+          setIsSubmitting(false);
+          return;
+        }
+        const result = await registerCoupleForTournament(tournamentId, userDetails.player_id, selectedPlayer2Id)
+
+        if (result.success) {
+          alert("¡Pareja registrada con éxito!")
+          onComplete(true)
+        } else {
+          alert("Error al registrar la pareja.")
+          onComplete(false)
+        }
+      } catch (error) {
+        console.error("Error al registrar pareja:", error)
+        alert("Ocurrió un error al procesar su solicitud")
+        onComplete(false)
+      } finally {
+        setIsSubmitting(false)
+      }
     }
   }
 
   // Manejar registro de nuevo jugador como pareja
   const onSubmitNewPlayer = async (data: PlayerFormValues) => {
+    if (isClubUser) {
+      // Implementar lógica para crear dos jugadores nuevos
+      alert("La creación de nuevos jugadores desde club no está implementada")
+      return
+    }
+
     if (!contextUser) {
       alert("Debe iniciar sesión para registrar una pareja")
       return
@@ -157,7 +247,7 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="search">
           <Search className="mr-2 h-4 w-4" />
-          Buscar jugador
+          Buscar jugador{isClubUser ? "es" : ""}
         </TabsTrigger>
         <TabsTrigger value="new">
           <UserPlus className="mr-2 h-4 w-4" />
@@ -166,6 +256,26 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
       </TabsList>
 
       <TabsContent value="search" className="space-y-4 py-4">
+        {isClubUser && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Modo Club</AlertTitle>
+            <AlertDescription>
+              Debe seleccionar dos jugadores para formar la pareja. Seleccione el primer jugador y luego el segundo.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {!isClubUser && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Modo Jugador</AlertTitle>
+            <AlertDescription>
+              Tu serás el primer jugador de la pareja. Selecciona a tu compañero/a para el torneo.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Form {...searchForm}>
           <form onSubmit={searchForm.handleSubmit(onSearch)} className="space-y-4">
             <FormField
@@ -173,7 +283,7 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
               name="searchTerm"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Buscar compañero/a para el torneo</FormLabel>
+                  <FormLabel>Buscar {isClubUser ? "jugadores" : "compañero/a"} para el torneo</FormLabel>
                   <FormControl>
                     <div className="flex gap-2">
                       <Input placeholder="Nombre, apellido o DNI" {...field} />
@@ -195,37 +305,66 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
           <PlayerSearchResults
             results={searchResults}
             onSelectPlayer={handleSelectPlayer}
-            selectedPlayerId={selectedPartnerId}
+            selectedPlayerId={isClubUser ? null : selectedPlayer2Id}
+            selectedPlayer1Id={selectedPlayer1Id}
+            selectedPlayer2Id={selectedPlayer2Id}
+            isClubMode={isClubUser}
           />
         )}
 
         {/* Sección para mostrar la pareja seleccionada */} 
-        {(contextUser && userDetails) && (
-          <div className="mt-6 p-4 border border-slate-200 rounded-lg bg-slate-50">
-            <h3 className="text-lg font-medium text-teal-700 mb-3">Pareja Seleccionada</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-3 border border-slate-300 bg-white rounded-md shadow-sm">
-                <p className="text-sm text-slate-500 mb-1">Jugador 1 (Tú)</p>
-                <p className="font-medium text-slate-700">
-                  {/* Placeholder - Update with correct userDetails access if different */}
-                  {`${userDetails?.firstName || "Usuario"} ${userDetails?.lastName || "Logueado"}`.trim()}
-                </p>
-              </div>
-              <div className="p-3 border border-slate-300 bg-white rounded-md shadow-sm">
-                <p className="text-sm text-slate-500 mb-1">Jugador 2 (Compañero/a)</p>
-                {selectedPartnerId ? (
+        <div className="mt-6 p-4 border border-slate-200 rounded-lg bg-slate-50">
+          <h3 className="text-lg font-medium text-teal-700 mb-3">Pareja Seleccionada</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-3 border border-slate-300 bg-white rounded-md shadow-sm relative">
+              <p className="text-sm text-slate-500 mb-1">Jugador 1</p>
+              {selectedPlayer1Id ? (
+                <>
                   <p className="font-medium text-slate-700">
-                    {searchResults.find(p => p.id === selectedPartnerId)?.first_name || "Compañero"} {searchResults.find(p => p.id === selectedPartnerId)?.last_name || "Seleccionado"}
+                    {isClubUser 
+                      ? `${searchResults.find(p => p.id === selectedPlayer1Id)?.first_name || ""} ${searchResults.find(p => p.id === selectedPlayer1Id)?.last_name || ""}`
+                      : `${userDetails?.email || "Usuario"}`.trim()
+                    }
                   </p>
-                ) : (
-                  <p className="text-slate-400 italic">Selecciona un compañero de la búsqueda</p>
-                )}
-              </div>
+                  {isClubUser && (
+                    <Button 
+                      className="absolute top-2 right-2 h-6 w-6 p-0 rounded-full" 
+                      variant="outline"
+                      onClick={() => handleUnselectPlayer(1)}
+                    >
+                      &times;
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <p className="text-slate-400 italic">{isClubUser ? "Selecciona el primer jugador" : "No se pudo obtener tus datos"}</p>
+              )}
+            </div>
+
+            <div className="p-3 border border-slate-300 bg-white rounded-md shadow-sm relative">
+              <p className="text-sm text-slate-500 mb-1">Jugador 2</p>
+              {selectedPlayer2Id ? (
+                <>
+                  <p className="font-medium text-slate-700">
+                    {`${searchResults.find(p => p.id === selectedPlayer2Id)?.first_name || ""} ${searchResults.find(p => p.id === selectedPlayer2Id)?.last_name || ""}`}
+                  </p>
+                  <Button 
+                    className="absolute top-2 right-2 h-6 w-6 p-0 rounded-full" 
+                    variant="outline"
+                    onClick={() => handleUnselectPlayer(2)}
+                  >
+                    &times;
+                  </Button>
+                </>
+              ) : (
+                <p className="text-slate-400 italic">Selecciona {isClubUser ? "el segundo jugador" : "un compañero"}</p>
+              )}
             </div>
           </div>
-        )}
+        </div>
 
-        {selectedPartnerId && (
+        {((isClubUser && selectedPlayer1Id && selectedPlayer2Id) || 
+          (!isClubUser && selectedPlayer2Id)) && (
           <div className="flex justify-end pt-4">
             <Button onClick={onSubmitCouple} disabled={isSubmitting} className="bg-teal-600 hover:bg-teal-700">
               {isSubmitting ? "Procesando..." : "Registrar pareja"}
@@ -235,74 +374,94 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
       </TabsContent>
 
       <TabsContent value="new" className="py-4">
-        <Form {...playerForm}>
-          <form onSubmit={playerForm.handleSubmit(onSubmitNewPlayer)} className="space-y-4">
-            <FormField
-              control={playerForm.control}
-              name="firstName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nombre</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ingrese el nombre" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        {isClubUser && (
+          <Alert className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Función no disponible</AlertTitle>
+            <AlertDescription>
+              La creación de nuevos jugadores desde una cuenta de club no está habilitada. Por favor, utilice la búsqueda para seleccionar jugadores existentes.
+            </AlertDescription>
+          </Alert>
+        )}
 
-            <FormField
-              control={playerForm.control}
-              name="lastName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Apellido</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ingrese el apellido" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        {!isClubUser && (
+          <Form {...playerForm}>
+            <form onSubmit={playerForm.handleSubmit(onSubmitNewPlayer)} className="space-y-4">
+              <FormField
+                control={playerForm.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ingrese el nombre" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={playerForm.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Teléfono</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ingrese el teléfono" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={playerForm.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Apellido</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ingrese el apellido" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={playerForm.control}
-              name="dni"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>DNI</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ingrese el DNI" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={playerForm.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Teléfono</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ingrese el teléfono" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => onComplete(false)} disabled={isSubmitting}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting} className="bg-teal-600 hover:bg-teal-700">
-                {isSubmitting ? "Procesando..." : "Registrar pareja"}
-              </Button>
-            </div>
-          </form>
-        </Form>
+              <FormField
+                control={playerForm.control}
+                name="dni"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>DNI</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ingrese el DNI" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => onComplete(false)} disabled={isSubmitting}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSubmitting} className="bg-teal-600 hover:bg-teal-700">
+                  {isSubmitting ? "Procesando..." : "Registrar pareja"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        )}
+
+        {isClubUser && (
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => onComplete(false)}>
+              Volver a la búsqueda
+            </Button>
+          </div>
+        )}
       </TabsContent>
     </Tabs>
   )

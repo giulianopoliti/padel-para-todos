@@ -13,7 +13,7 @@ const coaches = [
   {
     id: "1",
     name: "Carlos Rodríguez",
-    image: "/placeholder.svg?height=300&width=300",
+    image: "https://vulusxqgknaejdxnhiex.supabase.co/storage/v1/object/public/imagenes/prueba/prof%20padel%20prueba.jpg?height=300&width=300",
     specialty: "Técnica avanzada",
     experience: "15 años",
     rating: 4.9,
@@ -89,7 +89,7 @@ export default function CoachesSection() {
               onMouseLeave={() => setHoveredCoach(null)}
             >
               <Card
-                className={`h-full flex flex-col overflow-hidden hover:shadow-lg transition-all duration-300 ${
+                className={`h-full flex flex-col overflow-hidden hover:shadow-lg transition-all duration-300 bg-sky-50 ${
                   hoveredCoach === coach.id ? "transform -translate-y-1" : ""
                 }`}
               >
@@ -101,9 +101,9 @@ export default function CoachesSection() {
                       {coach.rating}
                     </Badge>
                   </div>
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900/80 to-transparent p-4">
-                    <h3 className="text-xl font-bold text-white">{coach.name}</h3>
-                    <p className="text-white/90 text-sm">{coach.specialty}</p>
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-sky-100/95 to-transparent p-4">
+                    <h3 className="text-xl font-bold text-slate-800">{coach.name}</h3>
+                    <p className="text-slate-700 text-sm">{coach.specialty}</p>
                   </div>
                 </div>
 
