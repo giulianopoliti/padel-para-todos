@@ -1,3 +1,4 @@
+import React from "react"
 import { Suspense } from "react"
 import { redirect, notFound } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
@@ -16,12 +17,14 @@ import {
   PauseCircle,
   Phone,
   Mail,
+  Play
 } from "lucide-react"
 import Link from "next/link"
 import TournamentDetailsTabs from "@/components/tournament/tournament-details-tab"
-import { getTournamentDetailsWithInscriptions } from "@/app/api/tournaments/actions"
+import { getTournamentDetailsWithInscriptions, startTournament, startTournament2 } from "@/app/api/tournaments/actions"
 import { getAllPlayersDTO } from "@/app/api/players/actions"
-
+import PlayerCoupleForm from "@/components/tournament/couple-registration/forms/player-couple-form"
+import StartTournamentButton from "@/components/tournament/club/start-tournament"
 // Componente de carga para usar con Suspense
 function TournamentDetailsLoading() {
   return (
@@ -52,6 +55,7 @@ function TournamentDetailsLoading() {
     </div>
   )
 }
+
 
 // Función para obtener los detalles del torneo
 async function getData(tournamentId: string) {
@@ -89,7 +93,7 @@ async function getData(tournamentId: string) {
       last_name: insc.player[0]?.last_name || null,
       dni: insc.player[0]?.dni || null,
       phone: insc.player[0]?.phone || null,
-      score: null
+      score: insc.player[0]?.score || null
     }));
     
   const coupleInscriptions = inscriptions
@@ -104,14 +108,14 @@ async function getData(tournamentId: string) {
         first_name: insc.couple[0]?.player1[0]?.first_name || null,
         last_name: insc.couple[0]?.player1[0]?.last_name || null,
         dni: insc.couple[0]?.player1[0]?.dni || null,
-        score: null
+        score: insc.couple[0]?.player1[0]?.score || null
       },
       player_2_info: {
         id: insc.couple[0]?.player2[0]?.id || null,
         first_name: insc.couple[0]?.player2[0]?.first_name || null,
         last_name: insc.couple[0]?.player2[0]?.last_name || null,
         dni: insc.couple[0]?.player2[0]?.dni || null,
-        score: null
+        score: insc.couple[0]?.player2[0]?.score || null
       },
       created_at: new Date().toISOString(),
       status: "ACTIVE"
@@ -185,7 +189,7 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
   const { tournament, individualInscriptions, coupleInscriptions, allPlayers } = await getData(params.id)
 
   // Configurar el máximo de jugadores (podría venir del torneo en el futuro)
-  const maxPlayers = tournament.max_players || 32
+  const maxPlayers = tournament.max_participants || 32
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-emerald-50">
@@ -199,14 +203,19 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
                   Volver a Mis Torneos
                 </Link>
               </Button>
-              <span
-                className={`px-3 py-1.5 rounded-full font-medium ${getStatusColor(
-                  tournament.status,
-                )} flex items-center gap-2`}
-              >
-                {getStatusIcon(tournament.status)}
-                {getStatusText(tournament.status)}
-              </span>
+              <div className="flex items-center">
+                {tournament.status === "NOT_STARTED" && (
+                  <StartTournamentButton tournamentId={params.id} />
+                )}
+                <span
+                  className={`px-3 py-1.5 rounded-full font-medium ${getStatusColor(
+                    tournament.status,
+                  )} flex items-center gap-2`}
+                >
+                  {getStatusIcon(tournament.status)}
+                  {getStatusText(tournament.status)}
+                </span>
+              </div>
             </div>
 
             <div className="text-center mb-8">

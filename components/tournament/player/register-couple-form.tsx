@@ -115,27 +115,41 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
 
   // Manejar selección de jugador
   const handleSelectPlayer = (playerId: string) => {
-    if (isClubUser) {
-      // Si no hay jugador 1 seleccionado, seleccionarlo
-      if (!selectedPlayer1Id) {
-        setSelectedPlayer1Id(playerId)
-      } 
-      // Si el jugador 1 ya está seleccionado y es diferente, seleccionar como jugador 2
-      else if (selectedPlayer1Id !== playerId) {
-        setSelectedPlayer2Id(playerId)
-      }
-      // Si se vuelve a seleccionar el mismo jugador, deseleccionarlo
-      else if (selectedPlayer1Id === playerId) {
-        setSelectedPlayer1Id(null)
-      }
-    } else {
-      // Para usuario jugador, solo se selecciona la pareja
-      setSelectedPlayer2Id(playerId)
+    // Safety check - don't allow selecting the same player for both positions
+    if (isClubUser && selectedPlayer1Id === playerId) {
+      alert("Este jugador ya está seleccionado como Jugador 1. Por favor, seleccione a otro jugador para Jugador 2.");
+      return;
     }
     
-    // Mantener selectedPlayerId para compatibilidad con el código existente
-    setSelectedPlayerId(playerId)
-  }
+    if (isClubUser && selectedPlayer2Id === playerId) {
+      alert("Este jugador ya está seleccionado como Jugador 2. Por favor, seleccione a otro jugador para Jugador 1.");
+      return;
+    }
+    
+    // Set the currently selected player ID (for compatibility)
+    setSelectedPlayerId(playerId);
+    
+    if (isClubUser) {
+      // For club users, we need to select both players
+      if (!selectedPlayer1Id) {
+        // If player 1 is not yet selected, this is player 1
+        setSelectedPlayer1Id(playerId);
+        console.log("Player 1 set to:", playerId);
+      } else if (!selectedPlayer2Id) {
+        // If player 1 is selected but player 2 is not, this is player 2
+        setSelectedPlayer2Id(playerId);
+        console.log("Player 2 set to:", playerId);
+      } else {
+        // Both are already selected - replace player 2
+        setSelectedPlayer2Id(playerId);
+        console.log("Player 2 replaced with:", playerId);
+      }
+    } else {
+      // For regular users, player 1 is fixed (the user), we only set player 2
+      setSelectedPlayer2Id(playerId);
+      console.log("Player 2 set to:", playerId); 
+    }
+  };
 
   // Manejar deselección de jugador específico
   const handleUnselectPlayer = (playerNumber: 1 | 2) => {
@@ -302,14 +316,22 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
         {isSearching ? (
           <div className="text-center py-4">Buscando jugadores...</div>
         ) : (
-          <PlayerSearchResults
-            results={searchResults}
-            onSelectPlayer={handleSelectPlayer}
-            selectedPlayerId={isClubUser ? null : selectedPlayer2Id}
-            selectedPlayer1Id={selectedPlayer1Id}
-            selectedPlayer2Id={selectedPlayer2Id}
-            isClubMode={isClubUser}
-          />
+          <>
+            {/* Debug info - hidden in production but useful during development */}
+            <div className="text-xs text-gray-500 mb-2">
+              Player1: {selectedPlayer1Id ? selectedPlayer1Id.substring(0, 8) + '...' : 'none'} | 
+              Player2: {selectedPlayer2Id ? selectedPlayer2Id.substring(0, 8) + '...' : 'none'}
+            </div>
+            
+            <PlayerSearchResults
+              results={searchResults}
+              onSelectPlayer={handleSelectPlayer}
+              selectedPlayerId={selectedPlayerId}
+              selectedPlayer1Id={selectedPlayer1Id}
+              selectedPlayer2Id={selectedPlayer2Id}
+              isClubMode={isClubUser}
+            />
+          </>
         )}
 
         {/* Sección para mostrar la pareja seleccionada */} 
@@ -322,7 +344,7 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
                 <>
                   <p className="font-medium text-slate-700">
                     {isClubUser 
-                      ? `${searchResults.find(p => p.id === selectedPlayer1Id)?.first_name || ""} ${searchResults.find(p => p.id === selectedPlayer1Id)?.last_name || ""}`
+                      ? `${players.find(p => p.id === selectedPlayer1Id)?.first_name || ""} ${players.find(p => p.id === selectedPlayer1Id)?.last_name || ""}`
                       : `${userDetails?.email || "Usuario"}`.trim()
                     }
                   </p>
@@ -346,7 +368,7 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
               {selectedPlayer2Id ? (
                 <>
                   <p className="font-medium text-slate-700">
-                    {`${searchResults.find(p => p.id === selectedPlayer2Id)?.first_name || ""} ${searchResults.find(p => p.id === selectedPlayer2Id)?.last_name || ""}`}
+                    {`${players.find(p => p.id === selectedPlayer2Id)?.first_name || ""} ${players.find(p => p.id === selectedPlayer2Id)?.last_name || ""}`}
                   </p>
                   <Button 
                     className="absolute top-2 right-2 h-6 w-6 p-0 rounded-full" 

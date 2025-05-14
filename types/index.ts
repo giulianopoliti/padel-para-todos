@@ -121,3 +121,12 @@ export type User = {
   created_at?: string
 }
 
+export type Zone = {
+  id: string
+  name: string
+  description: string
+  created_at: string
+  couples: Couple[]
+}
+
+

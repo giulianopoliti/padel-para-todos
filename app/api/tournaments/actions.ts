@@ -544,21 +544,7 @@ export async function getTournamentDetailsWithInscriptions(tournamentId: string)
 
     console.log(`[getTournamentDetailsWithInscriptions] Encontradas ${inscriptions?.length || 0} inscripciones`);
 
-    // 3. Obtener información de jugadores
-    const playerIds = inscriptions
-      .filter(insc => insc.player_id)
-      .map(insc => insc.player_id);
-
-    const { data: players, error: playersError } = await supabase
-      .from('players')
-      .select('*')
-      .in('id', playerIds.length > 0 ? playerIds : ['no-players']);
-
-    if (playersError) {
-      console.error('[getTournamentDetailsWithInscriptions] Error al obtener jugadores:', playersError);
-    }
-
-    // 4. Obtener información de parejas
+    // 4. Obtener información de parejas PRIMERO para poder recopilar todos los IDs de jugadores
     const coupleIds = inscriptions
       .filter(insc => insc.couple_id)
       .map(insc => insc.couple_id)
@@ -578,6 +564,25 @@ export async function getTournamentDetailsWithInscriptions(tournamentId: string)
       }
     }
 
+    // 3. Recopilar TODOS los IDs de jugadores, incluyendo tanto player_id como player1_id y player2_id
+    const playerIds = [
+      ...inscriptions.filter(insc => insc.player_id).map(insc => insc.player_id),
+      ...couples.filter(couple => couple.player1_id).map(couple => couple.player1_id),
+      ...couples.filter(couple => couple.player2_id).map(couple => couple.player2_id)
+    ].filter(Boolean); // Filtrar nulls/undefined
+    
+    // Eliminar duplicados usando Set
+    const uniquePlayerIds = [...new Set(playerIds)];
+
+    const { data: players, error: playersError } = await supabase
+      .from('players')
+      .select('*')
+      .in('id', uniquePlayerIds.length > 0 ? uniquePlayerIds : ['no-players']);
+
+    if (playersError) {
+      console.error('[getTournamentDetailsWithInscriptions] Error al obtener jugadores:', playersError);
+    }
+
     // 5. Crear un mapa de jugadores por ID para acceso rápido
     const playersMap = (players || []).reduce((acc, player) => {
       acc[player.id] = player;
@@ -588,7 +593,7 @@ export async function getTournamentDetailsWithInscriptions(tournamentId: string)
     const couplesWithPlayers = couples.map(couple => {
       const player1 = playersMap[couple.player1_id] || null;
       const player2 = playersMap[couple.player2_id] || null;
-
+      
       return {
         ...couple,
         player1: player1 ? [player1] : [],
@@ -669,5 +674,30 @@ export async function registerPlayerForTournament(tournamentId: string, playerId
   }
 }
     
-    
+export async function startTournament2(tournamentId: string) {
+  const supabase = await createClient();
+  console.log(`[startTournament] Iniciando torneo ${tournamentId}`);
+
+  try {
+    // 1. Actualizar el estado del torneo a "IN_PROGRESS"
+    const { data, error } = await supabase
+      .from('tournaments')
+      .update({ status: 'IN_PROGRESS' })
+      .eq('id', tournamentId)
+      .select()
+      .single();  
+
+    if (error) {
+      console.error("[startTournament] Error al actualizar el estado del torneo:", error);
+      throw new Error("No se pudo actualizar el estado del torneo");
+    }
+
+    console.log("[startTournament] Torneo actualizado exitosamente:", data);    
+
+    return { success: true, tournament: data };
+  } catch (error) {
+    console.error("[startTournament] Error inesperado:", error);
+    throw error;
+  }
+}
 
