@@ -3,7 +3,7 @@
  */
 
 import type { CoupleInfo, MatchInfo } from "@/components/tournament/club/types"
-import { Zone } from "@/types"
+import { Couple, Zone } from "@/types"
 
 /**
  * Calculate the number of rounds needed for a tournament
@@ -197,26 +197,103 @@ export function updateBracketAfterMatchCompletion(matches: MatchInfo[], complete
   return updatedMatches
 }
 
-export function generateZones (participants: CoupleInfo[]): Zone[] {
-  const zones: Zone[] = []
+function generateZonesForThreeCouples (participants: Couple[], zones: Zone[]): Zone[] {
+  const participantsCopy = [...participants]
+  const couples_length = participants.length
+  if (couples_length < 3) {
+    throw new Error("Not enough participants to generate zones")
+  }
+  for (let i = 0; i < couples_length / 3; i += 1) {
+    const firstCouple = participantsCopy[0];
+    const lastCouple = participantsCopy[participantsCopy.length - 1];
+    const secondLastCouple = participantsCopy[participantsCopy.length - 2];
+    const zone: Zone = {
+      id: `zone-${i}`,
+      name: `Zone ${i}`,
+      description: `Zone ${i}`,
+      created_at: new Date().toISOString(),
+      couples: [firstCouple, lastCouple, secondLastCouple]
+    }
+    zones.push(zone)
+    participantsCopy.splice(participantsCopy.indexOf(firstCouple), 1);
+    participantsCopy.splice(participantsCopy.indexOf(lastCouple), 1);
+    participantsCopy.splice(participantsCopy.indexOf(secondLastCouple), 1);
+  }
+  return zones
+}
+
+export function generateZones (participants: Couple[]): Zone[] {
+  let zones: Zone[] = []
+  const participantsCopy = [...participants]
   const couples_length = participants.length
   if (couples_length < 6) {
     throw new Error("Not enough participants to generate zones")
   }
   else {
-    if (couples_length % 6 === 0) {
-      for (let i = 0; i < couples_length / 3; i += 3) {
+    if (couples_length % 4 === 0) {
+      for (let i = 0; i < couples_length / 4; i += 1) {
+        const firstCouple = participantsCopy[0];
+        const mediumCouple = participantsCopy[Math.floor(participantsCopy.length / 2)];
+        const lastCouple = participantsCopy[participantsCopy.length - 1];
+        const secondLastCouple = participantsCopy[participantsCopy.length - 2];
+
         const zone: Zone = {
           id: `zone-${i}`,
           name: `Zone ${i}`,
           description: `Zone ${i}`,
           created_at: new Date().toISOString(),
-          couples: participants.slice(i*6, (i+1)*6).map(couple => ({
-            id: couple.id,
-            player_1: couple.player_1_id || "",
-            player_2: couple.player_2_id || ""
-          }))
+          couples: [firstCouple, mediumCouple, lastCouple, secondLastCouple]
         };
-  
-  
+        zones.push(zone);
+
+        // Eliminar las parejas utilizadas
+        participantsCopy.splice(participantsCopy.indexOf(firstCouple), 1);
+        participantsCopy.splice(participantsCopy.indexOf(mediumCouple), 1);
+        participantsCopy.splice(participantsCopy.indexOf(lastCouple), 1);
+        participantsCopy.splice(participantsCopy.indexOf(secondLastCouple), 1);
+      }
+    }
+    else if (couples_length % 4 === 1) {
+      for (let i = 0; i < couples_length / 3; i += 1) {
+        // Seleccionar parejas para esta zona
+        const firstCouple = participantsCopy[0];
+        const lastCouple = participantsCopy[participantsCopy.length - 1];
+        const secondLastCouple = participantsCopy[participantsCopy.length - 2];
+        
+        const zone: Zone = {
+          id: `zone-${i}`,
+          name: `Zone ${i}`,
+          description: `Zone ${i}`,
+          created_at: new Date().toISOString(),
+          couples: [firstCouple, lastCouple, secondLastCouple]
+        };
+        zones.push(zone);
+        
+        // Eliminar las parejas utilizadas
+        participantsCopy.splice(participantsCopy.indexOf(firstCouple), 1);
+        participantsCopy.splice(participantsCopy.indexOf(lastCouple), 1);
+        participantsCopy.splice(participantsCopy.indexOf(secondLastCouple), 1);
+      }
+      if (couples_length % 3 === 0) {
+        zones = generateZonesForThreeCouples(participantsCopy, zones)
+        return zones;
+      }
+    }
+    else if (couples_length % 4 === 2) {
+      for (let i = 0; i < 2; i += 1) {
+        zones = generateZonesForThreeCouples(participantsCopy, zones)
+      }
+      for (let i = 0; i < couples_length / 4; i += 1) {
+        const zone: Zone = {
+          id: `zone-${i}`,
+          name: `Zone ${i}`,
+          description: `Zone ${i}`,
+          created_at: new Date().toISOString(),
+          couples: []  // Añadir el array vacío para cumplir con el tipo Zone
+        };
+        zones.push(zone);
+      }
+    }
+  }
+  return zones;
 }
