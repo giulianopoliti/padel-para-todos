@@ -1042,13 +1042,13 @@ export async function fetchTournamentMatches(tournamentId: string) {
 // Interfaz para actualizar el resultado de un partido
 interface UpdateMatchResultParams {
   matchId: string
-  score1: number
-  score2: number
-  winnerId: string
+  result_couple1: string // Assuming textual result like "6-3, 6-4"
+  result_couple2: string // Assuming textual result
+  winner_id: string
 }
 
 // Función para actualizar el resultado de un partido
-export async function updateMatchResult({ matchId, score1, score2, winnerId }: UpdateMatchResultParams) {
+export async function updateMatchResult({ matchId, result_couple1, result_couple2, winner_id }: UpdateMatchResultParams) {
   const supabase = await createClient()
 
   try {
@@ -1056,9 +1056,9 @@ export async function updateMatchResult({ matchId, score1, score2, winnerId }: U
     const { error: updateError } = await supabase
       .from("matches")
       .update({
-        score_couple1: score1,
-        score_couple2: score2,
-        winner_id: winnerId,
+        result_couple1: result_couple1, // Corrected column name
+        result_couple2: result_couple2, // Corrected column name
+        winner_id: winner_id,
         status: "COMPLETED",
       })
       .eq("id", matchId)

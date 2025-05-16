@@ -138,9 +138,9 @@ export default function TournamentMatchesTab({ tournamentId }: TournamentMatches
                       <TableCell className="text-center">
                         {match.status === "COMPLETED" ? (
                           <div className="flex justify-center items-center gap-1">
-                            <span className="font-medium text-emerald-700">{match.score_couple1}</span>
+                            <span className="font-medium text-emerald-700">{match.result_couple1}</span>
                             <span className="text-slate-400">-</span>
-                            <span className="font-medium text-emerald-700">{match.score_couple2}</span>
+                            <span className="font-medium text-emerald-700">{match.result_couple2}</span>
                           </div>
                         ) : (
                           <span className="text-slate-400">-</span>
