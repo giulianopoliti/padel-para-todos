@@ -197,103 +197,84 @@ export function updateBracketAfterMatchCompletion(matches: MatchInfo[], complete
   return updatedMatches
 }
 
-function generateZonesForThreeCouples (participants: Couple[], zones: Zone[]): Zone[] {
-  const participantsCopy = [...participants]
-  const couples_length = participants.length
-  if (couples_length < 3) {
-    throw new Error("Not enough participants to generate zones")
+export function generateZones(participants: Couple[]): Zone[] {
+  const zones: Zone[] = [];
+  // Work with a copy so the original participants array is not modified
+  const mutableParticipants = [...participants];
+  const n = mutableParticipants.length;
+  let zoneCounter = 0;
+
+  if (n === 0) {
+    return []; // No participants, no zones
   }
-  for (let i = 0; i < couples_length / 3; i += 1) {
-    const firstCouple = participantsCopy[0];
-    const lastCouple = participantsCopy[participantsCopy.length - 1];
-    const secondLastCouple = participantsCopy[participantsCopy.length - 2];
-    const zone: Zone = {
-      id: `zone-${i}`,
-      name: `Zone ${i}`,
-      description: `Zone ${i}`,
+
+  // Adhering to the original constraint of requiring at least 6 couples.
+  if (n < 6) {
+    throw new Error(`Tournament requires at least 6 couples to generate zones. Found ${n}.`);
+  }
+
+  let num_zones_of_4 = 0;
+  let num_zones_of_3 = 0;
+
+  if (n % 4 === 0) {
+    num_zones_of_4 = n / 4;
+  } else if (n % 4 === 1) {
+    // Requires n >= 9. Example: n=9 -> 0x4, 3x3. n=13 -> 1x4, 3x3.
+    // Covered by n < 6 check for smaller invalid values like 1, 5.
+    if (n < 9) { // Should not happen if n >= 6, means n could be 1 or 5 which isn't allowed with this formula branch.
+        throw new Error(`Cannot form zones for ${n} couples with a remainder of 1 (requires at least 9 couples for this case).`);
+    }
+    num_zones_of_4 = Math.floor(n / 4) - 2;
+    num_zones_of_3 = 3;
+  } else if (n % 4 === 2) {
+    // Requires n >= 6. Example: n=6 -> 0x4, 2x3. n=10 -> 1x4, 2x3.
+    num_zones_of_4 = Math.floor(n / 4) - 1;
+    num_zones_of_3 = 2;
+  } else { // n % 4 === 3
+    // Requires n >= 3. Example: n=7 -> 1x4, 1x3. n=11 -> 2x4, 1x3.
+    num_zones_of_4 = Math.floor(n / 4);
+    num_zones_of_3 = 1;
+  }
+
+  const createAndAddZone = (numInZone: number) => {
+    if (mutableParticipants.length < numInZone) {
+      throw new Error(
+        `Internal logic error: Not enough participants (${mutableParticipants.length}) to form planned zone of ${numInZone}. Initial n=${n}`,
+      );
+    }
+    const zoneCouples: Couple[] = [];
+    for (let i = 0; i < numInZone; i++) {
+      // Takes couples from the beginning of the array.
+      // If seeding (e.g. based on rank) is important, participants should be pre-sorted before calling generateZones.
+      zoneCouples.push(mutableParticipants.shift()!);
+    }
+
+    zones.push({
+      // id and created_at will be set by the database.
+      // These are temporary for the object structure.
+      id: `temp-zone-${zoneCounter}`,
+      name: `Zone ${String.fromCharCode(65 + zoneCounter)}`, // Zone A, B, C...
+      // description field removed as it caused issues earlier
       created_at: new Date().toISOString(),
-      couples: [firstCouple, lastCouple, secondLastCouple]
-    }
-    zones.push(zone)
-    participantsCopy.splice(participantsCopy.indexOf(firstCouple), 1);
-    participantsCopy.splice(participantsCopy.indexOf(lastCouple), 1);
-    participantsCopy.splice(participantsCopy.indexOf(secondLastCouple), 1);
-  }
-  return zones
-}
+      couples: zoneCouples,
+    });
+    zoneCounter++;
+  };
 
-export function generateZones (participants: Couple[]): Zone[] {
-  let zones: Zone[] = []
-  const participantsCopy = [...participants]
-  const couples_length = participants.length
-  if (couples_length < 6) {
-    throw new Error("Not enough participants to generate zones")
+  for (let i = 0; i < num_zones_of_4; i++) {
+    createAndAddZone(4);
   }
-  else {
-    if (couples_length % 4 === 0) {
-      for (let i = 0; i < couples_length / 4; i += 1) {
-        const firstCouple = participantsCopy[0];
-        const mediumCouple = participantsCopy[Math.floor(participantsCopy.length / 2)];
-        const lastCouple = participantsCopy[participantsCopy.length - 1];
-        const secondLastCouple = participantsCopy[participantsCopy.length - 2];
 
-        const zone: Zone = {
-          id: `zone-${i}`,
-          name: `Zone ${i}`,
-          description: `Zone ${i}`,
-          created_at: new Date().toISOString(),
-          couples: [firstCouple, mediumCouple, lastCouple, secondLastCouple]
-        };
-        zones.push(zone);
-
-        // Eliminar las parejas utilizadas
-        participantsCopy.splice(participantsCopy.indexOf(firstCouple), 1);
-        participantsCopy.splice(participantsCopy.indexOf(mediumCouple), 1);
-        participantsCopy.splice(participantsCopy.indexOf(lastCouple), 1);
-        participantsCopy.splice(participantsCopy.indexOf(secondLastCouple), 1);
-      }
-    }
-    else if (couples_length % 4 === 1) {
-      for (let i = 0; i < couples_length / 3; i += 1) {
-        // Seleccionar parejas para esta zona
-        const firstCouple = participantsCopy[0];
-        const lastCouple = participantsCopy[participantsCopy.length - 1];
-        const secondLastCouple = participantsCopy[participantsCopy.length - 2];
-        
-        const zone: Zone = {
-          id: `zone-${i}`,
-          name: `Zone ${i}`,
-          description: `Zone ${i}`,
-          created_at: new Date().toISOString(),
-          couples: [firstCouple, lastCouple, secondLastCouple]
-        };
-        zones.push(zone);
-        
-        // Eliminar las parejas utilizadas
-        participantsCopy.splice(participantsCopy.indexOf(firstCouple), 1);
-        participantsCopy.splice(participantsCopy.indexOf(lastCouple), 1);
-        participantsCopy.splice(participantsCopy.indexOf(secondLastCouple), 1);
-      }
-      if (couples_length % 3 === 0) {
-        zones = generateZonesForThreeCouples(participantsCopy, zones)
-        return zones;
-      }
-    }
-    else if (couples_length % 4 === 2) {
-      for (let i = 0; i < 2; i += 1) {
-        zones = generateZonesForThreeCouples(participantsCopy, zones)
-      }
-      for (let i = 0; i < couples_length / 4; i += 1) {
-        const zone: Zone = {
-          id: `zone-${i}`,
-          name: `Zone ${i}`,
-          description: `Zone ${i}`,
-          created_at: new Date().toISOString(),
-          couples: []  // Añadir el array vacío para cumplir con el tipo Zone
-        };
-        zones.push(zone);
-      }
-    }
+  for (let i = 0; i < num_zones_of_3; i++) {
+    createAndAddZone(3);
   }
+
+  if (mutableParticipants.length > 0) {
+    // This should ideally not be reached if the logic for num_zones_of_4 and num_zones_of_3 is correct.
+    throw new Error(
+      `Leftover participants (${mutableParticipants.length}) after zone generation. Initial n=${n}. This indicates a flaw in distribution logic.`,
+    );
+  }
+
   return zones;
 }

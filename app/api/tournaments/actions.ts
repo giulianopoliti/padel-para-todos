@@ -4,6 +4,9 @@ import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { getPlayerById } from '../players/actions';
 import { getUserByDni } from '../users';
+import { Zone as GeneratedZone, Couple as GeneratedCouple } from '@/types'; // Assuming your types are here
+import { generateZones } from '@/utils/bracket-generator'; // Added import
+
 /**
  * Iniciar un torneo - cambiar su estado a "PAIRING" (fase de emparejamiento)
  */
@@ -674,30 +677,480 @@ export async function registerPlayerForTournament(tournamentId: string, playerId
   }
 }
     
-export async function startTournament2(tournamentId: string) {
+interface ClientZone extends Omit<GeneratedZone, 'id' | 'created_at' | 'couples'> {
+  couples: { id: string }[]; // ID here will be couples.id
+}
+
+export async function createTournamentZonesAction(
+  tournamentId: string,
+  zonesToCreate: ClientZone[]
+) {
   const supabase = await createClient();
-  console.log(`[startTournament] Iniciando torneo ${tournamentId}`);
+  console.log(`[createTournamentZonesAction] Creating zones for tournament ${tournamentId}`);
 
-  try {
-    // 1. Actualizar el estado del torneo a "IN_PROGRESS"
-    const { data, error } = await supabase
-      .from('tournaments')
-      .update({ status: 'IN_PROGRESS' })
-      .eq('id', tournamentId)
-      .select()
-      .single();  
+  const createdZonesDatabaseInfo = [];
 
-    if (error) {
-      console.error("[startTournament] Error al actualizar el estado del torneo:", error);
-      throw new Error("No se pudo actualizar el estado del torneo");
+  for (const zone of zonesToCreate) {
+    // 1. Create the zone
+    const { data: newZoneData, error: zoneError } = await supabase
+      .from('zones') // Correct table name
+      .insert({
+        tournament_id: tournamentId,
+        name: zone.name,
+        // description: zone.description, // Removed as column does not exist in the table
+      })
+      .select('id, name')
+      .single();
+
+    if (zoneError) {
+      console.error(`[createTournamentZonesAction] Error creating zone '${zone.name}':`, zoneError);
+      return { success: false, error: `Failed to create zone: ${zone.name}. ${zoneError.message}` };
     }
 
-    console.log("[startTournament] Torneo actualizado exitosamente:", data);    
+    console.log(`[createTournamentZonesAction] Created zone: ${newZoneData.name} (ID: ${newZoneData.id})`);
+    createdZonesDatabaseInfo.push({ id: newZoneData.id, name: newZoneData.name });
 
-    return { success: true, tournament: data };
+    // 2. Link couples to the newly created zone
+    if (zone.couples && zone.couples.length > 0) {
+      const zoneCouplesEntries = zone.couples.map(couple => ({
+        zone_id: newZoneData.id,
+        couple_id: couple.id, // Corrected: This should be couples.id
+      }));
+
+      const { error: zoneCouplesError } = await supabase
+        .from('zone_couples') // Correct table name for linking
+        .insert(zoneCouplesEntries);
+
+      if (zoneCouplesError) {
+        console.error(`[createTournamentZonesAction] Error linking couples to zone '${newZoneData.name}':`, zoneCouplesError);
+        return { success: false, error: `Failed to link couples to zone: ${newZoneData.name}. ${zoneCouplesError.message}` };
+      }
+      console.log(`[createTournamentZonesAction] Successfully linked ${zone.couples.length} couples to zone '${newZoneData.name}'.`);
+    }
+  }
+
+  console.log(`[createTournamentZonesAction] Successfully created ${createdZonesDatabaseInfo.length} zones for tournament ${tournamentId}.`);
+  return { success: true, createdZones: createdZonesDatabaseInfo };
+}
+
+export async function startTournament2(tournamentId: string) {
+  const supabase = await createClient();
+  console.log(`[startTournament2] Attempting to start tournament ${tournamentId}, create zones, matches, and set status to IN_PROGRESS.`);
+
+  // 1. Fetch all participating couples for the tournament
+  let participatingCouplesForGenerator: GeneratedCouple[] = [];
+  try {
+    const couplesData = await getCouplesByTournamentId(tournamentId);
+    if (!couplesData || couplesData.length === 0) {
+      console.warn(`[startTournament2] No participating couples found for tournament ${tournamentId}. Cannot generate zones or matches.`);
+      // Proceed to update status, but log that no zones/matches were made.
+    } else {
+      participatingCouplesForGenerator = couplesData.map(c => ({
+        id: c.id, // This is couples.id from 'couples' table
+        player_1: c.player1_id,
+        player_2: c.player2_id,
+      }));
+      console.log(`[startTournament2] Found ${participatingCouplesForGenerator.length} couples for zone/match generation.`);
+    }
+  } catch (error: any) {
+    console.error("[startTournament2] Error fetching participating couples:", error);
+    return { success: false, error: "Failed to fetch couples for zone/match generation. " + error.message };
+  }
+
+  let algorithmicZones: GeneratedZone[] = []; // To store output of generateZones
+  let clientZonesToCreate: ClientZone[] = [];  // For createTournamentZonesAction
+
+  if (participatingCouplesForGenerator.length > 0) {
+    try {
+      algorithmicZones = generateZones(participatingCouplesForGenerator);
+      console.log(`[startTournament2] Generated ${algorithmicZones.length} zones structure from algorithm.`);
+
+      if (algorithmicZones.length > 0) {
+        clientZonesToCreate = algorithmicZones.map(agZone => ({
+          name: agZone.name,
+          // description is optional in GeneratedZone and not used by createTournamentZonesAction currently
+          couples: agZone.couples.map(c => ({ id: c.id })), // Pass only couple IDs
+        }));
+      } else {
+        console.log("[startTournament2] generateZones algorithm returned no zones.");
+      }
+    } catch (error: any) {
+      console.error("[startTournament2] Error during zone generation algorithm:", error);
+      return { success: false, error: "Failed to generate zones: " + error.message };
+    }
+  }
+
+  let savedZonesWithCouplesForMatchCreation: { id: string; name: string; couples: GeneratedCouple[] }[] = [];
+
+  if (clientZonesToCreate.length > 0) {
+    const zoneCreationResult = await createTournamentZonesAction(tournamentId, clientZonesToCreate);
+    if (!zoneCreationResult.success || !zoneCreationResult.createdZones) {
+      console.error("[startTournament2] Failed to create tournament zones in DB:", zoneCreationResult.error);
+      return { success: false, error: "Failed to save tournament zones. " + zoneCreationResult.error };
+    }
+    console.log("[startTournament2] Successfully created tournament zones in DB:", zoneCreationResult.createdZones);
+
+    // Prepare data for match creation: combine DB zone IDs with original couple lists
+    savedZonesWithCouplesForMatchCreation = zoneCreationResult.createdZones.map(dbZone => {
+      const originalAlgoZone = algorithmicZones.find(agZone => agZone.name === dbZone.name);
+      if (!originalAlgoZone) {
+        // This should not happen if names are consistent and unique from generateZones
+        console.error(`[startTournament2] CRITICAL: Could not find original algorithmic zone for DB zone ${dbZone.name}`);
+        return null; // Or throw error
+      }
+      return {
+        id: dbZone.id, // DB ID of the zone
+        name: dbZone.name,
+        couples: originalAlgoZone.couples, // Full couple objects from algorithmicZones
+      };
+    }).filter(Boolean) as { id: string; name: string; couples: GeneratedCouple[] }[]; // Filter out nulls if any
+
+  } else if (participatingCouplesForGenerator.length > 0) {
+    console.log("[startTournament2] No zones were mapped to create in DB.");
+  }
+
+  // Create matches for the saved zones
+  if (savedZonesWithCouplesForMatchCreation.length > 0) {
+    const matchCreationResult = await createTournamentZoneMatchesAction(tournamentId, savedZonesWithCouplesForMatchCreation);
+    if (!matchCreationResult.success) {
+      console.error("[startTournament2] Failed to create zone matches:", matchCreationResult.error);
+      // Decide on error handling: roll back zones? or just report error?
+      return { success: false, error: "Failed to create matches for zones. " + matchCreationResult.error };
+    }
+    console.log("[startTournament2] Successfully created zone matches.");
+  } else if (algorithmicZones.length > 0) {
+      console.warn("[startTournament2] Zones were algorithmically generated but not saved or processed for match creation. This might indicate an issue in mapping DB zone IDs back.");
+  }
+
+  // Update the tournament status to "IN_PROGRESS"
+  console.log(`[startTournament2] Proceeding to update tournament ${tournamentId} status to IN_PROGRESS.`);
+  const { data: updatedTournament, error: statusUpdateError } = await supabase
+    .from('tournaments')
+    .update({ status: 'IN_PROGRESS' })
+    .eq('id', tournamentId)
+    .select()
+    .single();
+
+  if (statusUpdateError) {
+    console.error("[startTournament2] Error updating tournament status:", statusUpdateError);
+    return { success: false, error: "Failed to update tournament status. " + statusUpdateError.message };
+  }
+
+  console.log("[startTournament2] Tournament status updated to IN_PROGRESS. Process complete.", updatedTournament);
+
+  revalidatePath(`/my-tournaments/${tournamentId}`);
+  revalidatePath('/my-tournaments');
+  revalidatePath(`/tournaments/${tournamentId}`);
+  revalidatePath('/tournaments');
+
+  return { success: true, tournament: updatedTournament };
+}
+
+
+
+//------------ZONAS--------------
+
+// Función para obtener las zonas de un torneo con sus parejas
+export async function fetchTournamentZones(tournamentId: string) {
+  const supabase = await createClient()
+
+  try {
+    // 1. Obtener todas las zonas del torneo
+    const { data: zones, error: zonesError } = await supabase
+      .from("zones")
+      .select("*")
+      .eq("tournament_id", tournamentId)
+      .order("name")
+
+    if (zonesError) {
+      console.error("Error al obtener zonas:", zonesError)
+      return { success: false, error: "Error al obtener zonas" }
+    }
+
+    // 2. Para cada zona, obtener las parejas asociadas
+    const zonesWithCouples = await Promise.all(
+      zones.map(async (zone) => {
+        // Obtener las relaciones zona-pareja
+        const { data: coupleLinks, error: coupleLinksError } = await supabase
+          .from("zone_couples") // Corrected table name
+          .select("couple_id")
+          .eq("zone_id", zone.id)
+
+        if (coupleLinksError) {
+          console.error("Error al obtener relaciones zona-pareja:", coupleLinksError)
+          return { ...zone, couples: [] } // Return zone with empty couples on error
+        }
+
+        // Obtener los detalles de cada pareja
+        const coupleIds = coupleLinks.map((cl) => cl.couple_id)
+
+        if (coupleIds.length === 0) {
+          return { ...zone, couples: [] }
+        }
+
+        const { data: couples, error: couplesError } = await supabase
+          .from("couples")
+          .select(`
+            *,
+            player1:players!couples_player1_id_fkey (id, first_name, last_name, score),
+            player2:players!couples_player2_id_fkey (id, first_name, last_name, score)
+          `)
+          .in("id", coupleIds)
+
+        if (couplesError) {
+          console.error("Error al obtener parejas:", couplesError)
+          return { ...zone, couples: [] } // Return zone with empty couples on error
+        }
+
+        // 3. Calcular estadísticas para cada pareja en esta zona
+        const couplesWithStats = await Promise.all(
+          couples.map(async (couple) => {
+            // Obtener partidos de esta pareja en esta zona
+            const { data: matches, error: matchesError } = await supabase
+              .from("matches")
+              .select("*")
+              .eq("zone_id", zone.id)
+              .or(`couple1_id.eq.${couple.id},couple2_id.eq.${couple.id}`)
+              .eq("status", "COMPLETED")
+
+            if (matchesError) {
+              console.error("Error al obtener partidos:", matchesError)
+              return {
+                ...couple,
+                player1_name: couple.player1?.first_name + " " + couple.player1?.last_name,
+                player2_name: couple.player2?.first_name + " " + couple.player2?.last_name,
+                stats: { played: 0, won: 0, lost: 0, scored: 0, conceded: 0, points: 0 },
+              }
+            }
+
+            // Calcular estadísticas
+            let played = 0
+            let won = 0
+            let lost = 0
+            let scored = 0
+            let conceded = 0
+
+            matches.forEach((match) => {
+              played++
+
+              if (match.couple1_id === couple.id) {
+                scored += match.score_couple1 || 0
+                conceded += match.score_couple2 || 0
+                if (match.winner_id === couple.id) won++
+                else lost++
+              } else {
+                scored += match.score_couple2 || 0
+                conceded += match.score_couple1 || 0
+                if (match.winner_id === couple.id) won++
+                else lost++
+              }
+            })
+
+            // Calcular puntos (2 por victoria, 0 por derrota)
+            const points = won * 2
+
+            return {
+              ...couple,
+              player1_name: couple.player1?.first_name + " " + couple.player1?.last_name,
+              player2_name: couple.player2?.first_name + " " + couple.player2?.last_name,
+              stats: { played, won, lost, scored, conceded, points },
+            }
+          }),
+        )
+
+        // Ordenar parejas por puntos (de mayor a menor)
+        const sortedCouples = couplesWithStats.sort((a, b) => {
+          // Primero por puntos
+          if (b.stats.points !== a.stats.points) {
+            return b.stats.points - a.stats.points
+          }
+          // Luego por diferencia de sets
+          const diffA = a.stats.scored - a.stats.conceded
+          const diffB = b.stats.scored - b.stats.conceded
+          if (diffB !== diffA) {
+            return diffB - diffA
+          }
+          // Finalmente por sets a favor
+          return b.stats.scored - a.stats.scored
+        })
+
+        return { ...zone, couples: sortedCouples }
+      }),
+    )
+
+    return { success: true, zones: zonesWithCouples }
   } catch (error) {
-    console.error("[startTournament] Error inesperado:", error);
-    throw error;
+    console.error("Error al obtener zonas con parejas:", error)
+    return { success: false, error: "Error inesperado al obtener zonas" }
   }
 }
 
+
+// ------------PARTIDOS--------------
+
+// Función para obtener los partidos de un torneo
+export async function fetchTournamentMatches(tournamentId: string) {
+  const supabase = await createClient()
+
+  try {
+    // Obtener todos los partidos del torneo
+    const { data: matches, error: matchesError } = await supabase
+      .from("matches")
+      .select(`
+        *,
+        zone_info:zone_id (name),
+        couple1:couples!matches_couple1_id_fkey(
+          id, player1_id, player2_id,
+          player1_details:players!couples_player1_id_fkey(id, first_name, last_name),
+          player2_details:players!couples_player2_id_fkey(id, first_name, last_name)
+        ),
+        couple2:couples!matches_couple2_id_fkey(
+          id, player1_id, player2_id,
+          player1_details:players!couples_player1_id_fkey(id, first_name, last_name),
+          player2_details:players!couples_player2_id_fkey(id, first_name, last_name)
+        )
+      `)
+      .eq("tournament_id", tournamentId)
+      .order("created_at")
+
+    if (matchesError) {
+      console.error("Error al obtener partidos:", matchesError)
+      return { success: false, error: "Error al obtener partidos" }
+    }
+
+    // Procesar los datos para un formato más fácil de usar
+    const processedMatches = matches.map((match) => ({
+      ...match,
+      zone_name: match.zone_info?.name,
+      couple1_player1_name:
+        match.couple1?.player1_details?.first_name + " " + match.couple1?.player1_details?.last_name,
+      couple1_player2_name:
+        match.couple1?.player2_details?.first_name + " " + match.couple1?.player2_details?.last_name,
+      couple2_player1_name:
+        match.couple2?.player1_details?.first_name + " " + match.couple2?.player1_details?.last_name,
+      couple2_player2_name:
+        match.couple2?.player2_details?.first_name + " " + match.couple2?.player2_details?.last_name,
+    }))
+
+    return { success: true, matches: processedMatches }
+  } catch (error) {
+    console.error("Error al obtener partidos:", error)
+    return { success: false, error: "Error inesperado al obtener partidos" }
+  }
+}
+
+// Interfaz para actualizar el resultado de un partido
+interface UpdateMatchResultParams {
+  matchId: string
+  score1: number
+  score2: number
+  winnerId: string
+}
+
+// Función para actualizar el resultado de un partido
+export async function updateMatchResult({ matchId, score1, score2, winnerId }: UpdateMatchResultParams) {
+  const supabase = await createClient()
+
+  try {
+    // Actualizar el partido con el resultado
+    const { error: updateError } = await supabase
+      .from("matches")
+      .update({
+        score_couple1: score1,
+        score_couple2: score2,
+        winner_id: winnerId,
+        status: "COMPLETED",
+      })
+      .eq("id", matchId)
+
+    if (updateError) {
+      console.error("Error al actualizar partido:", updateError)
+      return { success: false, error: "Error al actualizar el resultado" }
+    }
+
+    // Obtener información del partido para revalidar la ruta correcta
+    const { data: match, error: matchError } = await supabase
+      .from("matches")
+      .select("tournament_id")
+      .eq("id", matchId)
+      .single()
+
+    if (matchError) {
+      console.error("Error al obtener información del partido:", matchError)
+      // Continuamos aunque haya error, ya que el resultado se guardó correctamente
+    } else if (match) {
+      // Revalidar la ruta del torneo para actualizar la UI
+      revalidatePath(`/my-tournaments/${match.tournament_id}`)
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("Error al actualizar resultado:", error)
+    return { success: false, error: "Error inesperado al actualizar el resultado" }
+  }
+}
+
+interface MatchToInsert {
+  tournament_id: string;
+  zone_id: string;
+  couple1_id: string;
+  couple2_id: string;
+  status: string;
+  round?: string; // Optional round information
+}
+
+function generateMatchesForZoneLogic(zone: { id: string; couples: GeneratedCouple[] }, tournamentId: string): MatchToInsert[] {
+  const matchesToInsert: MatchToInsert[] = [];
+  const couplesInZone = zone.couples;
+  const numCouples = couplesInZone.length;
+
+  if (numCouples === 4) {
+    const c = couplesInZone;
+    // Round 1 type pairings
+    matchesToInsert.push({ tournament_id: tournamentId, zone_id: zone.id, couple1_id: c[0].id, couple2_id: c[3].id, status: 'PENDING', round: 'ZONE' });
+    matchesToInsert.push({ tournament_id: tournamentId, zone_id: zone.id, couple1_id: c[1].id, couple2_id: c[2].id, status: 'PENDING', round: 'ZONE' });
+    // Round 2 type pairings
+    matchesToInsert.push({ tournament_id: tournamentId, zone_id: zone.id, couple1_id: c[0].id, couple2_id: c[2].id, status: 'PENDING', round: 'ZONE' });
+    matchesToInsert.push({ tournament_id: tournamentId, zone_id: zone.id, couple1_id: c[1].id, couple2_id: c[3].id, status: 'PENDING', round: 'ZONE' });
+  } else if (numCouples === 3) {
+    const c = couplesInZone;
+    matchesToInsert.push({ tournament_id: tournamentId, zone_id: zone.id, couple1_id: c[0].id, couple2_id: c[1].id, status: 'PENDING', round: 'ZONE' });
+    matchesToInsert.push({ tournament_id: tournamentId, zone_id: zone.id, couple1_id: c[0].id, couple2_id: c[2].id, status: 'PENDING', round: 'ZONE' });
+    matchesToInsert.push({ tournament_id: tournamentId, zone_id: zone.id, couple1_id: c[1].id, couple2_id: c[2].id, status: 'PENDING', round: 'ZONE' });
+  }
+  // Add more conditions here for other numbers of couples per zone if needed (e.g., 5, 6)
+  // For N=6, with 2 matches per couple, total 6 matches. Example pairings:
+  // (C1vC2, C3vC4, C5vC6) and then another set of 3 non-overlapping matches.
+  // Or specific defined pairings.
+
+  return matchesToInsert;
+}
+
+export async function createTournamentZoneMatchesAction(
+  tournamentId: string,
+  zones: { id: string; name: string; couples: GeneratedCouple[] }[] // Expects zones with their DB IDs and assigned couples
+) {
+  const supabase = await createClient();
+  let allMatchesToInsert: MatchToInsert[] = [];
+
+  console.log(`[createTournamentZoneMatchesAction] Generating matches for ${zones.length} zones in tournament ${tournamentId}`);
+
+  for (const zone of zones) {
+    const matchesForThisZone = generateMatchesForZoneLogic(zone, tournamentId);
+    allMatchesToInsert = allMatchesToInsert.concat(matchesForThisZone);
+    console.log(`[createTournamentZoneMatchesAction] Generated ${matchesForThisZone.length} matches for zone ${zone.name} (ID: ${zone.id})`);
+  }
+
+  if (allMatchesToInsert.length > 0) {
+    const { data, error } = await supabase.from('matches').insert(allMatchesToInsert).select();
+    if (error) {
+      console.error('[createTournamentZoneMatchesAction] Error inserting matches:', error);
+      return { success: false, error: `Failed to insert matches: ${error.message}` };
+    }
+    console.log(`[createTournamentZoneMatchesAction] Successfully inserted ${data?.length || 0} matches.`);
+    return { success: true, matches: data };
+  } else {
+    console.log('[createTournamentZoneMatchesAction] No matches were generated to insert.');
+    return { success: true, matches: [] };
+  }
+}
