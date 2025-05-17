@@ -1221,15 +1221,15 @@ export async function createKnockoutStageMatchesAction(tournamentId: string) {
     }
 
     // 4. Prepare matches for DB insertion
-    const matchesToInsert = knockoutPairings.map(pairing => ({
+    const matchesToInsert = knockoutPairings.map((pairing, index) => ({
       tournament_id: tournamentId,
-      // category_name is not in the matches table
       couple1_id: pairing.couple1.id,
       couple2_id: pairing.couple2.id === 'BYE_MARKER' ? null : pairing.couple2.id,
       round: pairing.round, 
       status: 'NOT_STARTED',
-      // type: 'ELIMINATION', // Removed type as it's not in the matches table schema
+      order: index,
       // zone_id: null, 
+      // category_name: tournamentData.category_name, // Not in matches table
     }));
 
     console.log("[createKnockoutStageMatchesAction] Matches to insert:", matchesToInsert);
@@ -1260,5 +1260,138 @@ export async function createKnockoutStageMatchesAction(tournamentId: string) {
   } catch (error: any) {
     console.error("[createKnockoutStageMatchesAction] Unexpected error:", error);
     return { success: false, error: error.message || "An unexpected error occurred." };
+  }
+}
+
+
+// Función para avanzar a la siguiente etapa del torneo
+export async function advanceToNextStageAction(tournamentId: string) {
+  const supabase = await createClient();
+  console.log(`[advanceToNextStageAction] Iniciando avance para torneo ${tournamentId}`);
+
+  try {
+    // 1. Obtener todos los partidos del torneo para determinar la ronda actual
+    const { data: matches, error: matchesError } = await supabase
+      .from("matches")
+      .select("*")
+      .eq("tournament_id", tournamentId)
+      .order("created_at");
+
+    if (matchesError) {
+      console.error("[advanceToNextStageAction] Error al obtener partidos:", matchesError);
+      return { success: false, error: "Error al obtener partidos del torneo" };
+    }
+
+    // 2. Determinar la ronda actual y la siguiente
+    const roundOrder = ["32VOS", "16VOS", "8VOS", "4TOS", "SEMIFINAL", "FINAL"];
+    let currentRound = "";
+    
+    // Encontrar la ronda actual (la última que tiene partidos)
+    for (const round of roundOrder) {
+      if (matches.some(match => match.round === round)) {
+        currentRound = round;
+      }
+    }
+    
+    if (!currentRound) {
+      return { success: false, error: "No se pudo determinar la ronda actual" };
+    }
+    
+    const currentRoundIndex = roundOrder.indexOf(currentRound);
+    
+    // Si estamos en la final, no hay siguiente ronda
+    if (currentRound === "FINAL") {
+      return { 
+        success: true, 
+        message: "El torneo ha finalizado", 
+        isFinal: true 
+      };
+    }
+    
+    const nextRound = roundOrder[currentRoundIndex + 1];
+    console.log(`[advanceToNextStageAction] Ronda actual: ${currentRound}, Siguiente ronda: ${nextRound}`);
+
+    // 3. Verificar que todos los partidos de la ronda actual estén completados
+    const currentRoundMatches = matches.filter(match => match.round === currentRound);
+    const allCompleted = currentRoundMatches.every(match => match.status === "COMPLETED");
+    
+    if (!allCompleted) {
+      return { 
+        success: false, 
+        error: "No todos los partidos de la ronda actual están completados" 
+      };
+    }
+
+    // 4. Obtener los ganadores de la ronda actual
+    const winners = currentRoundMatches.map(match => ({
+      matchId: match.id,
+      winnerId: match.winner_id,
+      position: currentRoundMatches.indexOf(match) // Para mantener el orden
+    }));
+
+    // 5. Crear los emparejamientos para la siguiente ronda
+    const nextRoundMatches = [];
+    for (let i = 0; i < winners.length; i += 2) {
+      const matchOrderInNewRound = i / 2; // Creates order 0, 1, 2... for the new round
+      // Si hay un número impar de ganadores, el último avanza automáticamente
+      if (i + 1 >= winners.length) {
+        nextRoundMatches.push({
+          tournament_id: tournamentId,
+          couple1_id: winners[i].winnerId,
+          couple2_id: null, // BYE
+          round: nextRound,
+          status: "NOT_STARTED",
+          order: matchOrderInNewRound
+        });
+      } else {
+        nextRoundMatches.push({
+          tournament_id: tournamentId,
+          couple1_id: winners[i].winnerId,
+          couple2_id: winners[i + 1].winnerId,
+          round: nextRound,
+          status: "NOT_STARTED",
+          order: matchOrderInNewRound
+        });
+      }
+    }
+
+    // 6. Insertar los nuevos partidos en la base de datos
+    const { data: insertedMatches, error: insertError } = await supabase
+      .from("matches")
+      .insert(nextRoundMatches)
+      .select();
+
+    if (insertError) {
+      console.error("[advanceToNextStageAction] Error al insertar nuevos partidos:", insertError);
+      return { success: false, error: "Error al crear los partidos de la siguiente ronda" };
+    }
+
+    // 7. Actualizar el estado del torneo si es necesario
+    // Por ejemplo, si avanzamos a la final, podríamos cambiar el estado a "FINAL_STAGE"
+    if (nextRound === "FINAL") {
+      const { error: updateError } = await supabase
+        .from("tournaments")
+        .update({ status: "FINAL_STAGE" })
+        .eq("id", tournamentId);
+      
+      if (updateError) {
+        console.warn("[advanceToNextStageAction] Error al actualizar estado del torneo:", updateError);
+        // No es crítico, continuamos
+      }
+    }
+
+    // 8. Revalidar la ruta para actualizar la UI
+    revalidatePath(`/my-tournaments/${tournamentId}`);
+
+    console.log(`[advanceToNextStageAction] Avance exitoso a ${nextRound}, creados ${insertedMatches?.length || 0} partidos`);
+    return { 
+      success: true, 
+      message: `Avance exitoso a ${nextRound}`, 
+      matches: insertedMatches 
+    };
+
+  } catch (error: any) {
+    console.error("[advanceToNextStageAction] Error inesperado:", error);
+    return { success: false, error: error.message || "Error inesperado al avanzar de etapa" };
   }
 }
