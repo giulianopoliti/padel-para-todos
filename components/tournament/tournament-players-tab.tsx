@@ -47,15 +47,15 @@ export default function TournamentPlayersTab({
       <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
         <div className="text-sm text-slate-600">
           <span>
-            <span className="font-medium text-violet-700">{currentPlayers}</span> de{" "}
-            <span className="font-medium text-violet-700">{maxPlayers}</span> jugadores inscritos
+            <span className="font-medium text-teal-600">{currentPlayers}</span> de{" "}
+            <span className="font-medium text-teal-600">{maxPlayers}</span> jugadores inscritos
           </span>
         </div>
 
         {!isTournamentActive && (
           <Button
             onClick={() => setRegisterPlayerDialogOpen(true)}
-            className="bg-gradient-to-r from-violet-600 to-violet-800 hover:opacity-90 text-white"
+            className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white"
             size="sm"
             disabled={isMaxPlayersReached}
           >
@@ -86,7 +86,7 @@ export default function TournamentPlayersTab({
                   <TableCell className="text-left text-slate-700">{player.phone || "—"}</TableCell>
                   <TableCell className="text-center">
                     {player.score !== null ? (
-                      <div className="inline-flex items-center justify-center bg-violet-50 text-violet-700 font-medium rounded-full h-10 w-10 border border-violet-200">
+                      <div className="inline-flex items-center justify-center bg-teal-50 text-teal-700 font-medium rounded-full h-10 w-10 border border-teal-100">
                         {player.score}
                       </div>
                     ) : (
@@ -99,10 +99,10 @@ export default function TournamentPlayersTab({
           </Table>
         ) : (
           <div className="text-center py-8">
-            <div className="bg-violet-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-violet-100">
-              <UserPlus className="h-8 w-8 text-violet-600" />
+            <div className="bg-teal-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-teal-100">
+              <UserPlus className="h-8 w-8 text-teal-600" />
             </div>
-            <h3 className="text-xl font-medium text-violet-700 mb-2">No hay jugadores inscritos</h3>
+            <h3 className="text-xl font-medium text-teal-700 mb-2">No hay jugadores inscritos</h3>
             <p className="text-slate-500 max-w-md mx-auto text-sm">
               Aún no hay jugadores individuales inscritos en este torneo.
             </p>

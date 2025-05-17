@@ -6,6 +6,8 @@ import { getPlayerById } from '../players/actions';
 import { getUserByDni } from '../users';
 import { Zone as GeneratedZone, Couple as GeneratedCouple } from '@/types'; // Assuming your types are here
 import { generateZones } from '@/utils/bracket-generator'; // Added import
+import { generateKnockoutRounds, KnockoutPairing } from "@/utils/bracket-generator";
+import { ZoneWithRankedCouples, CoupleWithStats } from "@/utils/bracket-generator"; // Assuming these are exported or defined in a way actions.ts can access if not in the same file
 
 /**
  * Iniciar un torneo - cambiar su estado a "PAIRING" (fase de emparejamiento)
@@ -1152,5 +1154,111 @@ export async function createTournamentZoneMatchesAction(
   } else {
     console.log('[createTournamentZoneMatchesAction] No matches were generated to insert.');
     return { success: true, matches: [] };
+  }
+}
+
+export async function createKnockoutStageMatchesAction(tournamentId: string) {
+  console.log(`[createKnockoutStageMatchesAction] Starting for tournament ${tournamentId}`);
+  const supabase = await createClient();
+
+  try {
+    // 1. Fetch tournament details, including category_name and type from tournaments table
+    const { data: tournamentData, error: tournamentError } = await supabase
+      .from('tournaments')
+      .select('id, category_name, type, status, clubes(id, name)') // Reinstated category_name, ensured no category_id
+      .eq('id', tournamentId)
+      .single();
+
+    if (tournamentError || !tournamentData) {
+      console.error("[createKnockoutStageMatchesAction] Error fetching tournament:", tournamentError);
+      return { success: false, error: "Error fetching tournament details." };
+    }
+
+    // Prevent re-generation if already past group stage or in knockout
+    // This check might need to be more robust based on your exact status flow
+    if (tournamentData.status !== 'IN_PROGRESS' && tournamentData.status !== 'ZONE_COMPLETED') { // Assuming ZONE_COMPLETED is a status after zones
+        console.warn(`[createKnockoutStageMatchesAction] Tournament ${tournamentId} is not in a state to start knockout. Status: ${tournamentData.status}`);
+        return { success: false, error: `Tournament is not in a valid state to start knockout rounds (current status: ${tournamentData.status}).` };
+    }
+
+    // 2. Fetch zones with couples and their stats (points are crucial for ranking)
+    const zonesResult = await fetchTournamentZones(tournamentId); // This function already calculates stats
+    if (!zonesResult.success || !zonesResult.zones) {
+      console.error("[createKnockoutStageMatchesAction] Error fetching zones with stats:", zonesResult.error);
+      return { success: false, error: zonesResult.error || "Could not fetch zone data for ranking." };
+    }
+
+    // Map to ZoneWithRankedCouples[] which expects CoupleWithStats[]
+    // Ensure the Couple objects from fetchTournamentZones have the .stats.points structure
+    const zonesWithRankedCouples: ZoneWithRankedCouples[] = zonesResult.zones.map(zone => ({
+      ...zone, // id, name, created_at from original Zone
+      couples: zone.couples.map((c: any) => ({
+        id: c.id,
+        player_1: c.player1_id, // Map to player_1, player_2 as per Couple type
+        player_2: c.player2_id,
+        stats: { points: c.stats?.points || 0 }, // Ensure stats.points is present
+        // Add other properties from Couple type if they exist on 'c' and are needed by generateKnockoutRounds
+      })) as CoupleWithStats[],
+    }));
+
+    if (zonesWithRankedCouples.length === 0) {
+        console.warn("[createKnockoutStageMatchesAction] No zones found or no couples in zones for tournament", tournamentId);
+        return { success: false, error: "No zone or couple data available to generate knockout stage." };
+    }
+    
+    // 3. Generate knockout pairings
+    const knockoutPairings = generateKnockoutRounds(zonesWithRankedCouples);
+    console.log("[createKnockoutStageMatchesAction] Generated knockout pairings:", knockoutPairings.length);
+
+    if (knockoutPairings.length === 0) {
+      // This might happen if only 1 couple qualifies, or no couples.
+      // Decide how to handle this - perhaps the tournament ends, or a winner is declared.
+      console.warn("[createKnockoutStageMatchesAction] No knockout pairings generated. Tournament might end or need manual intervention.");
+      // Optionally update tournament status to FINISHED if this means winner is decided
+      // For now, just return success as pairings generation itself didn't fail.
+      // await supabase.from('tournaments').update({ status: 'FINISHED' }).eq('id', tournamentId);
+      return { success: true, message: "No further matches to generate (e.g., winner decided)." };
+    }
+
+    // 4. Prepare matches for DB insertion
+    const matchesToInsert = knockoutPairings.map(pairing => ({
+      tournament_id: tournamentId,
+      // category_name is not in the matches table
+      couple1_id: pairing.couple1.id,
+      couple2_id: pairing.couple2.id === 'BYE_MARKER' ? null : pairing.couple2.id,
+      round: pairing.round, 
+      status: 'NOT_STARTED',
+      // type: 'ELIMINATION', // Removed type as it's not in the matches table schema
+      // zone_id: null, 
+    }));
+
+    console.log("[createKnockoutStageMatchesAction] Matches to insert:", matchesToInsert);
+
+    // 5. Insert new matches
+    const { error: insertError } = await supabase.from('matches').insert(matchesToInsert);
+
+    if (insertError) {
+      console.error("[createKnockoutStageMatchesAction] Error inserting knockout matches:", insertError);
+      return { success: false, error: `Failed to insert knockout matches: ${insertError.message}` };
+    }
+
+    // 6. Optionally, update tournament status to indicate knockout phase
+    // Define a new status like 'KNOCKOUTS' or 'FINALS' in your tournament status enum
+    // const { error: statusUpdateError } = await supabase
+    //   .from('tournaments')
+    //   .update({ status: 'KNOCKOUT_IN_PROGRESS' }) // Replace with your actual status
+    //   .eq('id', tournamentId);
+
+    // if (statusUpdateError) {
+    //   console.warn("[createKnockoutStageMatchesAction] Failed to update tournament status after creating knockout matches:", statusUpdateError);
+    //   // Non-critical error, so we might still return success for match creation
+    // }
+
+    console.log("[createKnockoutStageMatchesAction] Successfully created knockout matches for tournament", tournamentId);
+    return { success: true, message: "Knockout stage matches created successfully." };
+
+  } catch (error: any) {
+    console.error("[createKnockoutStageMatchesAction] Unexpected error:", error);
+    return { success: false, error: error.message || "An unexpected error occurred." };
   }
 }

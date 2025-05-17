@@ -46,7 +46,7 @@ export default function StartTournamentButton({ tournamentId }: { tournamentId: 
       <Button
         onClick={handleStartTournament}
         disabled={isLoading}
-        className="mr-3 bg-emerald-600 hover:bg-emerald-700 text-white"
+        className="mr-3 bg-emerald-200 text-emerald-700 border border-emerald-200 hover:bg-emerald-400 hover:text-white hover:border-emerald-400"
       >
         <Play className="mr-2 h-4 w-4" />
         {isLoading ? "Iniciando..." : "Iniciar Torneo"}

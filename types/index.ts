@@ -1,10 +1,11 @@
 export type Role = "CLUB" | "PLAYER" | "COACH"
-
+export type Round = "ZONE" | "32VOS" | "16VOS" | "8VOS" | "4TOS" | "SEMIFINAL" | "FINAL"
 export type Category = {
   name: string // "2da", "3ra", "4ta", etc.
   lower_range: number
   upper_range: number
 }
+
 
 export type Club = {
   id: string
@@ -89,8 +90,8 @@ export interface BaseMatch {
   tournament_id: string;
   couple_1: Couple;
   couple_2: Couple;
-  date: string;
-  round: string;
+  created_at: string;
+  round: Round;
   status: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
   category: string;
 }

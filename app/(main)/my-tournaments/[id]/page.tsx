@@ -197,7 +197,7 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
         <Suspense fallback={<TournamentDetailsLoading />}>
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <Button asChild variant="outline" className="flex items-center gap-2 border-violet-200 text-violet-600">
+              <Button asChild className="flex items-center gap-2 bg-gradient-to-r from-teal-400 to-blue-400 text-white hover:from-teal-500 hover:to-blue-500 hover:text-white">
                 <Link href="/my-tournaments">
                   <ArrowLeft className="h-4 w-4" />
                   Volver a Mis Torneos
@@ -227,7 +227,7 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
 
             <Card className="bg-white rounded-xl shadow-md border border-slate-100 hover:border-violet-100 transition-all duration-300">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-medium bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent">
+                <CardTitle className="text-xl font-medium bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
                   Información del Torneo
                 </CardTitle>
               </CardHeader>
@@ -235,22 +235,22 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div className="flex items-center">
-                      <Calendar className="h-5 w-5 mr-2 text-violet-600" />
-                      <span className="text-slate-700 font-medium">Fechas:</span>
+                      <Calendar className="h-5 w-5 mr-2 text-teal-600" />
+                      <span className="text-teal-700 font-medium">Fechas:</span>
                       <span className="ml-2 text-slate-600">
                         {formatDate(tournament.start_date)} - {formatDate(tournament.end_date)}
                       </span>
                     </div>
                     <div className="flex items-center">
-                      <Trophy className="h-5 w-5 mr-2 text-violet-600" />
-                      <span className="text-slate-700 font-medium">Categoría:</span>
-                      <span className="ml-2 inline-block bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full text-sm font-medium border border-violet-100">
+                      <Trophy className="h-5 w-5 mr-2 text-teal-600" />
+                      <span className="text-teal-700 font-medium">Categoría:</span>
+                      <span className="ml-2 inline-block bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full text-sm font-medium border border-teal-100">
                         {tournament.categories?.name || "No especificada"}
                       </span>
                     </div>
                     <div className="flex items-center">
-                      <Trophy className="h-5 w-5 mr-2 text-violet-600" />
-                      <span className="text-slate-700 font-medium">Tipo:</span>
+                      <Trophy className="h-5 w-5 mr-2 text-teal-600" />
+                      <span className="text-teal-700 font-medium">Tipo:</span>
                       <span className="ml-2 text-slate-600">
                         {tournament.type === "AMERICAN" ? "Americano" : "Eliminación"}
                       </span>

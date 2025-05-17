@@ -27,8 +27,8 @@ export default function MatchResultDialog({ isOpen, onClose, match, onSave }: Ma
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const score1Num = parseInt(result_couple1, 10)
-    const score2Num = parseInt(result_couple2, 10)
+    const score1Num = Number.parseInt(result_couple1, 10)
+    const score2Num = Number.parseInt(result_couple2, 10)
 
     if (isNaN(score1Num) || isNaN(score2Num)) {
       toast({
@@ -86,14 +86,16 @@ export default function MatchResultDialog({ isOpen, onClose, match, onSave }: Ma
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Cargar Resultado</DialogTitle>
-          <DialogDescription>Ingresa el resultado del partido entre las parejas.</DialogDescription>
+          <DialogTitle className="text-emerald-600">Cargar Resultado</DialogTitle>
+          <DialogDescription className="text-slate-500">
+            Ingresa el resultado del partido entre las parejas.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 pt-4">
           <div className="grid grid-cols-5 gap-4 items-center">
             <div className="col-span-2">
-              <Label htmlFor="result_couple1" className="text-right block mb-2">
+              <Label htmlFor="result_couple1" className="text-right block mb-2 text-slate-600">
                 {match.couple1_player1_name} / {match.couple1_player2_name}
               </Label>
               <Input
@@ -106,11 +108,11 @@ export default function MatchResultDialog({ isOpen, onClose, match, onSave }: Ma
             </div>
 
             <div className="col-span-1 flex justify-center items-center">
-              <span className="text-2xl font-bold text-slate-400">-</span>
+              <span className="text-2xl font-bold text-slate-300">-</span>
             </div>
 
             <div className="col-span-2">
-              <Label htmlFor="result_couple2" className="block mb-2">
+              <Label htmlFor="result_couple2" className="block mb-2 text-slate-600">
                 {match.couple2_player1_name} / {match.couple2_player2_name}
               </Label>
               <Input
@@ -124,7 +126,13 @@ export default function MatchResultDialog({ isOpen, onClose, match, onSave }: Ma
           </div>
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="text-slate-500 border-slate-200"
+            >
               Cancelar
             </Button>
             <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white" disabled={isSubmitting}>

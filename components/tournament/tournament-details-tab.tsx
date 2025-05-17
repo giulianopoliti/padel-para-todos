@@ -2,11 +2,12 @@
 
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { UserPlus, Users, Trophy, ListChecks } from "lucide-react"
+import { UserPlus, Users, Trophy, ListChecks, GitFork } from "lucide-react"
 import TournamentZonesTab from "./tournament-zones-tab"
 import TournamentMatchesTab from "./tournament-matches-tab"
 import TournamentPlayersTab from "@/components/tournament/tournament-players-tab"
 import TournamentCouplesTab from "@/components/tournament/tournament-couples-tab"
+import TournamentBracketTab from "./tournament-bracket-tab"
 
 interface PlayerInfo {
   id: string
@@ -48,19 +49,19 @@ export default function TournamentDetailsTabs({
   const isTournamentActive = tournamentStatus !== "NOT_STARTED"
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-slate-100 hover:border-violet-100 transition-all duration-300">
+    <div className="bg-white rounded-xl shadow-md border border-slate-100 hover:border-teal-100 transition-all duration-300">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full border-b border-slate-200 rounded-t-xl bg-slate-50">
           <TabsTrigger
             value="players"
-            className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-violet-500"
+            className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-teal-600 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-teal-500"
           >
             <UserPlus className="mr-2 h-4 w-4" />
             Jugadores
           </TabsTrigger>
           <TabsTrigger
             value="couples"
-            className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-emerald-500"
+            className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-blue-500"
           >
             <Users className="mr-2 h-4 w-4" />
             Parejas
@@ -69,17 +70,24 @@ export default function TournamentDetailsTabs({
             <>
               <TabsTrigger
                 value="zones"
-                className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-blue-500"
+                className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-blue-500"
               >
                 <ListChecks className="mr-2 h-4 w-4" />
                 Zonas
               </TabsTrigger>
               <TabsTrigger
                 value="matches"
-                className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-amber-500"
+                className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-teal-600 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-teal-500"
               >
                 <Trophy className="mr-2 h-4 w-4" />
                 Partidos
+              </TabsTrigger>
+              <TabsTrigger
+                value="brackets"
+                className="flex-1 py-3 data-[state=active]:bg-white data-[state=active]:text-purple-600 data-[state=active]:shadow-none rounded-none data-[state=active]:border-b-2 data-[state=active]:border-purple-500"
+              >
+                <GitFork className="mr-2 h-4 w-4" />
+                Llaves
               </TabsTrigger>
             </>
           )}
@@ -112,6 +120,10 @@ export default function TournamentDetailsTabs({
 
             <TabsContent value="matches" className="p-6">
               <TournamentMatchesTab tournamentId={tournamentId} />
+            </TabsContent>
+
+            <TabsContent value="brackets" className="p-0">
+              <TournamentBracketTab tournamentId={tournamentId} />
             </TabsContent>
           </>
         )}

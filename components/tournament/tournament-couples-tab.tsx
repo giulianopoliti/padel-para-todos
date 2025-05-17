@@ -54,14 +54,14 @@ export default function TournamentCouplesTab({
       <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
         <div className="text-sm text-slate-600">
           <span>
-            <span className="font-medium text-emerald-700">{currentCouples}</span> parejas inscritas
+            <span className="font-medium text-blue-600">{currentCouples}</span> parejas inscritas
           </span>
         </div>
 
         {!isTournamentActive && (
           <Button
             onClick={() => setRegisterCoupleDialogOpen(true)}
-            className="bg-gradient-to-r from-emerald-600 to-emerald-800 hover:opacity-90 text-white"
+            className="bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 text-white"
             size="sm"
           >
             <PlusCircle className="mr-2 h-4 w-4" />
@@ -91,7 +91,7 @@ export default function TournamentCouplesTab({
                   </TableCell>
                   <TableCell className="text-center">
                     {couple.player_1_info?.score !== null && couple.player_1_info?.score !== undefined ? (
-                      <div className="inline-flex items-center justify-center bg-emerald-50 text-emerald-700 font-medium rounded-full h-9 w-9 border border-emerald-200">
+                      <div className="inline-flex items-center justify-center bg-blue-50 text-blue-700 font-medium rounded-full h-9 w-9 border border-blue-100">
                         {couple.player_1_info.score}
                       </div>
                     ) : (
@@ -105,7 +105,7 @@ export default function TournamentCouplesTab({
                   </TableCell>
                   <TableCell className="text-center">
                     {couple.player_2_info?.score !== null && couple.player_2_info?.score !== undefined ? (
-                      <div className="inline-flex items-center justify-center bg-emerald-50 text-emerald-700 font-medium rounded-full h-9 w-9 border border-emerald-200">
+                      <div className="inline-flex items-center justify-center bg-blue-50 text-blue-700 font-medium rounded-full h-9 w-9 border border-blue-100">
                         {couple.player_2_info.score}
                       </div>
                     ) : (
@@ -118,10 +118,10 @@ export default function TournamentCouplesTab({
           </Table>
         ) : (
           <div className="text-center py-8">
-            <div className="bg-emerald-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
-              <Users className="h-8 w-8 text-emerald-600" />
+            <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100">
+              <Users className="h-8 w-8 text-blue-600" />
             </div>
-            <h3 className="text-xl font-medium text-emerald-700 mb-2">No hay parejas inscritas</h3>
+            <h3 className="text-xl font-medium text-blue-700 mb-2">No hay parejas inscritas</h3>
             <p className="text-slate-500 max-w-md mx-auto text-sm">Aún no hay parejas inscritas en este torneo.</p>
           </div>
         )}
