@@ -148,8 +148,8 @@ export default async function TournamentDetailsPage({ params }: { params?: { id:
   const { tournament, inscriptions, user } = await getData(params.id)
 
   // Separar inscripciones individuales y parejas
-  const individualInscriptions = inscriptions.filter((insc) => insc.player && !insc.couple)
-  const coupleInscriptions = inscriptions.filter((insc) => insc.couple)
+  const individualInscriptions = inscriptions.filter((insc: any) => insc.player && !insc.couple)
+  const coupleInscriptions = inscriptions.filter((insc: any) => insc.couple)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-emerald-50">

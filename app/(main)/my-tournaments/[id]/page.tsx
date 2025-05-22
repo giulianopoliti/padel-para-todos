@@ -21,7 +21,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import TournamentDetailsTabs from "@/components/tournament/tournament-details-tab"
-import { getTournamentDetailsWithInscriptions, startTournament, startTournament2 } from "@/app/api/tournaments/actions"
+import {  getTournamentDetailsWithInscriptions, startTournament, startTournament2 } from "@/app/api/tournaments/actions"
 import { getAllPlayersDTO } from "@/app/api/players/actions"
 import PlayerCoupleForm from "@/components/tournament/couple-registration/forms/player-couple-form"
 import StartTournamentButton from "@/components/tournament/club/start-tournament"
@@ -63,13 +63,21 @@ async function getData(tournamentId: string) {
 
   // 1. Verificar autenticación del usuario
   const {
-    data: { user },
+    data: { user: authUser },
     error: authError,
   } = await supabase.auth.getUser()
 
-  if (authError || !user) {
+  if (authError || !authUser) {
     redirect("/login") // Redirect to login if not authenticated
   }
+
+  // Create an explicitly plain user object for the result
+  const plainUser = {
+    id: authUser.id,
+    email: authUser.email,
+    // Add any other specific, primitive properties you need from authUser
+    // Avoid passing the whole authUser object if it might contain non-plain parts
+  };
 
   // 2. Obtener detalles del torneo e inscripciones
   const { tournament, inscriptions: rawInscriptions } = await getTournamentDetailsWithInscriptions(tournamentId)
@@ -149,7 +157,7 @@ async function getData(tournamentId: string) {
       status: "ACTIVE"
     }));
 
-  const result = { tournament, individualInscriptions, coupleInscriptions, user, allPlayers };
+  const result = { tournament, individualInscriptions, coupleInscriptions, user: plainUser, allPlayers };
   try {
     // Ensure the entire result passed from getData to the Server Component is plain
     return JSON.parse(JSON.stringify(result));

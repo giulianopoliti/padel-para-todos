@@ -508,6 +508,7 @@ export async function registerAuthenticatedPlayerForTournament(tournamentId: str
 export async function getTournamentDetailsWithInscriptions(tournamentId: string) {
   const supabase = await createClient();
   const tournament = await getTournamentById(tournamentId);
+  console.log("Tournament (from getTournamentDetailsWithInscriptions):", JSON.stringify(tournament, null, 2));
   if (!tournament) return { tournament: null, inscriptions: [] };
   try {
     const { data: rawInscriptions, error: inscriptionsError } = await supabase
@@ -563,6 +564,7 @@ export async function getTournamentDetailsWithInscriptions(tournamentId: string)
     }));
     // Explicitly serialize and parse to ensure plain objects for inscriptions
     const finalInscriptions = JSON.parse(JSON.stringify(processedInscriptions));
+    console.log("Final Inscriptions (from getTournamentDetailsWithInscriptions):", JSON.stringify(finalInscriptions.slice(0,1), null, 2));
     // Further ensure the entire returned object is plain
     const result = { tournament, inscriptions: finalInscriptions };
     return JSON.parse(JSON.stringify(result));
@@ -822,7 +824,17 @@ export async function createKnockoutStageMatchesAction(tournamentId: string) {
     const zonesRes = await fetchTournamentZones(tournamentId);
     if (!zonesRes.success || !zonesRes.zones) return { success: false, error: zonesRes.error || "No se pudo obtener datos de zona para eliminatorias." };
 
-    const zonesWRCouples: ZoneWithRankedCouples[] = zonesRes.zones.map(z => ({ ...z, couples: z.couples.map((c: any) => ({ id: c.id, player_1: c.player1_id, player_2: c.player2_id, stats: { points: c.stats?.points || 0 } })) as CoupleWithStats[] }));
+    // Correctly map to ZoneWithRankedCouples[], ensuring full stats are preserved.
+    const zonesWRCouples: ZoneWithRankedCouples[] = zonesRes.zones.map(z => ({
+      ...z, // Spread all properties from the original zone object
+      couples: z.couples.map((c: any) => ({ // c is the rich couple object from fetchTournamentZones
+        id: c.id,
+        player_1: c.player1_id, // Maps player1_id to player_1, assuming CoupleWithStats expects this
+        player_2: c.player2_id, // Maps player2_id to player_2, assuming CoupleWithStats expects this
+        stats: c.stats // Pass the FULL stats object
+      })) as CoupleWithStats[]
+    }));
+
     if (zonesWRCouples.length === 0 && zonesRes.zones.length > 0) {
         console.warn("[createKnockoutStageMatchesAction] Zones found, but no couples with stats. Check zone phase completion and stats calculation.");
         // Depending on rules, this might be an error or simply no one advances.
@@ -1074,14 +1086,14 @@ export async function requestCoupleInscription(
 
 export async function getPendingInscriptionsByTournamentId(tournamentId: string): Promise<{ success: boolean; data?: any[]; error?: string }> {
   const supabase = await createClient();
-  console.log(`[getPendingInscriptions V2] Fetching for tournament ID: ${tournamentId}`);
+  console.log(`[getPendingInscriptions V3 - Simplified] Fetching for tournament ID: ${tournamentId}`);
 
   const toISOStringOrNull = (dateInput: string | Date | null | undefined): string | null => {
     if (!dateInput) return null;
     try {
       return new Date(dateInput).toISOString();
     } catch (e) {
-      console.warn(`[getPendingInscriptions V2] Invalid date for conversion: ${dateInput}`, e);
+      console.warn(`[getPendingInscriptions V3 - Simplified] Invalid date for conversion: ${dateInput}`, e);
       return null;
     }
   };
@@ -1092,127 +1104,68 @@ export async function getPendingInscriptionsByTournamentId(tournamentId: string)
       .select(
         `id,
         created_at,
-        phone,
-        is_pending,
+        phone, // Keeping phone as it's on the inscription itself
         tournament_id,
-        player:players!inscriptions_player_id_fkey(id, first_name, last_name, score, phone, created_at, dni),
-        couple:couples!inscriptions_couple_id_fkey(
-          id,
-          created_at,
-          player1_id, 
-          player2_id,
-          player1:players!couples_player1_id_fkey(id, first_name, last_name, score, created_at, dni),
-          player2:players!couples_player2_id_fkey(id, first_name, last_name, score, created_at, dni)
-        )`
+        player_id, // Keep FKs to see if they cause issues
+        couple_id  // Keep FKs
+        // Removing all joins to players and couples
+        // player:players!inscriptions_player_id_fkey(id, first_name, last_name, score, phone, created_at, dni),
+        // couple:couples!inscriptions_couple_id_fkey(
+        //   id,
+        //   created_at,
+        //   player1_id, 
+        //   player2_id,
+        //   player1:players!couples_player1_id_fkey(id, first_name, last_name, score, created_at, dni),
+        //   player2:players!couples_player2_id_fkey(id, first_name, last_name, score, created_at, dni)
+        // )` 
       )
       .eq('tournament_id', tournamentId)
       .eq('is_pending', true)
       .order('created_at', { ascending: true });
 
     if (fetchError) {
-      console.error("[getPendingInscriptions V2] Supabase fetch error:", fetchError);
+      console.error("[getPendingInscriptions V3 - Simplified] Supabase fetch error:", fetchError);
       return { success: false, error: fetchError.message };
     }
 
     if (!rawDbInscriptions) {
-      console.log("[getPendingInscriptions V2] No raw inscriptions data returned from Supabase.");
+      console.log("[getPendingInscriptions V3 - Simplified] No raw inscriptions data returned from Supabase.");
       return { success: true, data: [] };
     }
     
     if (rawDbInscriptions.length > 0) {
-        console.log("[getPendingInscriptions V2] Raw DB inscriptions (first item):", 
+        console.log("[getPendingInscriptions V3 - Simplified] Raw DB inscriptions (first item):", 
                     JSON.stringify(rawDbInscriptions[0], null, 2));
     } else {
-        console.log("[getPendingInscriptions V2] Raw DB inscriptions array is empty.");
+        console.log("[getPendingInscriptions V3 - Simplified] Raw DB inscriptions array is empty.");
     }
 
+    // Simplified processing: just convert dates and ensure structure is plain
     const processedData = rawDbInscriptions.map((rawInscription: any) => {
-      let plainPlayer: any = null;
-      // Supabase might return related record as an object or an array.
-      // The previous code used array access (e.g., rawInscription.player[0]).
-      // Let's be robust: check if it's an array, take the first, else assume it's an object.
-      const rawPlayerFromInscription = Array.isArray(rawInscription.player) ? rawInscription.player[0] : rawInscription.player;
-
-      if (rawPlayerFromInscription) {
-        plainPlayer = {
-          id: rawPlayerFromInscription.id,
-          first_name: rawPlayerFromInscription.first_name || null,
-          last_name: rawPlayerFromInscription.last_name || null,
-          score: rawPlayerFromInscription.score ?? null,
-          phone: rawPlayerFromInscription.phone || null, // Player's own phone
-          created_at: toISOStringOrNull(rawPlayerFromInscription.created_at),
-          dni: rawPlayerFromInscription.dni || null,
-        };
-      }
-
-      let plainCouple: any = null;
-      const rawCoupleFromInscription = Array.isArray(rawInscription.couple) ? rawInscription.couple[0] : rawInscription.couple;
-
-      if (rawCoupleFromInscription) {
-        let plainPlayer1ForCouple: any = null;
-        const rawPlayer1FromCouple = Array.isArray(rawCoupleFromInscription.player1) ? rawCoupleFromInscription.player1[0] : rawCoupleFromInscription.player1;
-        if (rawPlayer1FromCouple) {
-          plainPlayer1ForCouple = {
-            id: rawPlayer1FromCouple.id,
-            first_name: rawPlayer1FromCouple.first_name || null,
-            last_name: rawPlayer1FromCouple.last_name || null,
-            score: rawPlayer1FromCouple.score ?? null,
-            created_at: toISOStringOrNull(rawPlayer1FromCouple.created_at),
-            dni: rawPlayer1FromCouple.dni || null,
-          };
-        }
-
-        let plainPlayer2ForCouple: any = null;
-        const rawPlayer2FromCouple = Array.isArray(rawCoupleFromInscription.player2) ? rawCoupleFromInscription.player2[0] : rawCoupleFromInscription.player2;
-        if (rawPlayer2FromCouple) {
-          plainPlayer2ForCouple = {
-            id: rawPlayer2FromCouple.id,
-            first_name: rawPlayer2FromCouple.first_name || null,
-            last_name: rawPlayer2FromCouple.last_name || null,
-            score: rawPlayer2FromCouple.score ?? null,
-            created_at: toISOStringOrNull(rawPlayer2FromCouple.created_at),
-            dni: rawPlayer2FromCouple.dni || null,
-          };
-        }
-        
-        plainCouple = {
-          id: rawCoupleFromInscription.id,
-          created_at: toISOStringOrNull(rawCoupleFromInscription.created_at),
-          player1_id: rawCoupleFromInscription.player1_id || null, // Direct FK from couple table
-          player2_id: rawCoupleFromInscription.player2_id || null, // Direct FK from couple table
-          player1: plainPlayer1ForCouple, // This is the joined player object
-          player2: plainPlayer2ForCouple, // This is the joined player object
-        };
-      }
-      
-      const finalProcessedInscription = {
-        // Inscription fields
+      return {
         id: rawInscription.id,
-        created_at: toISOStringOrNull(rawInscription.created_at), // Inscription's own created_at
-        phone: rawInscription.phone || null, // Contact phone for the inscription request
-        is_pending: rawInscription.is_pending,
+        created_at: toISOStringOrNull(rawInscription.created_at),
+        phone: rawInscription.phone || null,
         tournament_id: rawInscription.tournament_id,
-        // Related plain objects
-        player: plainPlayer, // Could be a solo player or the primary player for a couple inscription
-        couple: plainCouple, // Details of the couple if it's a couple inscription
+        player_id: rawInscription.player_id || null,
+        couple_id: rawInscription.couple_id || null,
+        // No nested player or couple objects anymore for this test
+        player: null, 
+        couple: null,
       };
-      
-      if (rawDbInscriptions.indexOf(rawInscription) < 1) { // Log only the first processed item
-         console.log(`[getPendingInscriptions V2] First final processed inscription (ID: ${rawInscription.id}):`, 
-                     JSON.stringify(finalProcessedInscription, null, 2));
-      }
-      return finalProcessedInscription;
     });
 
-    console.log("[getPendingInscriptions V2] Successfully processed all inscriptions.");
-    // The function must return plain objects. This manual construction aims for that.
-    // If issues persist, the JSON.parse(JSON.stringify()) can be re-added here as a final measure.
+    if (processedData.length > 0 && processedData[0]) {
+         console.log(`[getPendingInscriptions V3 - Simplified] First final processed item:`, 
+                     JSON.stringify(processedData[0], null, 2));
+    }
+
+    console.log("[getPendingInscriptions V3 - Simplified] Successfully processed all inscriptions.");
     const finalData = JSON.parse(JSON.stringify(processedData));
     return { success: true, data: finalData };
-    // return { success: true, data: processedData };
 
   } catch (e: any) {
-    console.error("[getPendingInscriptions V2] Unexpected error in processing:", e);
+    console.error("[getPendingInscriptions V3 - Simplified] Unexpected error in processing:", e);
     return { success: false, error: e.message || "Unexpected error processing pending inscriptions." };
   }
 }
