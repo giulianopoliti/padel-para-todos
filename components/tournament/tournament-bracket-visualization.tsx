@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Loader2, Trophy, GitFork, ArrowRight, CheckCircle, Clock, Edit } from "lucide-react"
+import { Loader2, Trophy, GitFork, ArrowRight, CheckCircle, Clock } from "lucide-react"
 import { fetchTournamentMatches, advanceToNextStageAction } from "@/app/api/tournaments/actions"
 import { useToast } from "@/components/ui/use-toast"
 import MatchResultDialog from "@/components/tournament/match-result-dialog"
@@ -46,11 +46,25 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
         const knockoutMatches = result.matches.filter(
           (match: any) => match.type === "ELIMINATION" || (match.round && match.round !== "ZONE"),
         )
-        setMatches(knockoutMatches)
+
+        // Ordenar los partidos por ID o fecha de creación para mantener el orden consistente
+        const sortedMatches = [...knockoutMatches].sort((a, b) => {
+          // Primero ordenar por ronda
+          const roundOrder = ["32VOS", "16VOS", "8VOS", "4TOS", "SEMIFINAL", "FINAL"]
+          const roundA = roundOrder.indexOf(a.round)
+          const roundB = roundOrder.indexOf(b.round)
+
+          if (roundA !== roundB) return roundA - roundB
+
+          // Luego por ID o fecha de creación para mantener orden consistente dentro de la misma ronda
+          return a.id.localeCompare(b.id)
+        })
+
+        setMatches(sortedMatches)
 
         // Check if all matches in the current round are completed
-        const currentRound = getCurrentRound(knockoutMatches)
-        const currentRoundMatches = knockoutMatches.filter((match: Match) => match.round === currentRound)
+        const currentRound = getCurrentRound(sortedMatches)
+        const currentRoundMatches = sortedMatches.filter((match: Match) => match.round === currentRound)
         const allCompleted = currentRoundMatches.every((match: Match) => match.status === "COMPLETED")
         setAllMatchesCompleted(allCompleted && currentRoundMatches.length > 0)
       } else {
@@ -176,122 +190,157 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
     FINAL: "Final",
   }
 
+  // Filtrar solo las rondas que tienen partidos
+  const activeRounds = roundOrder.filter((round) => matchesByRound[round] && matchesByRound[round].length > 0)
+
   return (
     <div className="space-y-8">
+      {/* Selector de vista */}
+      <div className="flex justify-center mb-4">
+        <div className="bg-white rounded-full p-1 shadow-sm border border-emerald-100 inline-flex">
+          <Button variant="ghost" className="bg-emerald-500 text-white rounded-full px-4">
+            <Trophy className="h-4 w-4 mr-2" />
+            Vista de Llaves
+          </Button>
+          <Button variant="ghost" className="text-emerald-600 rounded-full px-4">
+            <Clock className="h-4 w-4 mr-2" />
+            Vista de Tabla
+          </Button>
+        </div>
+      </div>
+
       {/* Visualización de llaves */}
-      <div className="tournament-bracket">
-        <div className="flex flex-nowrap overflow-x-auto pb-8 space-x-6">
-          {roundOrder.map((round) => {
-            if (!matchesByRound[round]) return null
+      <div className="tournament-bracket px-4 overflow-x-auto">
+        <div className="flex flex-nowrap min-w-full">
+          {activeRounds.map((round, roundIndex) => (
+            <div key={round} className="flex-1 min-w-[250px] px-2">
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-medium text-emerald-600">{roundTranslation[round] || round}</h3>
+              </div>
 
-            return (
-              <div key={round} className="flex-shrink-0 w-72">
-                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-lg p-3 border border-emerald-100 border-b-0">
-                  <h3 className="text-lg font-medium text-emerald-600 text-center">
-                    {roundTranslation[round] || round}
-                  </h3>
-                </div>
+              <div className="relative">
+                {matchesByRound[round].map((match, matchIndex) => {
+                  const isCompleted = match.status === "COMPLETED"
+                  const isBye =
+                    match.couple1_id === "BYE_MARKER" || match.couple2_id === "BYE_MARKER" || match.couple2_id === null
 
-                <div className="space-y-6 py-4 px-2 bg-white rounded-b-lg border border-emerald-100">
-                  {matchesByRound[round].map((match, index) => {
-                    const isCompleted = match.status === "COMPLETED"
-                    const isBye =
-                      match.couple1_id === "BYE_MARKER" ||
-                      match.couple2_id === "BYE_MARKER" ||
-                      match.couple2_id === null
+                  // Determinar si este partido tiene un ganador que avanza a la siguiente ronda
+                  const hasNextRound = roundIndex < activeRounds.length - 1
+                  const isWinner = isCompleted && hasNextRound
 
-                    return (
+                  // Calcular la altura del espacio entre partidos
+                  const matchHeight = 120 // altura aproximada de cada partido
+                  const gapHeight = matchIndex < matchesByRound[round].length - 1 ? 40 : 0
+
+                  return (
+                    <div key={match.id} className="relative mb-10">
+                      {/* Tarjeta del partido */}
                       <div
-                        key={match.id}
-                        className={`bracket-match relative ${
-                          index > 0 ? "mt-8" : ""
-                        } ${isCompleted ? "opacity-100" : "opacity-90"}`}
+                        className={`bg-emerald-50 rounded-md overflow-hidden border ${
+                          isCompleted ? "border-emerald-200" : "border-slate-200"
+                        }`}
                       >
-                        {/* Líneas conectoras (solo para rondas que no sean la final) */}
-                        {round !== "FINAL" && index % 2 === 0 && index + 1 < matchesByRound[round].length && (
-                          <div
-                            className="absolute right-0 top-1/2 w-6 h-16 border-r-2 border-t-2 border-b-2 border-emerald-200 rounded-r-lg"
-                            style={{ transform: "translateX(100%) translateY(-50%)" }}
-                          ></div>
-                        )}
-
+                        {/* Pareja 1 */}
                         <div
-                          className={`match-card border ${
-                            isCompleted ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"
-                          } rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow`}
+                          className={`p-3 border-b ${
+                            isCompleted && match.winner_id === match.couple1_id
+                              ? "bg-emerald-100 border-emerald-200"
+                              : "border-slate-100"
+                          }`}
                         >
-                          {/* Pareja 1 */}
-                          <div
-                            className={`p-3 border-b ${
-                              isCompleted && match.winner_id === match.couple1_id
-                                ? "bg-emerald-100 border-emerald-200"
-                                : "border-slate-100"
-                            }`}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div className="font-medium text-slate-600 truncate max-w-[180px]">
-                                {match.couple1_player1_name && match.couple1_player2_name
-                                  ? `${match.couple1_player1_name} / ${match.couple1_player2_name}`
-                                  : match.couple1_id === "BYE_MARKER"
-                                    ? "BYE"
-                                    : "Por determinar"}
-                              </div>
-                              {isCompleted && <div className="text-emerald-600 font-bold">{match.result_couple1}</div>}
+                          <div className="flex justify-between items-center">
+                            <div className="font-medium text-slate-700 truncate max-w-[180px]">
+                              {match.couple1_player1_name && match.couple1_player2_name
+                                ? `${match.couple1_player1_name} / ${match.couple1_player2_name}`
+                                : match.couple1_id === "BYE_MARKER"
+                                  ? "BYE"
+                                  : "Por determinar"}
                             </div>
-                          </div>
-
-                          {/* Pareja 2 */}
-                          <div
-                            className={`p-3 ${
-                              isCompleted && match.winner_id === match.couple2_id
-                                ? "bg-emerald-100 border-emerald-200"
-                                : ""
-                            }`}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div className="font-medium text-slate-600 truncate max-w-[180px]">
-                                {match.couple2_player1_name && match.couple2_player2_name
-                                  ? `${match.couple2_player1_name} / ${match.couple2_player2_name}`
-                                  : match.couple2_id === "BYE_MARKER" || match.couple2_id === null
-                                    ? "BYE"
-                                    : "Por determinar"}
-                              </div>
-                              {isCompleted && <div className="text-emerald-600 font-bold">{match.result_couple2}</div>}
-                            </div>
-                          </div>
-
-                          {/* Estado y acciones */}
-                          <div className="p-2 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-                            <div className="flex items-center">
-                              {isCompleted ? (
-                                <CheckCircle className="h-4 w-4 text-emerald-500 mr-1" />
-                              ) : (
-                                <Clock className="h-4 w-4 text-amber-500 mr-1" />
-                              )}
-                              <span className={`text-xs ${isCompleted ? "text-emerald-500" : "text-amber-500"}`}>
-                                {isCompleted ? "Completado" : "Pendiente"}
-                              </span>
-                            </div>
-
-                            {!isBye && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-xs h-7 px-2 bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100"
-                                onClick={() => handleOpenResultDialog(match)}
-                              >
-                                {isCompleted ? "Editar" : "Cargar"}
-                              </Button>
-                            )}
+                            {isCompleted && <div className="text-emerald-600 font-bold">{match.result_couple1}</div>}
                           </div>
                         </div>
+
+                        {/* Pareja 2 */}
+                        <div
+                          className={`p-3 ${
+                            isCompleted && match.winner_id === match.couple2_id
+                              ? "bg-emerald-100 border-emerald-200"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div className="font-medium text-slate-700 truncate max-w-[180px]">
+                              {match.couple2_player1_name && match.couple2_player2_name
+                                ? `${match.couple2_player1_name} / ${match.couple2_player2_name}`
+                                : match.couple2_id === "BYE_MARKER" || match.couple2_id === null
+                                  ? "BYE"
+                                  : "Por determinar"}
+                            </div>
+                            {isCompleted && <div className="text-emerald-600 font-bold">{match.result_couple2}</div>}
+                          </div>
+                        </div>
+
+                        {/* Estado y acciones */}
+                        <div className="p-2 bg-white border-t border-slate-100 flex justify-between items-center">
+                          <div className="flex items-center">
+                            {isCompleted ? (
+                              <CheckCircle className="h-4 w-4 text-emerald-500 mr-1" />
+                            ) : (
+                              <Clock className="h-4 w-4 text-amber-500 mr-1" />
+                            )}
+                            <span className={`text-xs ${isCompleted ? "text-emerald-500" : "text-amber-500"}`}>
+                              {isCompleted ? "Completado" : "Pendiente"}
+                            </span>
+                          </div>
+
+                          {!isBye && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs h-7 px-2 bg-white border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                              onClick={() => handleOpenResultDialog(match)}
+                            >
+                              Editar
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    )
-                  })}
-                </div>
+
+                      {/* Línea conectora para el ganador */}
+                      {isWinner && (
+                        <div className="connector-line">
+                          <div
+                            className="absolute right-0 top-1/2 w-8 h-0.5 bg-emerald-500"
+                            style={{ transform: "translateY(-50%)" }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Línea vertical para conectar partidos */}
+                      {isWinner && matchIndex % 2 === 0 && matchIndex + 1 < matchesByRound[round].length && (
+                        <div
+                          className="absolute right-0 w-0.5 bg-emerald-500"
+                          style={{
+                            top: "50%",
+                            height: `${matchHeight + gapHeight}px`,
+                            transform: "translateX(8px)",
+                          }}
+                        />
+                      )}
+
+                      {/* Línea horizontal para el partido siguiente */}
+                      {isWinner && matchIndex % 2 === 1 && (
+                        <div
+                          className="absolute right-0 top-1/2 w-8 h-0.5 bg-emerald-500"
+                          style={{ transform: "translateY(-50%) translateX(8px)" }}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-            )
-          })}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -303,11 +352,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
             className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-6 rounded-full shadow-md hover:shadow-lg transition-all"
             disabled={isAdvancing}
           >
-            {isAdvancing ? (
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            ) : (
-              <Trophy className="mr-2 h-5 w-5" />
-            )}
+            {isAdvancing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Trophy className="mr-2 h-5 w-5" />}
             {isAdvancing ? "Avanzando..." : "Avanzar a la siguiente etapa"}
             {!isAdvancing && <ArrowRight className="ml-2 h-5 w-5" />}
           </Button>
@@ -315,7 +360,9 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
       )}
       {isAdvancing && (
         <div className="flex justify-center mt-8">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Avanzando...
+          <Button disabled className="bg-emerald-100 text-emerald-700 cursor-not-allowed">
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Avanzando...
+          </Button>
         </div>
       )}
 

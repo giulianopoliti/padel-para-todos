@@ -1,3 +1,4 @@
+/*import React from "react"
 import { Suspense } from "react"
 import { notFound } from "next/navigation"
 import PlayerTournamentClient from "@/components/tournament/player/player-tournament-client"
@@ -82,3 +83,4 @@ export default async function PlayerTournamentPage({ params: { id: tournamentId 
     </div>
   )
 }
+*/

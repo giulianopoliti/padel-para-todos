@@ -24,8 +24,9 @@ interface Tournament {
 }
 
 interface Category {
-  id: string
-  name: string
+  name: string,
+  lower_range: number,
+  upper_range: number
 }
 
 export default function TournamentsClient({
@@ -276,9 +277,9 @@ function TournamentCard({
     return date.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })
   }
 
-  const getCategoryName = (categoryId: string) => {
-    const category = categories.find((c) => c.id === categoryId)
-    return category ? category.name : categoryId
+  const getCategoryName = (categoryName: string) => {
+    const category = categories.find((c) => c.name === categoryName)
+    return category ? category.name : categoryName
   }
 
   const getStatusText = (status: string) => {
