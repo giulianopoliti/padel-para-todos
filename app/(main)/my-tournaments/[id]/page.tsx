@@ -72,56 +72,94 @@ async function getData(tournamentId: string) {
   }
 
   // 2. Obtener detalles del torneo e inscripciones
-  const { tournament, inscriptions } = await getTournamentDetailsWithInscriptions(tournamentId)
+  const { tournament, inscriptions: rawInscriptions } = await getTournamentDetailsWithInscriptions(tournamentId)
 
   if (!tournament) {
     // Si el torneo no se encuentra (devuelto como null por la acción), mostrar notFound
     notFound()
   }
 
-  console.log("Inscripciones recibidas:", JSON.stringify(inscriptions, null, 2));
+  console.log("Inscripciones recibidas:", JSON.stringify(rawInscriptions, null, 2));
+
+  // Define an interface for the shape of a plain inscription object
+  interface PlainPlayerDetail {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    score: number | null;
+    phone?: string | null; 
+    created_at: string | null; 
+    dni?: string | null; 
+  }
+
+  interface PlainCoupleDetail {
+    id: string;
+    created_at: string | null; 
+    player1: PlainPlayerDetail[] | null; 
+    player2: PlainPlayerDetail[] | null; 
+  }
+
+  interface PlainInscription {
+    id: string;
+    created_at: string | null; 
+    phone: string | null;
+    is_pending: boolean;
+    tournament_id: string;
+    player: PlainPlayerDetail[] | null; 
+    couple: PlainCoupleDetail[] | null; 
+  }
 
   // 3. Obtener todos los jugadores para búsqueda
   const allPlayers = await getAllPlayersDTO()
 
   // 4. Separar inscripciones individuales y parejas
-  const individualInscriptions = inscriptions
-    .filter((insc) => !insc.couple || insc.couple.length === 0)
-    .map((insc) => ({
-      id: insc.player[0]?.id || insc.id,
-      first_name: insc.player[0]?.first_name || null,
-      last_name: insc.player[0]?.last_name || null,
-      dni: insc.player[0]?.dni || null,
-      phone: insc.player[0]?.phone || null,
-      score: insc.player[0]?.score || null
+  const individualInscriptions = (rawInscriptions as PlainInscription[])
+    .filter((insc: PlainInscription) => !insc.couple || insc.couple.length === 0)
+    .map((insc: PlainInscription) => ({
+      id: insc.player && insc.player.length > 0 ? insc.player[0]?.id : insc.id, // Guard for insc.player
+      first_name: insc.player && insc.player.length > 0 ? insc.player[0]?.first_name : null,
+      last_name: insc.player && insc.player.length > 0 ? insc.player[0]?.last_name : null,
+      dni: insc.player && insc.player.length > 0 ? insc.player[0]?.dni : null,
+      phone: insc.player && insc.player.length > 0 ? insc.player[0]?.phone : null,
+      score: insc.player && insc.player.length > 0 ? insc.player[0]?.score : null
     }));
     
-  const coupleInscriptions = inscriptions
-    .filter((insc) => insc.couple && insc.couple.length > 0)
-    .map((insc) => ({
+  const coupleInscriptions = (rawInscriptions as PlainInscription[])
+    .filter((insc: PlainInscription) => insc.couple && insc.couple.length > 0)
+    .map((insc: PlainInscription) => ({
       id: insc.id,
       tournament_id: tournament.id,
-      player_1_id: insc.couple[0]?.player1[0]?.id || null,
-      player_2_id: insc.couple[0]?.player2[0]?.id || null,
+      player_1_id: insc.couple && insc.couple.length > 0 && insc.couple[0].player1 && insc.couple[0].player1.length > 0 ? insc.couple[0].player1[0]?.id : null,
+      player_2_id: insc.couple && insc.couple.length > 0 && insc.couple[0].player2 && insc.couple[0].player2.length > 0 ? insc.couple[0].player2[0]?.id : null,
       player_1_info: {
-        id: insc.couple[0]?.player1[0]?.id || null,
-        first_name: insc.couple[0]?.player1[0]?.first_name || null,
-        last_name: insc.couple[0]?.player1[0]?.last_name || null,
-        dni: insc.couple[0]?.player1[0]?.dni || null,
-        score: insc.couple[0]?.player1[0]?.score || null
+        id: insc.couple && insc.couple.length > 0 && insc.couple[0].player1 && insc.couple[0].player1.length > 0 ? insc.couple[0].player1[0]?.id : null,
+        first_name: insc.couple && insc.couple.length > 0 && insc.couple[0].player1 && insc.couple[0].player1.length > 0 ? insc.couple[0].player1[0]?.first_name : null,
+        last_name: insc.couple && insc.couple.length > 0 && insc.couple[0].player1 && insc.couple[0].player1.length > 0 ? insc.couple[0].player1[0]?.last_name : null,
+        dni: insc.couple && insc.couple.length > 0 && insc.couple[0].player1 && insc.couple[0].player1.length > 0 ? insc.couple[0].player1[0]?.dni : null,
+        score: insc.couple && insc.couple.length > 0 && insc.couple[0].player1 && insc.couple[0].player1.length > 0 ? insc.couple[0].player1[0]?.score : null
       },
       player_2_info: {
-        id: insc.couple[0]?.player2[0]?.id || null,
-        first_name: insc.couple[0]?.player2[0]?.first_name || null,
-        last_name: insc.couple[0]?.player2[0]?.last_name || null,
-        dni: insc.couple[0]?.player2[0]?.dni || null,
-        score: insc.couple[0]?.player2[0]?.score || null
+        id: insc.couple && insc.couple.length > 0 && insc.couple[0].player2 && insc.couple[0].player2.length > 0 ? insc.couple[0].player2[0]?.id : null,
+        first_name: insc.couple && insc.couple.length > 0 && insc.couple[0].player2 && insc.couple[0].player2.length > 0 ? insc.couple[0].player2[0]?.first_name : null,
+        last_name: insc.couple && insc.couple.length > 0 && insc.couple[0].player2 && insc.couple[0].player2.length > 0 ? insc.couple[0].player2[0]?.last_name : null,
+        dni: insc.couple && insc.couple.length > 0 && insc.couple[0].player2 && insc.couple[0].player2.length > 0 ? insc.couple[0].player2[0]?.dni : null,
+        score: insc.couple && insc.couple.length > 0 && insc.couple[0].player2 && insc.couple[0].player2.length > 0 ? insc.couple[0].player2[0]?.score : null
       },
-      created_at: new Date().toISOString(),
+      created_at: insc.created_at || new Date().toISOString(), // Fallback for created_at
       status: "ACTIVE"
     }));
 
-  return { tournament, individualInscriptions, coupleInscriptions, user, allPlayers }
+  const result = { tournament, individualInscriptions, coupleInscriptions, user, allPlayers };
+  try {
+    // Ensure the entire result passed from getData to the Server Component is plain
+    return JSON.parse(JSON.stringify(result));
+  } catch (e: any) {
+    console.error("Error stringifying/parsing result in getData:", e, result);
+    // Handle error appropriately, perhaps by returning a structure that leads to an error page
+    // For now, rethrow or return a structure that leads to `notFound()` if critical data is missing.
+    // This situation indicates a severe problem with the data if it can't even be stringified.
+    throw new Error(`Failed to serialize data in getData: ${e.message}`);
+  }
 }
 
 // Obtener icono según el estado

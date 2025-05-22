@@ -229,15 +229,25 @@ export async function getTournamentsByUserId(userId: string) {
 export async function startTournament(tournamentId: string) {
   const supabase = await createClient();
   console.log(`[startTournament] Iniciando torneo ${tournamentId} (fase de emparejamiento)`);
-  const { data, error } = await supabase.from('tournaments').update({ status: 'PAIRING' }).eq('id', tournamentId).select().single();
+  const { data: rawTournament, error } = await supabase.from('tournaments').update({ status: 'PAIRING' }).eq('id', tournamentId).select().single();
   if (error) {
     console.error("[startTournament] Error al iniciar torneo:", error);
     throw new Error("No se pudo iniciar el torneo");
   }
-  console.log("[startTournament] Torneo iniciado exitosamente (fase de emparejamiento):", data);
+  console.log("[startTournament] Torneo iniciado exitosamente (fase de emparejamiento):", rawTournament);
+
+  const plainTournament = rawTournament ? {
+    ...rawTournament,
+    start_date: rawTournament.start_date ? new Date(rawTournament.start_date).toISOString() : null,
+    end_date: rawTournament.end_date ? new Date(rawTournament.end_date).toISOString() : null,
+    created_at: rawTournament.created_at ? new Date(rawTournament.created_at).toISOString() : null,
+    // Add any other date fields from the tournament table that need conversion
+  } : null;
+
   revalidatePath(`/tournaments/${tournamentId}`);
   revalidatePath('/tournaments');
-  return { success: true, tournament: data };
+  revalidatePath(`/my-tournaments/${tournamentId}`); // Added for consistency
+  return { success: true, tournament: plainTournament };
 }
 
 export async function startMatches(tournamentId: string) {
@@ -262,10 +272,19 @@ export async function completeTournament(tournamentId: string) {
     console.error("[completeTournament] Error al finalizar torneo:", error);
     throw new Error("No se pudo finalizar el torneo");
   }
-  console.log("[completeTournament] Torneo finalizado exitosamente:", data);
+  // Ensure the returned tournament data is plain
+  const plainTournament = data ? {
+    ...data,
+    start_date: data.start_date ? new Date(data.start_date).toISOString() : null,
+    end_date: data.end_date ? new Date(data.end_date).toISOString() : null,
+    created_at: data.created_at ? new Date(data.created_at).toISOString() : null,
+    // Add any other relevant date fields from the tournaments table
+  } : null;
+
   revalidatePath(`/tournaments/${tournamentId}`);
   revalidatePath('/tournaments');
-  return { success: true, tournament: data };
+  revalidatePath(`/my-tournaments/${tournamentId}`); // Added for consistency
+  return { success: true, tournament: plainTournament };
 }
 
 export async function getTournamentById(tournamentId: string) {
@@ -274,12 +293,22 @@ export async function getTournamentById(tournamentId: string) {
     return null;
   }
   const supabase = await createClient();
-  const { data: tournament, error } = await supabase.from('tournaments').select('*, clubes(id, name), categories(name)').eq('id', tournamentId).single();
+  const { data: rawTournament, error } = await supabase.from('tournaments').select('*, clubes(id, name), categories(name)').eq('id', tournamentId).single();
   if (error) {
     console.error(`[getTournamentById] Error fetching tournament details for ID ${tournamentId}:`, error.message);
     return null;
   }
-  return tournament as any; 
+  if (!rawTournament) return null;
+
+  // Convert dates to ISO strings to ensure plain object
+  const plainTournament = {
+    ...rawTournament,
+    start_date: rawTournament.start_date ? new Date(rawTournament.start_date).toISOString() : null,
+    end_date: rawTournament.end_date ? new Date(rawTournament.end_date).toISOString() : null,
+    created_at: rawTournament.created_at ? new Date(rawTournament.created_at).toISOString() : null,
+    // Ensure any other date fields are also converted (e.g., if your table has 'updated_at')
+  };
+  return plainTournament as any; // Cast as any to match original return type if necessary, but it's now plain
 }
 
 export async function getMatchesByTournamentId(tournamentId: string) {
@@ -302,7 +331,13 @@ export async function getPlayersByTournamentId(tournamentId: string) {
     return [];
   }
   const supabase = await createClient();
-  const { data: inscriptions, error: inscriptionsError } = await supabase.from('inscriptions').select('player_id').eq('tournament_id', tournamentId).is('couple_id', null);
+  const { data: inscriptions, error: inscriptionsError } = await supabase
+    .from('inscriptions')
+    .select('player_id')
+    .eq('tournament_id', tournamentId)
+    .is('couple_id', null)
+    .eq('is_pending', false); // Only fetch non-pending players
+
   if (inscriptionsError) {
     console.error(`[getPlayersByTournamentId] Error fetching inscriptions for tournament ${tournamentId}:`, inscriptionsError.message);
     throw inscriptionsError;
@@ -371,7 +406,35 @@ export async function registerCoupleForTournament(tournamentId: string, player1I
     coupleIdToInsert = newCouple.id;
   }
   if (!coupleIdToInsert) throw new Error("No se pudo determinar el ID de la pareja.");
-  const { data, error: inscriptionError } = await supabase.from('inscriptions').insert({ tournament_id: tournamentId, couple_id: coupleIdToInsert, player_id: player1Id}).select('id').single(); // player_id here is one of the couple members, for RLS or reference.
+
+  // Check for existing non-pending inscription for this couple
+  const { data: existingInscription, error: checkError } = await supabase
+    .from('inscriptions')
+    .select('id')
+    .eq('tournament_id', tournamentId)
+    .eq('couple_id', coupleIdToInsert)
+    .eq('is_pending', false)
+    .maybeSingle();
+
+  if (checkError) {
+    console.error("[registerCoupleForTournament] Error checking existing inscription:", checkError);
+    throw new Error("Error al verificar inscripción existente.");
+  }
+  if (existingInscription) {
+    // Depending on desired behavior, you might throw an error or return a specific message
+    throw new Error("Esta pareja ya está inscrita en el torneo.");
+  }
+
+  const { data, error: inscriptionError } = await supabase
+    .from('inscriptions')
+    .insert({ 
+      tournament_id: tournamentId, 
+      couple_id: coupleIdToInsert, 
+      player_id: player1Id, // As discussed, using one player for the inscription record
+      is_pending: false // Direct registration is not pending
+    })
+    .select('id')
+    .single(); 
   if (inscriptionError) {
     console.error("[registerCoupleForTournament] Error al registrar pareja:", inscriptionError);
     throw new Error("No se pudo inscribir la pareja.");
@@ -382,7 +445,13 @@ export async function registerCoupleForTournament(tournamentId: string, player1I
 
 export async function getCouplesByTournamentId(tournamentId: string): Promise<any[]> {
   const supabase = await createClient();
-  const { data: inscriptionCouples, error: inscriptionsError } = await supabase.from('inscriptions').select('couple_id').eq('tournament_id', tournamentId).not('couple_id', 'is', null);
+  const { data: inscriptionCouples, error: inscriptionsError } = await supabase
+    .from('inscriptions')
+    .select('couple_id')
+    .eq('tournament_id', tournamentId)
+    .not('couple_id', 'is', null)
+    .eq('is_pending', false); // Only fetch non-pending couples
+
   if (inscriptionsError) throw inscriptionsError;
   if (!inscriptionCouples || inscriptionCouples.length === 0) return [];
   const coupleIds = inscriptionCouples.map(ins => ins.couple_id).filter(id => id !== null) as string[];
@@ -401,11 +470,34 @@ export async function registerAuthenticatedPlayerForTournament(tournamentId: str
   if (playerError || !playerData?.id) return { success: false, message: playerError?.code === 'PGRST116' ? "Perfil de jugador no encontrado." : "Error buscando perfil." };
   const playerId = playerData.id;
 
-  const { data: existingInscription, error: checkError } = await supabase.from('inscriptions').select('id, couple_id').eq('tournament_id', tournamentId).eq('player_id', playerId).maybeSingle();
+  const { data: existingInscription, error: checkError } = await supabase
+    .from('inscriptions')
+    .select('id, couple_id, is_pending') // Select is_pending to check its status
+    .eq('tournament_id', tournamentId)
+    .eq('player_id', playerId)
+    // .eq('is_pending', false) // We want to check for ANY inscription by this player, then decide
+    .maybeSingle();
+
   if (checkError) return { success: false, message: `Error al verificar: ${checkError.message}` };
-  if (existingInscription) return { success: false, message: existingInscription.couple_id ? "Ya inscrito como pareja." : "Ya inscrito." };
   
-  const { data: newInscription, error: insertError } = await supabase.from('inscriptions').insert({ player_id: playerId, tournament_id: tournamentId, couple_id: null, created_at: new Date().toISOString() }).select('id').single();
+  if (existingInscription) {
+    if (existingInscription.is_pending) {
+        return { success: false, message: "Ya tienes una solicitud de inscripción pendiente para este torneo." };
+    }
+    return { success: false, message: existingInscription.couple_id ? "Ya inscrito como pareja." : "Ya inscrito." };
+  }
+  
+  const { data: newInscription, error: insertError } = await supabase
+    .from('inscriptions')
+    .insert({ 
+      player_id: playerId, 
+      tournament_id: tournamentId, 
+      couple_id: null, 
+      created_at: new Date().toISOString(),
+      is_pending: false // Direct registration is not pending
+    })
+    .select('id')
+    .single();
   if (insertError || !newInscription?.id) return { success: false, message: insertError?.message || "Error al inscribir." };
 
   revalidatePath(`/tournaments/${tournamentId}`);
@@ -418,48 +510,108 @@ export async function getTournamentDetailsWithInscriptions(tournamentId: string)
   const tournament = await getTournamentById(tournamentId);
   if (!tournament) return { tournament: null, inscriptions: [] };
   try {
-    const { data: inscriptions, error: inscriptionsError } = await supabase.from('inscriptions').select('*').eq('tournament_id', tournamentId);
-    if (inscriptionsError || !inscriptions) return { tournament, inscriptions: [] };
+    const { data: rawInscriptions, error: inscriptionsError } = await supabase
+      .from('inscriptions')
+      .select('*') // Consider selecting specific fields if not all are needed
+      .eq('tournament_id', tournamentId)
+      .eq('is_pending', false); // Only fetch non-pending inscriptions
 
-    const coupleIds = inscriptions.filter(insc => insc.couple_id).map(insc => insc.couple_id).filter(Boolean) as string[];
+    if (inscriptionsError || !rawInscriptions) return { tournament, inscriptions: [] };
+
+    const coupleIds = rawInscriptions.filter(insc => insc.couple_id).map(insc => insc.couple_id).filter(Boolean) as string[];
     let couplesData: any[] = [];
     if (coupleIds.length > 0) {
       const { data, error } = await supabase.from('couples').select('*').in('id', coupleIds);
-      if (!error && data) couplesData = data;
+      if (!error && data) {
+        couplesData = data.map(c => ({ 
+          ...c, 
+          created_at: c.created_at ? new Date(c.created_at).toISOString() : null
+          // Add other date conversions for couple fields if any
+        }));
+      }
     }
 
-    const playerIdsFromInscriptions = inscriptions.filter(insc => insc.player_id).map(insc => insc.player_id);
+    const playerIdsFromInscriptions = rawInscriptions.filter(insc => insc.player_id).map(insc => insc.player_id);
     const playerIdsFromCouples = couplesData.flatMap(c => [c.player1_id, c.player2_id]);
     const uniquePlayerIds = [...new Set([...playerIdsFromInscriptions, ...playerIdsFromCouples].filter(Boolean))] as string[];
     
     let playersData: any[] = [];
     if (uniquePlayerIds.length > 0) {
       const {data, error} = await supabase.from('players').select('*').in('id', uniquePlayerIds);
-      if(!error && data) playersData = data;
+      if(!error && data) {
+        playersData = data.map(p => ({ 
+          ...p, 
+          created_at: p.created_at ? new Date(p.created_at).toISOString() : null 
+          // Add other date conversions for player fields if any
+        }));
+      }
     }
     
     const playersMap = playersData.reduce((acc, p) => { acc[p.id] = p; return acc; }, {} as {[key: string]: any});
-    const couplesWithPlayers = couplesData.map(c => ({ ...c, player1: playersMap[c.player1_id] ? [playersMap[c.player1_id]] : [], player2: playersMap[c.player2_id] ? [playersMap[c.player2_id]] : [] }));
+    const couplesWithPlayers = couplesData.map(c => ({ 
+      ...c, 
+      player1: playersMap[c.player1_id] ? [playersMap[c.player1_id]] : [], 
+      player2: playersMap[c.player2_id] ? [playersMap[c.player2_id]] : [] 
+    }));
     const couplesMap = couplesWithPlayers.reduce((acc, c) => { acc[c.id] = c; return acc; }, {} as {[key: string]: any});
     
-    const processedInscriptions = inscriptions.map(i => ({ ...i, player: i.player_id && playersMap[i.player_id] ? [playersMap[i.player_id]] : [], couple: i.couple_id && couplesMap[i.couple_id] ? [couplesMap[i.couple_id]] : [] }));
-    return { tournament, inscriptions: processedInscriptions };
+    const processedInscriptions = rawInscriptions.map(i => ({ 
+      ...i, 
+      created_at: i.created_at ? new Date(i.created_at).toISOString() : null,
+      player: i.player_id && playersMap[i.player_id] ? [playersMap[i.player_id]] : [], 
+      couple: i.couple_id && couplesMap[i.couple_id] ? [couplesMap[i.couple_id]] : [] 
+    }));
+    // Explicitly serialize and parse to ensure plain objects for inscriptions
+    const finalInscriptions = JSON.parse(JSON.stringify(processedInscriptions));
+    // Further ensure the entire returned object is plain
+    const result = { tournament, inscriptions: finalInscriptions };
+    return JSON.parse(JSON.stringify(result));
   } catch (error) {
     console.error("[getTournamentDetailsWithInscriptions] Error:", error);
-    return { tournament, inscriptions: [] };
+    // Ensure even error returns are consistent if needed, though usually simpler
+    const errorResult = { tournament, inscriptions: [] }; 
+    return JSON.parse(JSON.stringify(errorResult));
   }
 }
 
 export async function registerPlayerForTournament(tournamentId: string, playerId: string) {
   const supabase = await createClient();
-  const { data: existing, error: checkError } = await supabase.from('inscriptions').select('id').eq('tournament_id', tournamentId).eq('player_id', playerId).maybeSingle();
-  if (checkError) console.error("Error verificando inscripción:", checkError);
-  if (existing) return { success: false, message: "Jugador ya inscrito." };
+  const { data: existing, error: checkError } = await supabase
+    .from('inscriptions')
+    .select('id, is_pending') // Select is_pending
+    .eq('tournament_id', tournamentId)
+    .eq('player_id', playerId)
+    // .eq('is_pending', false) // Check for any, then decide
+    .maybeSingle();
+
+  if (checkError) {
+      console.error("Error verificando inscripción:", checkError);
+      // Return a user-friendly message or rethrow depending on desired behavior
+      return { success: false, message: "Error al verificar inscripción existente." }; 
+  }
+  if (existing) {
+      if (existing.is_pending) {
+        return { success: false, message: "Jugador ya tiene una solicitud pendiente para este torneo." };
+      }
+      return { success: false, message: "Jugador ya inscrito." };
+  }
   
-  const { data, error } = await supabase.from('inscriptions').insert({ tournament_id: tournamentId, player_id: playerId }).select().single();
+  const { data, error } = await supabase
+    .from('inscriptions')
+    .insert({ 
+      tournament_id: tournamentId, 
+      player_id: playerId, 
+      is_pending: false // Direct registration is not pending
+    })
+    .select()
+    .single();
   if (error) {
     console.error("[registerPlayerForTournament] Error:", error);
-    throw new Error("No se pudo registrar.");
+    // Throwing an error here might be too disruptive if called from UI directly expecting a structured response.
+    // Consider returning a structured error like other functions.
+    // For now, aligning with original potential to throw:
+    // throw new Error("No se pudo registrar."); 
+    return { success: false, message: `No se pudo registrar: ${error.message}`}
   }
   revalidatePath(`/tournaments/${tournamentId}`);
   revalidatePath(`/my-tournaments/${tournamentId}`);
@@ -514,12 +666,20 @@ export async function startTournament2(tournamentId: string) {
     if (!matchCreateRes.success) return { success: false, error: "Error creando partidos de zona: " + (matchCreateRes.error || "Resultado inesperado") };
   }
   
-  const { data: updatedTourn, error: statError } = await supabase.from('tournaments').update({ status: 'IN_PROGRESS' }).eq('id', tournamentId).select().single();
+  const { data: rawUpdatedTourn, error: statError } = await supabase.from('tournaments').update({ status: 'IN_PROGRESS' }).eq('id', tournamentId).select().single();
   if (statError) return { success: false, error: "Error actualizando estado: " + statError.message };
+
+  const plainUpdatedTourn = rawUpdatedTourn ? {
+    ...rawUpdatedTourn,
+    start_date: rawUpdatedTourn.start_date ? new Date(rawUpdatedTourn.start_date).toISOString() : null,
+    end_date: rawUpdatedTourn.end_date ? new Date(rawUpdatedTourn.end_date).toISOString() : null,
+    created_at: rawUpdatedTourn.created_at ? new Date(rawUpdatedTourn.created_at).toISOString() : null,
+    // Add any other date fields from the tournament table that need conversion
+  } : null;
 
   revalidatePath(`/my-tournaments/${tournamentId}`);
   revalidatePath(`/tournaments/${tournamentId}`);
-  return { success: true, tournament: updatedTourn };
+  return { success: true, tournament: plainUpdatedTourn };
 }
 
 export async function fetchTournamentZones(tournamentId: string) {
@@ -770,4 +930,359 @@ export async function advanceToNextStageAction(tournamentId: string) {
     console.log(`Avance a ${nextRound} procesado. Creados ${createdNextRMatches.length} partidos.`);
     return { success: true, message: `Avance a ${nextRound} procesado.`, matches: createdNextRMatches };
   } catch (e: any) { return { success: false, error: e.message || "Error inesperado avanzando etapa." }; }
+}
+
+export async function requestSoloInscription(
+  tournamentId: string,
+  playerId: string,
+  phoneNumber: string
+): Promise<{ success: boolean; message: string; error?: any }> {
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase.from("inscriptions").insert([
+      {
+        player_id: playerId,
+        tournament_id: tournamentId,
+        phone: phoneNumber,
+        is_pending: true,
+      },
+    ]);
+
+    if (error) {
+      console.error("[requestSoloInscription] Error inserting solo inscription:", error);
+      return { success: false, message: "Error al enviar la solicitud.", error };
+    }
+
+    // Revalidation might not be immediately necessary for guest view until approved,
+    // but can be added if an admin view needs to update.
+    // revalidatePath(`/tournaments/${tournamentId}`);
+    // revalidatePath(`/admin/tournaments/${tournamentId}/requests`); // Example path
+
+    return { success: true, message: "Solicitud de inscripción individual enviada." };
+  } catch (e: any) {
+    console.error("[requestSoloInscription] Unexpected error:", e);
+    return { success: false, message: "Error inesperado al enviar la solicitud.", error: e.message };
+  }
+}
+
+export async function requestCoupleInscription(
+  tournamentId: string,
+  player1Id: string,
+  player2Id: string,
+  phoneNumber: string
+): Promise<{ success: boolean; message: string; error?: any }> {
+  const supabase = await createClient();
+  try {
+    // 1. Find or Create the couple
+    // Check if couple exists (player1Id, player2Id)
+    const existingCouple1Result = await supabase
+      .from("couples")
+      .select("id")
+      .eq("player1_id", player1Id)
+      .eq("player2_id", player2Id)
+      .maybeSingle();
+
+    const existingCouple1 = existingCouple1Result.data;
+    const existingCouple1Error = existingCouple1Result.error;
+
+    if (existingCouple1Error && existingCouple1Error.code !== 'PGRST116') { // PGRST116 means no rows, which is fine
+      console.error("[requestCoupleInscription] Error checking for couple (P1, P2):", existingCouple1Error);
+      throw existingCouple1Error;
+    }
+    
+    let coupleId = existingCouple1?.id;
+
+    if (!coupleId) {
+      // Check if couple exists (player2Id, player1Id)
+      const existingCouple2Result = await supabase
+        .from("couples")
+        .select("id")
+        .eq("player1_id", player2Id)
+        .eq("player2_id", player1Id)
+        .maybeSingle();
+      
+      const existingCouple2 = existingCouple2Result.data;
+      const existingCouple2Error = existingCouple2Result.error;
+
+      if (existingCouple2Error && existingCouple2Error.code !== 'PGRST116') {
+         console.error("[requestCoupleInscription] Error checking for couple (P2, P1):", existingCouple2Error);
+         throw existingCouple2Error;
+      }
+      coupleId = existingCouple2?.id;
+    }
+    
+    if (!coupleId) {
+      // Create the couple if it doesn't exist
+      const { data: newCouple, error: coupleError } = await supabase
+        .from("couples")
+        .insert([{ player1_id: player1Id, player2_id: player2Id }])
+        .select("id")
+        .single();
+
+      if (coupleError || !newCouple) {
+        console.error("[requestCoupleInscription] Error creating couple:", coupleError);
+        throw coupleError || new Error("Failed to create couple");
+      }
+      coupleId = newCouple.id;
+    }
+
+    // 2. Create the inscription for the couple
+    const { error: inscriptionError } = await supabase.from("inscriptions").insert([
+      {
+        couple_id: coupleId,
+        tournament_id: tournamentId,
+        // player_id can be null for couple inscriptions, or you can choose one of the players
+        // For consistency with how it might have been before, let's ensure player_id is not set if couple_id is.
+        // However, the DB schema for inscriptions has player_id as NOT NULL. This is an issue.
+        // For now, let's assume the previous client-side logic was right and one player_id is needed,
+        // or the DB schema needs adjustment for couple-only inscriptions.
+        // Let's try to insert player_id as null and see if DB allows, or if we must provide one.
+        // Re-checking schema: player_id is NOT NULL.
+        // So, one of the players must be associated, or the schema changes.
+        // For now, let's use player1Id as the primary contact for the inscription, even if it's a couple.
+        // OR, the schema needs a "contact_player_id" or similar if player_id isn't appropriate.
+        // Let's stick to the existing `player_id` and make it player1_id for the couple inscription.
+        // This might need review based on how RLS and other logic use `inscriptions.player_id`.
+        // A safer approach for couple inscriptions might be *not* to fill player_id here
+        // if the DB allowed it, or to have a separate way to track the "requester" if needed.
+        // Given the schema `player_id non-nullable`, we must provide it.
+        // This implies that an "inscription" is always by *a* player, even if for a couple.
+        // This needs clarification if the intent is different.
+        // For now, let's set player1_id as the primary player for the couple's inscription request.
+        // This is a tricky part if the DB schema is rigid.
+        // The existing `registerCoupleForTournament` uses `player_id: player1Id` for inscriptions. Let's follow that.
+        player_id: player1Id, 
+        phone: phoneNumber,
+        is_pending: true,
+      },
+    ]);
+
+    if (inscriptionError) {
+      console.error("[requestCoupleInscription] Error inserting couple inscription:", inscriptionError);
+      return { success: false, message: "Error al enviar la solicitud de pareja.", error: inscriptionError };
+    }
+    
+    // revalidatePath(`/tournaments/${tournamentId}`);
+    // revalidatePath(`/admin/tournaments/${tournamentId}/requests`); // Example
+
+    return { success: true, message: "Solicitud de inscripción de pareja enviada." };
+  } catch (e: any) {
+    console.error("[requestCoupleInscription] Unexpected error:", e);
+    return { success: false, message: "Error inesperado al enviar la solicitud de pareja.", error: e.message };
+  }
+}
+
+export async function getPendingInscriptionsByTournamentId(tournamentId: string): Promise<{ success: boolean; data?: any[]; error?: string }> {
+  const supabase = await createClient();
+  console.log(`[getPendingInscriptions V2] Fetching for tournament ID: ${tournamentId}`);
+
+  const toISOStringOrNull = (dateInput: string | Date | null | undefined): string | null => {
+    if (!dateInput) return null;
+    try {
+      return new Date(dateInput).toISOString();
+    } catch (e) {
+      console.warn(`[getPendingInscriptions V2] Invalid date for conversion: ${dateInput}`, e);
+      return null;
+    }
+  };
+
+  try {
+    const { data: rawDbInscriptions, error: fetchError } = await supabase
+      .from('inscriptions')
+      .select(
+        `id,
+        created_at,
+        phone,
+        is_pending,
+        tournament_id,
+        player:players!inscriptions_player_id_fkey(id, first_name, last_name, score, phone, created_at, dni),
+        couple:couples!inscriptions_couple_id_fkey(
+          id,
+          created_at,
+          player1_id, 
+          player2_id,
+          player1:players!couples_player1_id_fkey(id, first_name, last_name, score, created_at, dni),
+          player2:players!couples_player2_id_fkey(id, first_name, last_name, score, created_at, dni)
+        )`
+      )
+      .eq('tournament_id', tournamentId)
+      .eq('is_pending', true)
+      .order('created_at', { ascending: true });
+
+    if (fetchError) {
+      console.error("[getPendingInscriptions V2] Supabase fetch error:", fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    if (!rawDbInscriptions) {
+      console.log("[getPendingInscriptions V2] No raw inscriptions data returned from Supabase.");
+      return { success: true, data: [] };
+    }
+    
+    if (rawDbInscriptions.length > 0) {
+        console.log("[getPendingInscriptions V2] Raw DB inscriptions (first item):", 
+                    JSON.stringify(rawDbInscriptions[0], null, 2));
+    } else {
+        console.log("[getPendingInscriptions V2] Raw DB inscriptions array is empty.");
+    }
+
+    const processedData = rawDbInscriptions.map((rawInscription: any) => {
+      let plainPlayer: any = null;
+      // Supabase might return related record as an object or an array.
+      // The previous code used array access (e.g., rawInscription.player[0]).
+      // Let's be robust: check if it's an array, take the first, else assume it's an object.
+      const rawPlayerFromInscription = Array.isArray(rawInscription.player) ? rawInscription.player[0] : rawInscription.player;
+
+      if (rawPlayerFromInscription) {
+        plainPlayer = {
+          id: rawPlayerFromInscription.id,
+          first_name: rawPlayerFromInscription.first_name || null,
+          last_name: rawPlayerFromInscription.last_name || null,
+          score: rawPlayerFromInscription.score ?? null,
+          phone: rawPlayerFromInscription.phone || null, // Player's own phone
+          created_at: toISOStringOrNull(rawPlayerFromInscription.created_at),
+          dni: rawPlayerFromInscription.dni || null,
+        };
+      }
+
+      let plainCouple: any = null;
+      const rawCoupleFromInscription = Array.isArray(rawInscription.couple) ? rawInscription.couple[0] : rawInscription.couple;
+
+      if (rawCoupleFromInscription) {
+        let plainPlayer1ForCouple: any = null;
+        const rawPlayer1FromCouple = Array.isArray(rawCoupleFromInscription.player1) ? rawCoupleFromInscription.player1[0] : rawCoupleFromInscription.player1;
+        if (rawPlayer1FromCouple) {
+          plainPlayer1ForCouple = {
+            id: rawPlayer1FromCouple.id,
+            first_name: rawPlayer1FromCouple.first_name || null,
+            last_name: rawPlayer1FromCouple.last_name || null,
+            score: rawPlayer1FromCouple.score ?? null,
+            created_at: toISOStringOrNull(rawPlayer1FromCouple.created_at),
+            dni: rawPlayer1FromCouple.dni || null,
+          };
+        }
+
+        let plainPlayer2ForCouple: any = null;
+        const rawPlayer2FromCouple = Array.isArray(rawCoupleFromInscription.player2) ? rawCoupleFromInscription.player2[0] : rawCoupleFromInscription.player2;
+        if (rawPlayer2FromCouple) {
+          plainPlayer2ForCouple = {
+            id: rawPlayer2FromCouple.id,
+            first_name: rawPlayer2FromCouple.first_name || null,
+            last_name: rawPlayer2FromCouple.last_name || null,
+            score: rawPlayer2FromCouple.score ?? null,
+            created_at: toISOStringOrNull(rawPlayer2FromCouple.created_at),
+            dni: rawPlayer2FromCouple.dni || null,
+          };
+        }
+        
+        plainCouple = {
+          id: rawCoupleFromInscription.id,
+          created_at: toISOStringOrNull(rawCoupleFromInscription.created_at),
+          player1_id: rawCoupleFromInscription.player1_id || null, // Direct FK from couple table
+          player2_id: rawCoupleFromInscription.player2_id || null, // Direct FK from couple table
+          player1: plainPlayer1ForCouple, // This is the joined player object
+          player2: plainPlayer2ForCouple, // This is the joined player object
+        };
+      }
+      
+      const finalProcessedInscription = {
+        // Inscription fields
+        id: rawInscription.id,
+        created_at: toISOStringOrNull(rawInscription.created_at), // Inscription's own created_at
+        phone: rawInscription.phone || null, // Contact phone for the inscription request
+        is_pending: rawInscription.is_pending,
+        tournament_id: rawInscription.tournament_id,
+        // Related plain objects
+        player: plainPlayer, // Could be a solo player or the primary player for a couple inscription
+        couple: plainCouple, // Details of the couple if it's a couple inscription
+      };
+      
+      if (rawDbInscriptions.indexOf(rawInscription) < 1) { // Log only the first processed item
+         console.log(`[getPendingInscriptions V2] First final processed inscription (ID: ${rawInscription.id}):`, 
+                     JSON.stringify(finalProcessedInscription, null, 2));
+      }
+      return finalProcessedInscription;
+    });
+
+    console.log("[getPendingInscriptions V2] Successfully processed all inscriptions.");
+    // The function must return plain objects. This manual construction aims for that.
+    // If issues persist, the JSON.parse(JSON.stringify()) can be re-added here as a final measure.
+    const finalData = JSON.parse(JSON.stringify(processedData));
+    return { success: true, data: finalData };
+    // return { success: true, data: processedData };
+
+  } catch (e: any) {
+    console.error("[getPendingInscriptions V2] Unexpected error in processing:", e);
+    return { success: false, error: e.message || "Unexpected error processing pending inscriptions." };
+  }
+}
+
+export async function acceptInscriptionRequest(inscriptionId: string, tournamentId: string): Promise<{ success: boolean; message: string; error?: string }> {
+  const supabase = await createClient();
+  try {
+    const { data: inscription, error: fetchError } = await supabase
+        .from('inscriptions')
+        .select('player_id, couple_id')
+        .eq('id', inscriptionId)
+        .single();
+
+    if (fetchError || !inscription) {
+        console.error("[acceptInscriptionRequest] Error fetching inscription or inscription not found:", fetchError);
+        return { success: false, message: "Error al encontrar la inscripción." , error: fetchError?.message };
+    }
+
+    // Check if the player or couple is already fully registered (not pending)
+    if (inscription.player_id && !inscription.couple_id) { // Solo player
+        const { data: existing, error: checkError } = await supabase
+            .from('inscriptions')
+            .select('id')
+            .eq('tournament_id', tournamentId)
+            .eq('player_id', inscription.player_id)
+            .eq('is_pending', false)
+            .neq('id', inscriptionId) // Exclude the current pending one
+            .maybeSingle();
+        if (checkError) {
+            console.error("[acceptInscriptionRequest] Error checking existing player inscription:", checkError);
+            return { success: false, message: "Error al verificar jugador.", error: checkError.message };
+        }
+        if (existing) {
+            return { success: false, message: "Este jugador ya está inscrito y aceptado en el torneo." };
+        }
+    } else if (inscription.couple_id) { // Couple
+        const { data: existing, error: checkError } = await supabase
+            .from('inscriptions')
+            .select('id')
+            .eq('tournament_id', tournamentId)
+            .eq('couple_id', inscription.couple_id)
+            .eq('is_pending', false)
+            .neq('id', inscriptionId) // Exclude the current pending one
+            .maybeSingle();
+        if (checkError) {
+            console.error("[acceptInscriptionRequest] Error checking existing couple inscription:", checkError);
+            return { success: false, message: "Error al verificar pareja.", error: checkError.message };
+        }
+        if (existing) {
+            return { success: false, message: "Esta pareja ya está inscrita y aceptada en el torneo." };
+        }
+    }
+
+    const { error } = await supabase
+      .from('inscriptions')
+      .update({ is_pending: false })
+      .eq('id', inscriptionId);
+
+    if (error) {
+      console.error("[acceptInscriptionRequest] Error updating inscription:", error);
+      return { success: false, message: "Error al aceptar la solicitud.", error: error.message };
+    }
+
+    revalidatePath(`/my-tournaments/${tournamentId}`);
+    // Potentially revalidate the public page as well if it shows participant counts or lists
+    revalidatePath(`/tournaments/${tournamentId}`);
+
+    return { success: true, message: "Solicitud de inscripción aceptada." };
+  } catch (e: any) {
+    console.error("[acceptInscriptionRequest] Unexpected error:", e);
+    return { success: false, message: "Error inesperado al aceptar la solicitud.", error: e.message };
+  }
 } 

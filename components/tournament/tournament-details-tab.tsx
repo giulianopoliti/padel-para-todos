@@ -35,6 +35,7 @@ interface TournamentDetailsTabProps {
   tournamentStatus: string
   maxPlayers?: number
   allPlayers?: PlayerInfo[]
+  pendingInscriptions?: any[]
 }
 
 export default function TournamentDetailsTabs({
@@ -44,6 +45,7 @@ export default function TournamentDetailsTabs({
   tournamentStatus,
   maxPlayers = 32,
   allPlayers = [],
+  pendingInscriptions = [],
 }: TournamentDetailsTabProps) {
   const [activeTab, setActiveTab] = useState("players")
   const isTournamentActive = tournamentStatus !== "NOT_STARTED"
