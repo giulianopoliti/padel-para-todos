@@ -1,4 +1,4 @@
-  /*import { Suspense } from "react"
+import { Suspense } from "react"
 import { redirect, notFound } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -256,7 +256,7 @@ export default async function TournamentDetailsPage({ params }: { params?: { id:
               </CardContent>
             </Card>
 
-            {/* Componente cliente para las pestañas *//*}
+            {/* Componente cliente para las pestañas */}
             <TournamentDetailsTabs
               individualInscriptions={individualInscriptions}
               coupleInscriptions={coupleInscriptions}
@@ -269,4 +269,3 @@ export default async function TournamentDetailsPage({ params }: { params?: { id:
     </div>
   )
 }
-*/
