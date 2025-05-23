@@ -2,6 +2,10 @@ import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import TournamentsTabs from "@/components/tournament/tournament-tabs"
 import { getClubTournaments } from "../tournaments/my-tournaments/actions"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
+import CreateTournamentClientButton from "@/components/tournament/CreateTournamentClientButton"
 
 // Componente de carga para usar con Suspense
 function TournamentsLoading() {
@@ -48,25 +52,33 @@ export default async function MyTournamentsPage() {
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-emerald-50">
       <div className="container mx-auto px-4 py-16">
         <Suspense fallback={<TournamentsLoading />}>
-          <div className="space-y-12">
-            <div className="text-center">
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent mb-6">
-                Mis Torneos
-              </h1>
-              <p className="text-slate-600 max-w-2xl mx-auto text-xl font-light">
-                Gestiona todos los torneos organizados por {club?.name || "tu club"}
-              </p>
+          <div className="max-w-6xl mx-auto space-y-12">
+            {/* Header Section */}
+            <div className="flex justify-between items-start mb-10">
+              {/* Left side: Title and Description */}
+              <div className="text-left">
+                <h1 className="text-5xl font-bold bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent mb-6">
+                  Mis Torneos
+                </h1>
+                <p className="text-slate-600 max-w-2xl text-xl font-light">
+                  Gestiona todos los torneos organizados por {club?.name || "tu club"}
+                </p>
+              </div>
+              {/* Right side: Create Tournament Button (Client Component) */}
+              <CreateTournamentClientButton />
             </div>
 
-            {/* Componente cliente para las interacciones del usuario */}
-            <TournamentsTabs
-              notStartedTournaments={notStartedTournaments || []}
-              pairingTournaments={pairingTournaments || []}
-              inProgressTournaments={inProgressTournaments || []}
-              finishedTournaments={finishedTournaments || []}
-              canceledTournaments={canceledTournaments || []}
-              clubAddress={club?.address}
-            />
+            {/* Tabs Section - Centered */}
+            <div className="flex justify-center">
+              <TournamentsTabs
+                notStartedTournaments={notStartedTournaments || []}
+                pairingTournaments={pairingTournaments || []}
+                inProgressTournaments={inProgressTournaments || []}
+                finishedTournaments={finishedTournaments || []}
+                canceledTournaments={canceledTournaments || []}
+                clubAddress={club?.address}
+              />
+            </div>
           </div>
         </Suspense>
       </div>

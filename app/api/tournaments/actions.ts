@@ -36,6 +36,18 @@ interface ClientZone extends Omit<GeneratedZone, 'id' | 'created_at' | 'couples'
   couples: { id: string }[]; 
 }
 
+// Interface for the data coming from the creation form
+interface CreateTournamentData {
+  name: string;
+  description: string | null;
+  category_name: string;
+  type: 'LONG' | 'AMERICAN';
+  gender: 'MALE' | 'SHEMALE' | 'MIXED';
+  start_date: string | null; // ISO string
+  end_date: string | null; // ISO string
+  max_participants: number | null;
+}
+
 // --- HELPER FUNCTIONS (defined once, correctly placed) ---
 
 async function _createMatch(
@@ -210,6 +222,80 @@ function generateMatchesForZoneLogic(zone: { id: string; couples: GeneratedCoupl
 }
 
 // --- MAIN EXPORTED ACTIONS (existing functions adapted or kept as is if not directly affected by refactor) ---
+
+export async function createTournamentAction(formData: CreateTournamentData) {
+  const supabase = await createClient();
+
+  try {
+    // 1. Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('[createTournamentAction] User not authenticated:', userError?.message);
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    // 2. Get club_id for the user
+    const { data: club, error: clubError } = await supabase
+      .from('clubes')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (clubError || !club) {
+      console.error('[createTournamentAction] Club not found for user:', clubError?.message);
+      return { success: false, error: 'Club not found for the authenticated user.' };
+    }
+
+    // 3. Prepare data for insertion
+    const tournamentToInsert = {
+      ...formData,
+      club_id: club.id,
+      status: 'NOT_STARTED', // Default status
+      // Ensure date fields are correctly formatted if they come as strings
+      start_date: formData.start_date ? new Date(formData.start_date).toISOString() : null,
+      end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
+      // max_participants is already number | null from formData type and client-side conversion
+      // max_participants: formData.max_participants === '' ? null : Number(formData.max_participants)
+    };
+
+    // 4. Insert tournament
+    const { data: newTournament, error: insertError } = await supabase
+      .from('tournaments')
+      .insert(tournamentToInsert)
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('[createTournamentAction] Error inserting tournament:', insertError);
+      return { success: false, error: `Failed to create tournament: ${insertError.message}` };
+    }
+
+    if (!newTournament) {
+        return { success: false, error: 'Tournament created but no data returned.'} 
+    }
+
+    // 5. Revalidate paths
+    revalidatePath('/my-tournaments');
+    revalidatePath(`/my-tournaments/${newTournament.id}`); // For potential direct navigation or future use
+    revalidatePath('/tournaments'); // Public listing if exists
+    revalidatePath(`/tournaments/${newTournament.id}`); // Public detail page
+
+    console.log('[createTournamentAction] Tournament created successfully:', newTournament);
+    // Convert dates to ISO strings to ensure plain object for server action boundaries
+    const plainTournament = {
+        ...newTournament,
+        start_date: newTournament.start_date ? new Date(newTournament.start_date).toISOString() : null,
+        end_date: newTournament.end_date ? new Date(newTournament.end_date).toISOString() : null,
+        created_at: newTournament.created_at ? new Date(newTournament.created_at).toISOString() : null,
+      };
+
+    return { success: true, tournament: plainTournament };
+
+  } catch (e: any) {
+    console.error('[createTournamentAction] Unexpected error:', e);
+    return { success: false, error: `An unexpected error occurred: ${e.message}` };
+  }
+}
 
 export async function getTournamentsByUserId(userId: string) {
   const supabase = await createClient();

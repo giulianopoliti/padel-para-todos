@@ -3,88 +3,140 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { EmailOtpType } from "@supabase/supabase-js"
+import { cookies } from 'next/headers'
+import { revalidatePath } from 'next/cache'
 
 export async function register(formData: FormData) {
-  const email = formData.get("email") as string
-  const password = formData.get("password") as string
-
-  if (!email || !password) {
-    return { error: "Email y contraseña son requeridos" }
-  }
-
-  if (password.length < 6) {
-    return { error: "La contraseña debe tener al menos 6 caracteres" }
-  }
-
+  // const cookieStore = cookies() // Removed, assuming createClient handles cookies internally or doesn't need it explicitly here.
   const supabase = await createClient()
 
-  // Attempt to sign up the user
-  const { error: signUpError } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      // Optional: Email confirmation can be enabled in Supabase project settings
-      // emailRedirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`,
-    },
-  })
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
+  const role = formData.get('role') as 'PLAYER' | 'CLUB' | 'COACH'
 
-  if (signUpError) {
-    console.error("[SERVER REGISTER] SignUp Error:", signUpError.message)
-    // Provide a more user-friendly error message
-    if (signUpError.message.includes("User already registered")) {
-       return { error: "Este email ya está registrado. Intenta iniciar sesión." }
-    }
-    if (signUpError.message.includes("Password should be at least 6 characters")) {
-       return { error: "La contraseña debe tener al menos 6 caracteres." }
-    }
-    return { error: `Error al registrar: ${signUpError.message}` }
+  // Basic validation
+  if (!email || !password || !role) {
+    return { error: 'Email, contraseña y rol son requeridos.', success: false };
+  }
+  if (password.length < 6) {
+    return { error: 'La contraseña debe tener al menos 6 caracteres.', success: false };
   }
 
-  // If sign up is successful, Supabase might handle confirmation flow.
-  // Let's try to add the user to our public.users table immediately.
-  // Note: This assumes the user ID from auth matches the public.users table ID.
-  // We get the user *after* signUp to ensure it was created in auth.
-  
-  // Re-authenticate to get the newly created user ID securely
-  const { data: { user }, error: getUserError } = await supabase.auth.getUser();
+  try {
+    // 1. Sign up the user in Supabase Auth
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        // emailRedirectTo: `${origin}/auth/callback`, // Adjust if you have email confirmation
+      },
+    });
+
+    if (signUpError) {
+      console.error('[RegisterAction] Supabase auth signUp error:', signUpError);
+      return { error: `Error de autenticación: ${signUpError.message}`, success: false };
+    }
+
+    console.log('[RegisterAction] authData from signUp:', JSON.stringify(authData, null, 2));
+
+    if (!authData.user) {
+      console.error('[RegisterAction] No user data returned from signUp.');
+      return { error: 'No se pudo crear el usuario en autenticación.', success: false };
+    }
     
-  if (getUserError || !user) {
-      console.error("[SERVER REGISTER] Error getting user after sign up:", getUserError?.message);
-      // Even if we can't add to users table now, signup in auth succeeded.
-      // Inform the user to check email if confirmation is needed, or login.
-       return { 
-         success: true, 
-         message: "Registro inicial completado. Revisa tu email si se requiere confirmación, o intenta iniciar sesión.",
-         redirectUrl: "/login" // Optionally redirect immediately
-       };
+    const authUserId = authData.user.id;
+
+    // 2. Insert into public.users table
+    const { data: publicUser, error: publicUserError } = await supabase
+      .from('users')
+      .insert({
+        id: authUserId,
+        email: email,
+        role: role,
+      })
+      .select('id') // Select the id of the newly created public user
+      .single();
+
+    console.log('[RegisterAction] publicUser insert result:', JSON.stringify({ data: publicUser, error: publicUserError }, null, 2));
+
+    if (publicUserError || !publicUser) {
+      console.error('[RegisterAction] Error inserting into public.users:', publicUserError);
+      // Attempt to clean up Supabase auth user if public.users insert fails?
+      // For now, just return error. Consider cleanup strategy.
+      return { error: `Error creando perfil de usuario: ${publicUserError?.message || 'Datos de usuario público no retornados.'}`, success: false };
+    }
+
+    const publicUsersTableId = publicUser.id;
+
+    // 3. Insert into role-specific table
+    let roleTableError: any = null;
+
+    if (role === 'CLUB') {
+      const clubName = formData.get('clubName') as string;
+      const address = formData.get('address') as string | null;
+      if (!clubName) {
+        // Consider cleanup if this fails after user creation
+        return { error: 'El nombre del club es requerido.', success: false };
+      }
+      const { error } = await supabase.from('clubes').insert({
+        name: clubName,
+        address: address,
+        user_id: publicUsersTableId, // Link to public.users table id
+      });
+      roleTableError = error;
+    } else if (role === 'PLAYER') {
+      const firstName = formData.get('firstName') as string;
+      const lastName = formData.get('lastName') as string;
+      const dni = formData.get('dni') as string | null;
+      const phone = formData.get('phone') as string | null;
+      const gender = formData.get('gender') as string | null;
+      const dateOfBirth = formData.get('dateOfBirth') as string | null;
+
+      if (!firstName || !lastName) {
+        return { error: 'Nombre y apellido son requeridos para jugadores.', success: false };
+      }
+      const { error } = await supabase.from('players').insert({
+        first_name: firstName,
+        last_name: lastName,
+        dni: dni,
+        phone: phone,
+        gender: gender === '' ? null : (gender as 'MALE' | 'SHEMALE' | 'MIXED'),
+        date_of_birth: dateOfBirth === '' ? null : dateOfBirth,
+        user_id: publicUsersTableId,
+        score: 0, // Default score for new player
+      });
+      roleTableError = error;
+    } else if (role === 'COACH') {
+      const firstName = formData.get('firstName') as string;
+      const lastName = formData.get('lastName') as string;
+       if (!firstName || !lastName) {
+        return { error: 'Nombre y apellido son requeridos para entrenadores.', success: false };
+      }
+      const { error } = await supabase.from('coaches').insert({
+        name: firstName, // coaches table uses 'name' for first_name
+        last_name: lastName,
+        user_id: publicUsersTableId,
+      });
+      roleTableError = error;
+    }
+
+    if (roleTableError) {
+      console.error(`[RegisterAction] Error inserting into ${role} table:`, roleTableError);
+      // Consider cleanup strategy for auth.user and public.users entry
+      return { error: `Error creando perfil de ${role.toLowerCase()}: ${roleTableError.message}`, success: false };
+    }
+    
+    // Revalidate relevant paths
+    revalidatePath('/', 'layout'); // Revalidate all pages or specific ones like /admin/users if you have one
+
+    return {
+      success: true,
+      message: '¡Registro completado! Serás redirigido al inicio de sesión.',
+      redirectUrl: '/login', // Or to a dashboard if auto-login after signup is implemented
+    };
+
+  } catch (e: any) {
+    console.error('[RegisterAction] Unexpected error:', e);
+    return { error: `Error inesperado: ${e.message}`, success: false };
   }
-
-  // Add user to public.users table with role null and profile incomplete
-  const { error: insertError } = await supabase
-    .from("users")
-    .insert({
-        id: user.id, // Use the ID from the authenticated user
-        auth_id: user.id, // Also store auth_id explicitly if needed
-        email: user.email,
-        role: null // Set role to null initially
-     });
-
-  if (insertError) {
-    console.error("[SERVER REGISTER] Error inserting user into public.users:", insertError.message);
-    // Even if profile insert fails, auth succeeded. Maybe let them log in and try completion later?
-    // Or display a specific error asking them to contact support.
-       return { 
-         success: false, // Indicate failure because profile setup is crucial here
-         error: "Registro completado, pero hubo un problema al inicializar tu perfil. Por favor, contacta soporte.",
-       };
-  }
-
-  console.log("[SERVER REGISTER] User registered and added to public.users, needs profile completion:", user.id);
-
-  // Redirect user to complete their profile
-  return { 
-     success: true, 
-     message: "¡Registro exitoso! Serás redirigido para completar tu perfil.",
-     redirectUrl: "/complete-profile" // Redirect to profile completion page
-   };
 } 

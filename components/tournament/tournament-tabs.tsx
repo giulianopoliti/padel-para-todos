@@ -383,18 +383,6 @@ export default function TournamentsTabs({
           )}
         </TabsContent>
       </Tabs>
-
-      <motion.div className="flex justify-center mt-16" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-        <Button
-          asChild
-          className="bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white rounded-xl px-8 py-7 text-lg font-medium shadow-lg"
-        >
-          <Link href="/tournaments/create">
-            <Plus className="mr-2 h-5 w-5" />
-            Crear Nuevo Torneo
-          </Link>
-        </Button>
-      </motion.div>
     </div>
   )
 }

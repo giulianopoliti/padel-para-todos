@@ -20,39 +20,38 @@ interface UserContextType {
   userDetails: DetailedUserDetails | null; // Use the detailed type
   loading: boolean;
   error: string | null;
-  fetchUserDetails: (userId: string) => Promise<void>; 
   logout: () => Promise<void>;
 }
 
-const UserContext = createContext<UserContextType>({ 
+const UserContext = createContext<UserContextType>({
   user: null, 
   userDetails: null,
   loading: true, 
   error: null,
-  fetchUserDetails: async () => {},
   logout: async () => {},
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userDetails, setUserDetails] = useState<DetailedUserDetails | null>(null); // Use detailed type
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // loading is true until initial check is complete
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   // Function to fetch specific user details from your database
-  const fetchUserDetails = useCallback(async (userId: string) => {
-    if (!userId) return;
+  const fetchUserDetailsInternal = useCallback(async (userId: string) => {
+    if (!userId) {
+      setUserDetails(null); // Clear details if no userId
+      return;
+    }
     console.log(`[UserContext] Fetching DB user details for auth ID: ${userId}`);
     setError(null); // Clear previous error
-    // No need to set loading here, handled by caller effect
 
     try {
-        // First, get the basic user info (role, email, etc.)
         const { data: basicUserData, error: dbError } = await supabase
             .from("users") 
-            .select("id, email, role") // Select required fields including role
-            .eq("id", userId) // Query using auth_id from Auth user
+            .select("id, email, role")
+            .eq("id", userId)
             .single();
 
         if (dbError || !basicUserData) {
@@ -65,17 +64,15 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         console.log("[UserContext] Basic user details fetched:", basicUserData);
         let finalUserDetails: DetailedUserDetails = { ...basicUserData };
 
-        // Now, conditionally fetch the role-specific ID
         if (basicUserData.role === 'PLAYER') {
             const { data: playerData, error: playerError } = await supabase
                 .from('players')
                 .select('id')
-                .eq('user_id', basicUserData.id) // Match players.user_id with users.id
+                .eq('user_id', basicUserData.id)
                 .single();
             if (playerError) console.error("[UserContext] Error fetching player ID:", playerError.message);
             else if (playerData) finalUserDetails.player_id = playerData.id;
         } else if (basicUserData.role === 'CLUB') {
-            // Fetch club ID similarly
              const { data: clubData, error: clubError } = await supabase
                 .from('clubes')
                 .select('id')
@@ -84,7 +81,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
             if (clubError) console.error("[UserContext] Error fetching club ID:", clubError.message);
             else if (clubData) finalUserDetails.club_id = clubData.id;
         } else if (basicUserData.role === 'COACH') {
-            // Fetch coach ID similarly
              const { data: coachData, error: coachError } = await supabase
                 .from('coaches')
                 .select('id')
@@ -93,10 +89,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
             if (coachError) console.error("[UserContext] Error fetching coach ID:", coachError.message);
             else if (coachData) finalUserDetails.coach_id = coachData.id;
         }
-
-        console.log("[UserContext] Final user details (with role ID):", finalUserDetails);
         setUserDetails(finalUserDetails);
-
+        console.log("[UserContext] Final user details (with role ID):", finalUserDetails);
     } catch (err: any) {
         console.error("[UserContext] Unexpected error fetching user details:", err);
         setUserDetails(null);
@@ -106,56 +100,64 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Logout function using server action
   const logout = useCallback(async () => {
-    setLoading(true);
     setError(null);
     console.log("[UserContext] Attempting logout...");
     try {
-      const result = await serverSignout(); // Call server action
+      const result = await serverSignout(); 
       if (result.success) {
         setUser(null);
         setUserDetails(null);
         console.log("[UserContext] Logout successful via server action.");
-        router.push("/login"); // Redirect to login after logout
-        router.refresh(); // Force refresh to clear state
+        router.push("/login"); 
+        router.refresh(); 
       } else {
         throw new Error(result.error || "Server action signout failed");
       }
     } catch (err: any) {
       console.error("[UserContext] Logout error:", err);
       setError(err.message || "Failed to logout.");
-    } finally {
-      setLoading(false);
-    }
+    } 
   }, [router]);
 
   // Effect to handle auth state changes
   useEffect(() => {
     let isMounted = true;
-    setLoading(true);
-    console.log("[UserContext] Initializing auth state listener.");
+    console.log("[UserContext] Initializing auth state listener and initial load.");
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (isMounted) {
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        if (currentUser) {
-          fetchUserDetails(currentUser.id);
-        } else {
-          setUserDetails(null);
+    async function initialLoad() {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          throw sessionError;
         }
-        setLoading(false);
-        console.log("[UserContext] Initial session checked:", currentUser ? `User ID: ${currentUser.id}` : "No session");
-      }
-    }).catch(err => {
+
         if (isMounted) {
-            console.error("[UserContext] Error getting initial session:", err);
-            setLoading(false);
-            setError("Failed to get initial session.");
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
+          console.log("[UserContext] Initial session checked:", currentUser ? `User ID: ${currentUser.id}` : "No session");
+          if (currentUser) {
+            await fetchUserDetailsInternal(currentUser.id);
+          } else {
+            setUserDetails(null); // Ensure userDetails is cleared if no user
+          }
         }
-    });
+      } catch (err: any) {
+        if (isMounted) {
+          console.error("[UserContext] Error during initial load:", err);
+          setError("Failed during initial load: " + err.message);
+          setUser(null); // Clear user on error
+          setUserDetails(null); // Clear details on error
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false); // This is the single point where initial loading is set to false
+          console.log("[UserContext] Initial load complete. Loading set to false.");
+        }
+      }
+    }
 
-    // Listen for auth changes
+    initialLoad();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
@@ -165,39 +167,36 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(currentUser);
 
         if (currentUser) {
-          // Fetch details if user logs in or session is restored
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-            await fetchUserDetails(currentUser.id);
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            await fetchUserDetailsInternal(currentUser.id);
           }
         } else {
-          // Clear details if user logs out
           setUserDetails(null);
+          if (event === 'SIGNED_OUT') {
+            // Optionally redirect or clear further app state
+            router.push('/login'); 
+          }
         }
-         // Update loading state only after potential fetch
-        setLoading(false); 
       }
     );
 
-    // Cleanup
     return () => {
       isMounted = false;
       subscription?.unsubscribe();
       console.log("[UserContext] Auth listener unsubscribed.");
     };
-  }, [fetchUserDetails]); // Dependency array
+  }, [router]); // Added router to dependency array for logout's router.push
 
-  // Memoize context value
   const contextValue = useMemo(() => ({ 
     user,
     userDetails,
     loading,
     error,
-    fetchUserDetails,
     logout
-  }), [user, userDetails, loading, error, fetchUserDetails, logout]);
+  }), [user, userDetails, loading, error, logout]);
 
   return <UserContext.Provider value={contextValue}>{children}</UserContext.Provider>;
-};
+}; 
 
 // Custom hook to use the User context
 export const useUser = () => {
