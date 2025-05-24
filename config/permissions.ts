@@ -83,8 +83,8 @@ const routePermissions: RouteConfig[] = [
   //   roles: ["CLUB", "ADMIN"] // Accessible to CLUB managers and ADMIN
   // },
   {
-    path: "/complete-profile",
-    label: "Completar Perfil",
+    path: "/edit-profile",
+    label: "Editar perfil",
     icon: "User",
     roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
   },

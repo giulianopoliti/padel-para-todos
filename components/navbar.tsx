@@ -72,7 +72,7 @@ export default function Navbar() {
   // For now, let's assume getLinksForRole needs a valid role, or we show minimal links.
   const allAuthLinks = userRole ? getLinksForRole(userRole) : [];
   
-  const profileLinkPaths = ["/complete-profile", "/settings"];
+  const profileLinkPaths = ["/edit-profile", "/settings"];
 
   const mainLinks = userRole 
     ? allAuthLinks.filter(link => !profileLinkPaths.includes(link.path))
