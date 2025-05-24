@@ -1,10 +1,8 @@
 'use server'
 
 import { z } from 'zod';
-import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { Database, TablesInsert, TablesUpdate } from '@/database.types'; // Assuming types are generated
 import { createClient } from '@/utils/supabase/server';
+import { Database } from '@/database.types';
 // --- Zod Schema for Player Profile Validation ---
 
 // Since this page is now only for players, we simplify the schema.
@@ -47,9 +45,7 @@ export type FormState = {
 };
 
 export async function completeUserProfile(prevState: FormState, formData: FormData): Promise<FormState> {
-  const cookieStore = cookies();
-  const supabase = createServerActionClient<Database>({ cookies: () => cookieStore });
-
+  const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {

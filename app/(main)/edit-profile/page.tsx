@@ -104,22 +104,25 @@ export default function EditProfilePage() {
     if (isFetchingData || !userProfileData) {
       return <div className="text-center p-10">Cargando datos del perfil...</div>
     }
-    // Convert score to string for input defaultValue, handle null/undefined
     const defaultsForSections = {
       ...userProfileData,
       score: userProfileData.score?.toString() ?? '',
     }
 
-    switch (activeSection) {
-      case 'personal':
-        return <PersonalDataSection defaultValues={defaultsForSections} />
-      case 'game':
-        return <GameDataSection defaultValues={defaultsForSections} allClubs={allClubsData} />
-      case 'security':
-        return <SecuritySection userEmail={userProfileData.email} />
-      default:
-        return <PersonalDataSection defaultValues={defaultsForSections} />
-    }
+    // Render all sections, but control visibility with a wrapper div
+    return (
+      <>
+        <div style={{ display: activeSection === 'personal' ? 'block' : 'none' }}>
+          <PersonalDataSection defaultValues={defaultsForSections} />
+        </div>
+        <div style={{ display: activeSection === 'game' ? 'block' : 'none' }}>
+          <GameDataSection defaultValues={defaultsForSections} allClubs={allClubsData} />
+        </div>
+        <div style={{ display: activeSection === 'security' ? 'block' : 'none' }}>
+          <SecuritySection userEmail={userProfileData.email} />
+        </div>
+      </>
+    )
   }
 
   return (

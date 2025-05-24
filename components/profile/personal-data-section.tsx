@@ -10,6 +10,7 @@ interface PersonalDataSectionProps {
 }
 
 export function PersonalDataSection({ defaultValues }: PersonalDataSectionProps) {
+  console.log("[PersonalDataSection DEBUG] defaultValues:", defaultValues);
   return (
     <Card className="shadow-md border-0 rounded-xl overflow-hidden bg-white">
       <CardHeader className="bg-gradient-to-r from-teal-600 to-blue-600 text-white">
