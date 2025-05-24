@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useActionState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from "@/components/ui/badge"
 import { ProfileSidebar } from "@/components/profile/profile-sidebar"
@@ -9,86 +9,116 @@ import { GameDataSection } from "@/components/profile/game-data-section"
 import { SecuritySection } from "@/components/profile/security-section"
 import { Toaster } from "@/components/ui/toaster"
 import { useToast } from "@/hooks/use-toast"
-
-// Mock data and functions for demo purposes
-const completeUserProfile = async (formData: FormData) => {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  return { message: 'Perfil actualizado correctamente', success: true, errors: null }
-}
+import { getPlayerProfile, completeUserProfile, FormState } from './actions'
 
 interface Club {
   id: string
   name: string | null
 }
 
+// Define a type for the user profile data we expect
+interface UserProfile {
+  id?: string
+  email?: string
+  role?: string
+  avatar_url?: string | null
+  first_name?: string
+  last_name?: string
+  dni?: string | null
+  phone?: string | null
+  date_of_birth?: string | null
+  category_name?: string | null
+  score?: number | null
+  preferred_hand?: string | null
+  racket?: string | null
+  gender?: string | null
+  preferred_side?: string | null
+  club_id?: string | null
+  // Add any other fields that might come from users or players table
+}
+
+const initialFormState: FormState = {
+  message: "",
+  errors: null,
+  success: false,
+}
+
 export default function EditProfilePage() {
   const [activeSection, setActiveSection] = useState<string>('personal')
-  const [isLoading, setIsLoading] = useState(false)
+  const [userProfileData, setUserProfileData] = useState<UserProfile | null>(null)
+  const [allClubsData, setAllClubsData] = useState<Club[]>([])
+  const [isFetchingData, setIsFetchingData] = useState(true)
   const { toast } = useToast()
-  
-  const [allClubs] = useState<Club[]>([
-    { id: '1', name: 'Club Deportivo Municipal' },
-    { id: '2', name: 'Pádel Center Elite' },
-    { id: '3', name: 'Club Raqueta Dorada' }
-  ])
 
-  // Mock user data
-  const defaultValues = {
-    role: 'PLAYER',
-    avatar_url: '',
-    first_name: 'Juan',
-    last_name: 'Pérez',
-    dni: '12345678',
-    phone: '+34 666 777 888',
-    date_of_birth: '1990-05-15',
-    category_name: 'Avanzado',
-    score: '1500',
-    preferred_hand: 'Derecha',
-    racket: 'Wilson Pro',
-    gender: 'MALE',
-    preferred_side: 'DRIVE',
-    club_id: '1',
-    club_name: 'Club Deportivo Municipal',
-    address: 'Calle del Pádel 123, Madrid',
-  }
+  // useActionState for form handling
+  const [formState, formAction, isPending] = useActionState<FormState, FormData>(
+    completeUserProfile,
+    initialFormState
+  )
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLoading(true)
-    
-    const formData = new FormData(e.currentTarget)
-    try {
-      const result = await completeUserProfile(formData)
-      if (result.success) {
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsFetchingData(true)
+      try {
+        const result = await getPlayerProfile()
+        if (result.success && result.userProfile) {
+          setUserProfileData(result.userProfile as UserProfile) // Cast to ensure type compatibility
+          setAllClubsData(result.allClubs || [])
+          if (result.message !== "Datos obtenidos con éxito.") { // Show non-default success messages
+            toast({ title: "Información", description: result.message })
+          }
+        } else {
+          toast({
+            title: "Error al cargar el perfil",
+            description: result.message || "No se pudieron obtener los datos del perfil.",
+            variant: "destructive",
+          })
+          setUserProfileData({}) // Set to empty object to prevent render errors with defaultValues
+        }
+      } catch (error) {
+        console.error('Error fetching profile data:', error)
         toast({
-          title: "¡Perfil actualizado!",
-          description: "Tus datos han sido actualizados correctamente",
-          variant: "default",
+          title: "Error Crítico",
+          description: "Ocurrió un error inesperado al cargar tus datos.",
+          variant: "destructive",
         })
+        setUserProfileData({})
+      } finally {
+        setIsFetchingData(false)
       }
-    } catch (error) {
-      console.error('Error updating profile:', error)
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el perfil. Inténtalo de nuevo.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
     }
-  }
+    fetchData()
+  }, [toast])
+
+  useEffect(() => {
+    if (formState?.message && formState.message !== "") {
+      toast({
+        title: formState.success ? "¡Éxito!" : "Error",
+        description: formState.message,
+        variant: formState.success ? "default" : "destructive",
+      })
+    }
+  }, [formState, toast])
 
   const renderActiveSection = () => {
+    if (isFetchingData || !userProfileData) {
+      return <div className="text-center p-10">Cargando datos del perfil...</div>
+    }
+    // Convert score to string for input defaultValue, handle null/undefined
+    const defaultsForSections = {
+      ...userProfileData,
+      score: userProfileData.score?.toString() ?? '',
+    }
+
     switch (activeSection) {
       case 'personal':
-        return <PersonalDataSection defaultValues={defaultValues} />
+        return <PersonalDataSection defaultValues={defaultsForSections} />
       case 'game':
-        return <GameDataSection defaultValues={defaultValues} allClubs={allClubs} />
+        return <GameDataSection defaultValues={defaultsForSections} allClubs={allClubsData} />
       case 'security':
-        return <SecuritySection />
+        return <SecuritySection userEmail={userProfileData.email} />
       default:
-        return <PersonalDataSection defaultValues={defaultValues} />
+        return <PersonalDataSection defaultValues={defaultsForSections} />
     }
   }
 
@@ -127,17 +157,20 @@ export default function EditProfilePage() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="max-w-3xl">
-              <input type="hidden" name="role" value="PLAYER" />
+            <form action={formAction} className="max-w-3xl">
+              {/* Hidden input for role is no longer strictly necessary if actions.ts doesn't rely on it from form for players,
+                  but can be kept for clarity or if other logic uses it. User profile data already has role. */}
+              {userProfileData?.role && <input type="hidden" name="role" value={userProfileData.role} />}
+              
               {renderActiveSection()}
               
               <div className="mt-8 sticky bottom-8 bg-white/80 backdrop-blur-sm p-4 -mx-4 border-t border-slate-200">
                 <Button 
                   type="submit" 
                   className="w-full bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200" 
-                  disabled={isLoading}
+                  disabled={isPending || isFetchingData}
                 >
-                  {isLoading ? 'Actualizando...' : 'Guardar Cambios'}
+                  {isPending ? 'Actualizando...' : 'Guardar Cambios'}
                 </Button>
               </div>
             </form>

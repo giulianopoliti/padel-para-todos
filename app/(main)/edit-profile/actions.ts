@@ -4,59 +4,33 @@ import { z } from 'zod';
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { Database, TablesInsert, TablesUpdate } from '@/database.types'; // Assuming types are generated
+import { createClient } from '@/utils/supabase/server';
+// --- Zod Schema for Player Profile Validation ---
 
-type Role = Database["public"]["Enums"]["ROLE"];
-
-// --- Zod Schemas for Validation ---
-
-const baseSchema = z.object({
-  role: z.enum(["PLAYER", "CLUB", "COACH"], { required_error: "Debes seleccionar un rol." }),
-  avatar_url: z.string().url("Debe ser una URL válida.").optional().or(z.literal('')), // For users table
-});
-
-const playerSchema = baseSchema.extend({
-  role: z.literal("PLAYER"),
+// Since this page is now only for players, we simplify the schema.
+const playerProfileSchema = z.object({
+  // user_id will be taken from the authenticated user session
   first_name: z.string().min(1, "El nombre es requerido."),
   last_name: z.string().min(1, "El apellido es requerido."),
-  dni: z.string().optional().or(z.literal('')),
-  phone: z.string().optional().or(z.literal('')),
-  date_of_birth: z.string().optional().or(z.literal('')), // Handle date string from form, can be yyyy-mm-dd
-  category_name: z.string().optional().or(z.literal('')),
-  score: z.preprocess(val => (val === '' || val === undefined || val === null) ? undefined : Number(val), z.number().optional()),
-  preferred_hand: z.string().optional().or(z.literal('')),
-  racket: z.string().optional().or(z.literal('')),
-  gender: z.enum(["MALE", "SHEMALE", "MIXED"] as const).optional().or(z.literal('')),
-  preferred_side: z.enum(["DRIVE", "REVES"] as const).optional().or(z.literal('')),
-  club_id: z.string().uuid("ID de club inválido").optional().or(z.literal('')),
+  avatar_url: z.string().url("Debe ser una URL válida.").nullable().optional(),
+  dni: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  date_of_birth: z.string().nullable().optional(), // Expecting yyyy-mm-dd or empty
+  category_name: z.string().nullable().optional(), // Now editable
+  score: z.number().nullable().optional(),
+  preferred_hand: z.string().nullable().optional(),
+  racket: z.string().nullable().optional(),
+  gender: z.enum(["MALE", "FEMALE", "MIXED"] as const).nullable().optional(), // Corrected "SHEMALE" to "FEMALE" based on common usage, adjust if "SHEMALE" is intentional
+  preferred_side: z.enum(["DRIVE", "REVES"] as const).nullable().optional(),
+  club_id: z.string().uuid("ID de club inválido").nullable().optional(), // NO_CLUB for placeholder
 });
-
-const clubSchema = baseSchema.extend({
-  role: z.literal("CLUB"),
-  club_name: z.string().min(1, "El nombre del club es requerido."), // Corresponds to 'name' in clubes table
-  address: z.string().min(1, "La dirección es requerida."),
-});
-
-const coachSchema = baseSchema.extend({
-  role: z.literal("COACH"),
-  first_name: z.string().min(1, "El nombre es requerido."), // Corresponds to 'name' in coaches table
-  last_name: z.string().min(1, "El apellido es requerido."),
-});
-
-const profileSchema = z.discriminatedUnion("role", [
-  playerSchema,
-  clubSchema,
-  coachSchema,
-]);
 
 export type FormState = {
   message: string;
   errors?: {
-    role?: string[];
-    avatar_url?: string[];
     first_name?: string[];
     last_name?: string[];
-    club_name?: string[];
-    address?: string[];
+    avatar_url?: string[];
     dni?: string[];
     phone?: string[];
     date_of_birth?: string[];
@@ -82,28 +56,26 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
     return { success: false, message: "Error de autenticación. Intenta iniciar sesión de nuevo.", errors: null };
   }
 
-  const rawData = Object.fromEntries(formData.entries());
-  
-  // Pre-process specific fields: remove empty strings for optional fields so Zod treats them as undefined
-  if (rawData.score === '') delete rawData.score;
-  if (rawData.gender === '') delete rawData.gender;
-  if (rawData.preferred_side === '') delete rawData.preferred_side;
-  if (rawData.date_of_birth === '') delete rawData.date_of_birth;
-  // Handle club_id placeholder for "No Club"
-  if (rawData.club_id === 'NO_CLUB' || rawData.club_id === '') {
-    delete rawData.club_id; // Treat as not selected, Zod will handle optional or convert to null later
-  }
-  if (rawData.avatar_url === '') rawData.avatar_url = ''; // Keep empty string for avatar_url if user clears it
-  else if (!rawData.avatar_url) delete rawData.avatar_url; // If not present or null, delete for Zod optional
+  const rawFormEntries = Object.fromEntries(formData.entries());
 
-  // For other optional text fields, if they are empty, Zod's .or(z.literal('')) handles them.
-  // If they should be truly optional (and not just empty string), delete them if empty.
-  const optionalTextFields: (keyof typeof rawData)[] = ['dni', 'phone', 'category_name', 'preferred_hand', 'racket']; // club_id is handled separately now
-  optionalTextFields.forEach(field => {
-    if (rawData[field] === '') delete rawData[field];
-  });
+  // Transform raw form data for Zod parsing
+  const dataToValidate = {
+    first_name: rawFormEntries.first_name,
+    last_name: rawFormEntries.last_name,
+    avatar_url: rawFormEntries.avatar_url === '' || typeof rawFormEntries.avatar_url !== 'string' || (typeof rawFormEntries.avatar_url === 'string' && !rawFormEntries.avatar_url.startsWith('http')) ? null : rawFormEntries.avatar_url,
+    dni: rawFormEntries.dni === '' ? null : rawFormEntries.dni,
+    phone: rawFormEntries.phone === '' ? null : rawFormEntries.phone,
+    date_of_birth: rawFormEntries.date_of_birth === '' ? null : rawFormEntries.date_of_birth,
+    category_name: rawFormEntries.category_name === '' ? null : rawFormEntries.category_name,
+    score: (rawFormEntries.score === '' || rawFormEntries.score === undefined || rawFormEntries.score === null) ? null : Number(rawFormEntries.score),
+    preferred_hand: rawFormEntries.preferred_hand === '' ? null : rawFormEntries.preferred_hand,
+    racket: rawFormEntries.racket === '' ? null : rawFormEntries.racket,
+    gender: rawFormEntries.gender === '' ? null : (rawFormEntries.gender === 'SHEMALE' ? 'FEMALE' : rawFormEntries.gender),
+    preferred_side: rawFormEntries.preferred_side === '' ? null : rawFormEntries.preferred_side,
+    club_id: (rawFormEntries.club_id === '' || rawFormEntries.club_id === 'NO_CLUB') ? null : rawFormEntries.club_id,
+  };
 
-  const validation = profileSchema.safeParse(rawData);
+  const validation = playerProfileSchema.safeParse(dataToValidate);
 
   if (!validation.success) {
     console.error("Validation Errors:", validation.error.flatten().fieldErrors);
@@ -115,85 +87,163 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
   }
 
   const validatedData = validation.data;
-  const selectedRole = validatedData.role;
 
   try {
-    const userUpdatePayload: Partial<TablesUpdate<'users'>> = { 
-        role: selectedRole,
-        ...(validatedData.avatar_url || validatedData.avatar_url === '' ? { avatar_url: validatedData.avatar_url || null } : {})
+    const userUpdatePayload: any = { 
+        role: 'PLAYER', 
+        avatar_url: validatedData.avatar_url,
     };
     
-    if (Object.keys(userUpdatePayload).length > 1 || userUpdatePayload.role !== undefined) { // only update if there is something to update
-        const { error: userUpdateError } = await supabase
-        .from('users')
-        .update(userUpdatePayload as any) 
-        .eq('id', user.id);
+    const { error: userUpdateError } = await supabase
+      .from('users')
+      .update(userUpdatePayload)
+      .eq('id', user.id);
 
-        if (userUpdateError) {
-        console.error("Error updating user role/avatar:", userUpdateError);
-        return { success: false, message: `Error al actualizar datos de usuario: ${userUpdateError.message}`, errors: null };
-        }
+    if (userUpdateError) {
+      console.error("Error updating user data:", userUpdateError);
+      if (userUpdateError.message.includes('column') && userUpdateError.message.includes('avatar_url') && userUpdateError.message.includes('does not exist')){
+        return { success: false, message: `Error al actualizar datos de usuario: La columna 'avatar_url' no existe en la tabla 'users'. Por favor, verifica tu esquema de base de datos y regenera los tipos.`, errors: null };  
+      }
+      return { success: false, message: `Error al actualizar datos de usuario: ${userUpdateError.message}`, errors: null };
     }
 
-    let upsertData: TablesInsert<'players'> | TablesInsert<'clubes'> | TablesInsert<'coaches'>;
-    let tableName: 'players' | 'clubes' | 'coaches';
-    const conflictColumn = 'user_id';
-
-    if (validatedData.role === 'PLAYER') {
-      tableName = 'players';
-      upsertData = {
-        user_id: user.id,
-        first_name: validatedData.first_name,
-        last_name: validatedData.last_name,
-        dni: validatedData.dni || null,
-        phone: validatedData.phone || null,
-        date_of_birth: validatedData.date_of_birth || null,
-        category_name: validatedData.category_name || null, 
-        score: validatedData.score, 
-        preferred_hand: validatedData.preferred_hand || null,
-        racket: validatedData.racket || null,
-        gender: (validatedData.gender as Database["public"]["Enums"]["GENDER"]) || null,
-        preferred_side: (validatedData.preferred_side as Database["public"]["Enums"]["PREFERRED_SIDE"]) || null,
-        club_id: validatedData.club_id || null,
-      } as any;
-    } else if (validatedData.role === 'CLUB') {
-      tableName = 'clubes';
-      upsertData = {
-        user_id: user.id,
-        name: validatedData.club_name,
-        address: validatedData.address,
-      };
-    } else if (validatedData.role === 'COACH') {
-      tableName = 'coaches';
-      upsertData = {
-        user_id: user.id,
-        name: validatedData.first_name, 
-        last_name: validatedData.last_name,
-      };
-    } else {
-      return { success: false, message: "Rol inválido.", errors: null };
-    }
+    const playerUpsertData: any = {
+      user_id: user.id,
+      first_name: validatedData.first_name,
+      last_name: validatedData.last_name,
+      dni: validatedData.dni,
+      phone: validatedData.phone,
+      date_of_birth: validatedData.date_of_birth,
+      category_name: validatedData.category_name,
+      score: validatedData.score,
+      preferred_hand: validatedData.preferred_hand,
+      racket: validatedData.racket,
+      gender: validatedData.gender as Database["public"]["Enums"]["GENDER"],
+      preferred_side: validatedData.preferred_side as Database["public"]["Enums"]["PREFERRED_SIDE"],
+      club_id: validatedData.club_id,
+    };
     
-    Object.keys(upsertData).forEach(key => {
-        const k = key as keyof typeof upsertData;
-        if (upsertData[k] === undefined) {
-            (upsertData as any)[k] = null;
-        }
-    });
+    const { error: playerUpsertError } = await supabase
+      .from('players')
+      .upsert(playerUpsertData, { onConflict: 'user_id' });
 
-    const { error: roleUpsertError } = await supabase
-      .from(tableName)
-      .upsert(upsertData as any, { onConflict: conflictColumn });
-
-    if (roleUpsertError) {
-      console.error(`Error upserting into ${tableName}:`, roleUpsertError);
-      return { success: false, message: `Error al guardar detalles de ${selectedRole}: ${roleUpsertError.message}. Intenta de nuevo.`, errors: null };
+    if (playerUpsertError) {
+      console.error(`Error upserting into players:`, playerUpsertError);
+      if (playerUpsertError.message.includes('foreign key constraint') && playerUpsertError.message.includes('category_name')) {
+          return { 
+              success: false, 
+              message: `Error al guardar detalles de Jugador: La categoría seleccionada no es válida. (${playerUpsertError.message})`, 
+              errors: { category_name: ["Categoría inválida."] } 
+            };
+      } else if (playerUpsertError.message.includes('column') && playerUpsertError.message.includes('category_name') && playerUpsertError.message.includes('does not exist')){
+        return { success: false, message: `Error al guardar detalles de Jugador: La columna 'category_name' no existe en la tabla 'players'. Por favor, verifica tu esquema de base de datos y regenera los tipos.`, errors: { category_name: ["Campo de categoría no existe en la base de datos."] } };  
+      }
+      return { success: false, message: `Error al guardar detalles de Jugador: ${playerUpsertError.message}. Intenta de nuevo.`, errors: null };
     }
 
-    return { success: true, message: "Perfil actualizado con éxito.", errors: null };
+    return { success: true, message: "Perfil de jugador actualizado con éxito.", errors: null };
 
   } catch (error: any) {
-    console.error("Unexpected error updating profile:", error);
+    console.error("Unexpected error updating player profile:", error);
     return { success: false, message: `Error inesperado: ${error.message || 'Ocurrió un problema'}`, errors: null };
+  }
+}
+
+export async function getPlayerProfile() {
+  const supabase = await createClient();
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    console.error("[GetPlayerProfile DEBUG] Auth error or no user:", authError);
+    return { success: false, message: "Usuario no autenticado.", userProfile: null, allClubs: [] };
+  }
+  console.error("[GetPlayerProfile DEBUG] Authenticated user ID:", user.id);
+
+  try {
+    const { data: userDataResult, error: userError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        email,
+        role,
+        avatar_url
+      `)
+      .eq('id', user.id)
+      .single();
+
+    console.error("[GetPlayerProfile DEBUG] userDataResult from users table:", userDataResult);
+    console.error("[GetPlayerProfile DEBUG] userError from users table:", userError);
+
+    if (userError) {
+      console.error("GetPlayerProfile: Error fetching user data", userError);
+      if (userError.message.includes('column') && userError.message.includes('avatar_url') && userError.message.includes('does not exist')) {
+        return { success: false, message: "Error: La columna 'avatar_url' no existe en la tabla 'users'. Regenera los tipos.", userProfile: null, allClubs: [] };
+      }
+      throw userError;
+    }
+    
+    const userData: any = userDataResult;
+
+    if (!userData) {
+        console.error("[GetPlayerProfile DEBUG] No userData found after fetch.");
+        return { success: false, message: "No se encontraron datos de usuario.", userProfile: null, allClubs: [] };
+    }
+    console.error("[GetPlayerProfile DEBUG] Fetched userData:", userData);
+
+    // Ensure user is a player
+    if (userData.role !== 'PLAYER') {
+        console.error("[GetPlayerProfile DEBUG] User is not a PLAYER. Role:", userData.role);
+        return { success: false, message: "El usuario no es un jugador.", userProfile: { ...(userData as any), playerDetails: null }, allClubs: [] };
+    }
+
+    const { data: playerDetailsResult, error: playerError } = await supabase
+      .from('players')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+      
+    console.error("[GetPlayerProfile DEBUG] playerDetailsResult from players table:", playerDetailsResult);
+    console.error("[GetPlayerProfile DEBUG] playerError from players table:", playerError);
+      
+    const playerDetails: any = playerDetailsResult;
+
+    if (playerError && playerError.code !== 'PGRST116') { 
+      console.error("GetPlayerProfile: Error fetching player details", playerError);
+      if (playerError.message.includes('column') && playerError.message.includes('category_name') && playerError.message.includes('does not exist')) {
+        return { success: false, message: "Error: La columna 'category_name' no existe en la tabla 'players'. Regenera los tipos.", userProfile: null, allClubs: [] };
+      }
+      throw playerError;
+    }
+    if (playerDetails) {
+        console.error("[GetPlayerProfile DEBUG] Fetched playerDetails:", playerDetails);
+    } else {
+        console.error("[GetPlayerProfile DEBUG] No playerDetails found (this might be normal for a new player).");
+    }
+
+    const { data: clubs, error: clubsError } = await supabase
+      .from('clubes')
+      .select('id, name');
+
+    if (clubsError) {
+      console.error("[GetPlayerProfile DEBUG] Error fetching clubs:", clubsError);
+    }
+
+    const finalUserProfile = {
+      ...(userData as any),
+      ...(playerDetails || {}), 
+    };
+    console.error("[GetPlayerProfile DEBUG] Final combined userProfile object:", finalUserProfile);
+
+    return { 
+      success: true, 
+      message: "Datos obtenidos con éxito.", 
+      userProfile: finalUserProfile,
+      allClubs: clubs || [] 
+    };
+
+  } catch (error: any) {
+    console.error("[GetPlayerProfile DEBUG] Unexpected error in try-catch:", error);
+    return { success: false, message: `Error inesperado al obtener el perfil: ${error.message}`, userProfile: null, allClubs: [] };
   }
 } 

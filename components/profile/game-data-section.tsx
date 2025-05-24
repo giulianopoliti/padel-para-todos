@@ -77,25 +77,23 @@ export function GameDataSection({ defaultValues, allClubs }: GameDataSectionProp
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="category_name" className="text-slate-700 font-medium">Categoría (No se puede cambiar)</Label>
+              <Label htmlFor="category_name" className="text-slate-700 font-medium">Categoría</Label>
               <Input 
                 id="category_name" 
                 name="category_name" 
                 defaultValue={defaultValues.category_name} 
-                readOnly 
-                className="bg-slate-50 border-slate-200 rounded-xl text-slate-600"
+                className="border-slate-300 rounded-xl focus:border-teal-500 focus:ring-teal-500 bg-white text-slate-700"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="score" className="text-slate-700 font-medium">Puntaje (No se puede cambiar)</Label>
+              <Label htmlFor="score" className="text-slate-700 font-medium">Puntaje</Label>
               <Input 
                 id="score" 
                 name="score" 
                 type="number" 
-                step="0.01" 
+                step="0.01"
                 defaultValue={defaultValues.score} 
-                readOnly 
-                className="bg-slate-50 border-slate-200 rounded-xl text-slate-600"
+                className="border-slate-300 rounded-xl focus:border-teal-500 focus:ring-teal-500 bg-white text-slate-700"
               />
             </div>
           </div>
