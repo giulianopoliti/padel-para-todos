@@ -827,7 +827,7 @@ export async function updateMatchResult({ matchId, result_couple1, result_couple
     if (updateError) return { success: false, error: `Error actualizando resultado: ${updateError.message}` };
 
     let tournamentIdForReval: string | null = null;
-    const { data: updatedMatch, error: fetchMatchError } = await supabase.from("matches").select("tournament_id, couple1_id, couple2_id, winner_id").eq("id", matchId).single();
+    const { data: updatedMatch, error: fetchMatchError } = await supabase.from("matches").select("tournament_id, couple1_id, couple2_id, winner_id, round, status").eq("id", matchId).single(); // Added 'status' to select
 
     if (!fetchMatchError && updatedMatch) {
       tournamentIdForReval = updatedMatch.tournament_id;
@@ -863,6 +863,40 @@ export async function updateMatchResult({ matchId, result_couple1, result_couple
       revalidatePath(`/my-tournaments/${tournamentIdForReval}`);
       revalidatePath(`/tournaments/${tournamentIdForReval}`);
     }
+
+    // Paso 3: Si el partido es la final y se completó, actualizar el estado del torneo
+    // Usar updatedMatch aquí es mejor porque refleja el estado DESPUÉS de la actualización del partido (status: COMPLETED)
+    if (updatedMatch && updatedMatch.round === 'FINAL' && updatedMatch.status === 'COMPLETED') { // Asegurarse de que el partido realmente se completó
+      console.log('[updateMatchResult] Match is FINAL and COMPLETED. Tournament ID:', updatedMatch.tournament_id, 'Winner couple_id:', winner_id);
+      
+      const { data: tournamentBeforeUpdate, error: fetchTournamentError } = await supabase
+        .from('tournaments')
+        .select('status, winner_id') // Select winner_id as well for complete check
+        .eq('id', updatedMatch.tournament_id)
+        .single();
+
+      if (fetchTournamentError) {
+        console.error('[updateMatchResult] Error fetching tournament status before update:', fetchTournamentError);
+        // No detenemos el proceso, pero registramos el error. La actualización del partido fue exitosa.
+      } else if (tournamentBeforeUpdate && tournamentBeforeUpdate.status === 'FINISHED' && tournamentBeforeUpdate.winner_id === winner_id) {
+        console.log('[updateMatchResult] Tournament already marked as FINISHED with the correct winner. No update needed.');
+      } else {
+        const { error: tournamentUpdateError } = await supabase
+          .from('tournaments')
+          .update({ 
+            status: 'FINISHED', // Confirmado desde la estructura de la tabla
+            winner_id: winner_id   // Asignar el couple_id del ganador de la final
+          })
+          .eq('id', updatedMatch.tournament_id);
+
+        if (tournamentUpdateError) {
+          console.error('[updateMatchResult] Error updating tournament status to FINISHED:', tournamentUpdateError);
+        } else {
+          console.log('[updateMatchResult] Tournament status updated to FINISHED and winner_id set for tournament_id:', updatedMatch.tournament_id);
+        }
+      }
+    }
+
     return { success: true };
   } catch (error:any) { return { success: false, error: error.message || "Error inesperado actualizando resultado" }; }
 }

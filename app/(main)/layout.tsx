@@ -27,7 +27,7 @@ export default async function MainLayout({
 
   return (
     <SupabaseProvider initialUser={initialUser}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
         <UserProvider> 
           <Navbar /> {/* ✅ Navbar se muestra en todas las páginas */}
           {children}
