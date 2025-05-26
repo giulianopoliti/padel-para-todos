@@ -31,6 +31,11 @@ export default function TournamentBracketTab({ tournamentId }: TournamentBracket
           <TabsContent value="visual" className="mt-6">
             <TournamentBracketVisualization tournamentId={tournamentId} />
           </TabsContent>
+
+          <TabsContent value="table" className="mt-6">
+            {/* Aquí puedes mantener tu implementación actual de tabla */}
+            <div className="text-center py-4 text-slate-500">Vista de tabla disponible</div>
+          </TabsContent>
         </Tabs>
       </Card> 
     </div>
