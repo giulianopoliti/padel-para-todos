@@ -9,7 +9,7 @@ import { GameDataSection } from "@/components/profile/game-data-section"
 import { SecuritySection } from "@/components/profile/security-section"
 import { Toaster } from "@/components/ui/toaster"
 import { useToast } from "@/hooks/use-toast"
-import { getPlayerProfile, completeUserProfile, FormState } from './actions'
+import { getPlayerProfile, completeUserProfile, FormState } from '@/app/(main)/edit-profile/actions'
 
 interface Club {
   id: string

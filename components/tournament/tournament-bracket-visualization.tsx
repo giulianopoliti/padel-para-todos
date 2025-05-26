@@ -50,15 +50,24 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
         // Ordenar los partidos por ID o fecha de creación para mantener el orden consistente
         const sortedMatches = [...knockoutMatches].sort((a, b) => {
           // Primero ordenar por ronda
-          const roundOrder = ["32VOS", "16VOS", "8VOS", "4TOS", "SEMIFINAL", "FINAL"]
-          const roundA = roundOrder.indexOf(a.round)
-          const roundB = roundOrder.indexOf(b.round)
+          const roundOrderMap: Record<string, number> = {
+            "32VOS": 0,
+            "16VOS": 1,
+            "8VOS": 2,
+            "4TOS": 3,
+            "SEMIFINAL": 4,
+            "FINAL": 5,
+          };
+          const roundAIndex = roundOrderMap[a.round] ?? 99;
+          const roundBIndex = roundOrderMap[b.round] ?? 99;
 
-          if (roundA !== roundB) return roundA - roundB
+          if (roundAIndex !== roundBIndex) return roundAIndex - roundBIndex;
 
-          // Luego por ID o fecha de creación para mantener orden consistente dentro de la misma ronda
-          return a.id.localeCompare(b.id)
-        })
+          // Luego, ordenar por el campo 'order' que define la secuencia dentro de la ronda
+          const orderA = typeof a.order === 'number' ? a.order : Infinity;
+          const orderB = typeof b.order === 'number' ? b.order : Infinity;
+          return orderA - orderB;
+        });
 
         setMatches(sortedMatches)
 

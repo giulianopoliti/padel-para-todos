@@ -23,7 +23,7 @@ interface UpdateMatchResultParams {
 
 interface GenericMatchInsertData {
   tournament_id: string;
-  couple1_id: string;
+  couple1_id: string | null; // <-- Changed to allow null
   couple2_id: string | null;
   round: string;
   status: string;
@@ -902,55 +902,292 @@ export async function createTournamentZoneMatchesAction(
 // --- ACTION: createKnockoutStageMatchesAction (Refactored) ---
 export async function createKnockoutStageMatchesAction(tournamentId: string) {
   const supabase = await createClient();
+  console.log(`[createKnockoutStageMatchesAction] Starting for tournament: ${tournamentId}`);
+
   try {
-    const { data: tData, error: tError } = await supabase.from('tournaments').select('id, status').eq('id', tournamentId).single();
-    if (tError || !tData) return { success: false, error: (tError?.message || "Error obteniendo torneo.") };
-    if (tData.status !== 'IN_PROGRESS' && tData.status !== 'ZONE_COMPLETED') return { success: false, error: `Torneo no en estado válido (actual: ${tData.status}). Se requiere IN_PROGRESS o ZONE_COMPLETED.` };
+    const { data: tData, error: tError } = await supabase
+      .from('tournaments')
+      .select('id, status, max_participants') // Assuming max_participants helps determine bracket size
+      .eq('id', tournamentId)
+      .single();
 
-    const zonesRes = await fetchTournamentZones(tournamentId);
-    if (!zonesRes.success || !zonesRes.zones) return { success: false, error: zonesRes.error || "No se pudo obtener datos de zona para eliminatorias." };
-
-    // Correctly map to ZoneWithRankedCouples[], ensuring full stats are preserved.
-    const zonesWRCouples: ZoneWithRankedCouples[] = zonesRes.zones.map(z => ({
-      ...z, // Spread all properties from the original zone object
-      couples: z.couples.map((c: any) => ({ // c is the rich couple object from fetchTournamentZones
-        id: c.id,
-        player_1: c.player1_id, // Maps player1_id to player_1, assuming CoupleWithStats expects this
-        player_2: c.player2_id, // Maps player2_id to player_2, assuming CoupleWithStats expects this
-        stats: c.stats // Pass the FULL stats object
-      })) as CoupleWithStats[]
-    }));
-
-    if (zonesWRCouples.length === 0 && zonesRes.zones.length > 0) {
-        console.warn("[createKnockoutStageMatchesAction] Zones found, but no couples with stats. Check zone phase completion and stats calculation.");
-        // Depending on rules, this might be an error or simply no one advances.
-    } else if (zonesWRCouples.length === 0) {
-         return { success: false, error: "No hay datos de zona/parejas para generar eliminatorias." };
-    }
-    
-    const knockoutPairings = generateKnockoutRounds(zonesWRCouples);
-    if (knockoutPairings.length === 0) {
-      console.log("[createKnockoutStageMatchesAction] No knockout pairings generated. This might mean the tournament winner is determined or not enough qualifiers.");
-      return { success: true, message: "No hay más partidos de eliminatoria por generar (e.g., ganador determinado o insuficientes clasificados)." };
+    if (tError || !tData) {
+      console.error("[createKnockoutStageMatchesAction] Error fetching tournament data:", tError);
+      return { success: false, error: (tError?.message || "Error obteniendo datos del torneo.") };
     }
 
-    const matchesToInsertData: GenericMatchInsertData[] = knockoutPairings.map((p, idx) => ({ tournament_id: tournamentId, couple1_id: p.couple1.id, couple2_id: p.couple2.id === 'BYE_MARKER' ? null : p.couple2.id, round: p.round, status: p.couple2.id === 'BYE_MARKER' ? 'COMPLETED' : 'NOT_STARTED', order: idx, winner_id: p.couple2.id === 'BYE_MARKER' ? p.couple1.id : null }));
+    // Ensure tournament is in a state where knockout can begin
+    // (e.g., after zones are completed or if it's a direct knockout tournament)
+    // This status check might need to be more robust based on your tournament flow
+    if (tData.status !== 'IN_PROGRESS' && tData.status !== 'ZONE_COMPLETED') {
+         // Allow 'NOT_STARTED' if you want to create initial bracket for direct knockout from this action
+        if (tData.status !== 'NOT_STARTED') {
+             console.warn(`[createKnockoutStageMatchesAction] Tournament status is ${tData.status}, expected IN_PROGRESS or ZONE_COMPLETED (or NOT_STARTED for initial setup).`);
+            return { success: false, error: `El torneo no está en un estado válido para generar llaves (actual: ${tData.status}).` };
+        }
+    }
+
+    // 1. Populate/Ensure seeds are up-to-date
+    const seedingResult = await populateTournamentSeedCouples(tournamentId);
+    if (!seedingResult.success || !seedingResult.seededCouples) {
+      console.error("[createKnockoutStageMatchesAction] Seeding failed:", seedingResult.error);
+      return { success: false, error: seedingResult.error || "Falló la generación de cabezas de serie." };
+    }
+
+    if (seedingResult.seededCouples.length === 0) {
+      console.log("[createKnockoutStageMatchesAction] No seeded couples found after population.");
+      return { success: true, message: "No hay parejas clasificadas para generar llaves.", matches: [] };
+    }
+
+    // Fetch the successfully seeded couples, ordered by seed
+    const { data: rankedCouples, error: fetchSeedsError } = await supabase
+      .from('tournament_couple_seeds')
+      .select('*, couple:couples(*, player1_details:players!couples_player1_id_fkey(first_name, last_name), player2_details:players!couples_player2_id_fkey(first_name, last_name))')
+      .eq('tournament_id', tournamentId)
+      .order('seed', { ascending: true });
+
+    if (fetchSeedsError || !rankedCouples) {
+      console.error("[createKnockoutStageMatchesAction] Error fetching seeded couples:", fetchSeedsError);
+      return { success: false, error: "Error obteniendo cabezas de serie de la base de datos." };
+    }
+
+    if (rankedCouples.length === 0) {
+        console.log("[createKnockoutStageMatchesAction] No ranked couples retrieved from DB even after seeding.");
+        return { success: true, message: "No hay parejas sembradas para generar llaves (post-fetch).", matches: [] };
+    }
+
+    console.log(`[createKnockoutStageMatchesAction] Fetched ${rankedCouples.length} seeded couples for bracket generation.`);
+
+    // 2. Determine bracket size and initial round name
+    let numCouples = rankedCouples.length;
+    let bracketSize = 2;
+    while (bracketSize < numCouples) {
+      bracketSize *= 2;
+    }
+    // If numCouples is, for example, 5, bracketSize becomes 8.
+    // If numCouples is 8, bracketSize remains 8.
+
+    const roundsMap: { [key: number]: string } = {
+      2: "FINAL",
+      4: "SEMIFINAL",
+      8: "4TOS",      // Cuartos de Final
+      16: "8VOS",     // Octavos de Final
+      32: "16VOS",    // 16avos de Final
+      64: "32VOS",    // 32avos de Final
+    };
+    const initialRoundName = roundsMap[bracketSize] || `RONDA_DE_${bracketSize}`;
+    console.log(`[createKnockoutStageMatchesAction] Bracket size: ${bracketSize}, Initial round: ${initialRoundName}`);
+
+
+    // 3. Assign BYEs if necessary and prepare for pairing
+    const byesToAssign = bracketSize - numCouples;
+    // const participants: ({ type: 'couple'; data: any } | { type: 'bye'; seed: number; couple_id_for_bye?: string })[] = []; // Old participants array
+
+    // rankedCouples ya está ordenado por seed (del 1 al N, donde N es numCouples)
+    // rankedCouples[0] es el sembrado 1, rankedCouples[numCouples-1] es el sembrado N.
+
+    const actualParticipantsForPairing: ({ type: 'couple'; data: any; seed: number } | { type: 'bye'; seed: number; couple_id_for_bye?: string })[] = [];
     
+    for (let i = 0; i < bracketSize; i++) {
+        const currentSeedInBracketSlot = i + 1; // El "puesto" en el cuadro que estamos llenando (1 a bracketSize)
+
+        if (currentSeedInBracketSlot <= byesToAssign) {
+            // Estos son los BYEs explícitos para los N mejores sembrados que reciben BYE directamente.
+            // Asumimos que rankedCouples[currentSeedInBracketSlot - 1] es la pareja que recibe este BYE.
+            const coupleGettingBye = rankedCouples[currentSeedInBracketSlot - 1];
+            actualParticipantsForPairing.push({ 
+                type: 'bye', 
+                seed: coupleGettingBye.seed, // Usamos el seed real de la pareja
+                couple_id_for_bye: coupleGettingBye.couple_id 
+            });
+            console.log(`[createKnockoutStageMatchesAction] Slot ${currentSeedInBracketSlot} (BYE): Seed ${coupleGettingBye.seed} (Couple ID: ${coupleGettingBye.couple_id})`);
+        } else if (currentSeedInBracketSlot <= numCouples) {
+            // Estos son los puestos para las parejas que SÍ juegan en esta ronda inicial.
+            // Son las parejas restantes después de asignar los BYEs.
+            // Ejemplo: Si hay 9 parejas y 7 BYEs, las parejas que juegan son la 8va y 9na.
+            // rankedCouples[currentSeedInBracketSlot - 1] corresponde a estas parejas.
+            const couplePlaying = rankedCouples[currentSeedInBracketSlot - 1];
+            actualParticipantsForPairing.push({ 
+                type: 'couple', 
+                data: couplePlaying, 
+                seed: couplePlaying.seed // Usamos el seed real de la pareja
+            });
+            console.log(`[createKnockoutStageMatchesAction] Slot ${currentSeedInBracketSlot} (COUPLE): Seed ${couplePlaying.seed} (Couple ID: ${couplePlaying.couple_id})`);
+        } else {
+            // Estos son los puestos "vacíos" del cuadro contra los que los BYEs de arriba jugarían si el cuadro estuviera lleno.
+            // Los tratamos como BYEs también para el propósito del emparejamiento.
+            actualParticipantsForPairing.push({ 
+                type: 'bye', 
+                seed: currentSeedInBracketSlot, // Este es un "seed teórico" del puesto vacío en el cuadro
+                couple_id_for_bye: undefined // No hay una pareja real aquí
+            });
+            console.log(`[createKnockoutStageMatchesAction] Slot ${currentSeedInBracketSlot} (EMPTY SLOT / Theoretical BYE): Seed ${currentSeedInBracketSlot}`);
+        }
+    }
+    
+    // DEBUG: Verificar el contenido de actualParticipantsForPairing
+    console.log("[createKnockoutStageMatchesAction] actualParticipantsForPairing constructed:", JSON.stringify(actualParticipantsForPairing.map(p => ({type: p.type, seed: p.seed, id: p.type === 'couple' ? p.data.couple_id : p.couple_id_for_bye})), null, 2));
+
+
+    // ELIMINAR la lógica anterior de 'actualParticipantsForPairing' que causaba errores.
+    // const actualParticipantsForPairing: ({ type: 'couple'; data: any } | { type: 'bye'; seed: number; couple_id_for_bye?: string })[] = [];
+    // let byeCouplesProcessed = 0;
+    // let matchCouplesProcessed = 0;
+    // for(let i = 0; i < bracketSize; i++) { ... } // ESTO SE VA
+
+    const matchesToInsertData: GenericMatchInsertData[] = [];
+    let matchOrderInRound = 0;
+
+    // El emparejamiento estándar es (Slot 1 vs Slot N), (Slot 2 vs Slot N-1), etc.
+    // Donde N es bracketSize.
+    for (let i = 0; i < bracketSize / 2; i++) {
+      const participant1Data = actualParticipantsForPairing[i]; // Corresponde al Slot (i+1)
+      const participant2Data = actualParticipantsForPairing[bracketSize - 1 - i]; // Corresponde al Slot (bracketSize - i)
+
+      // Asegurarse de que participant1Data y participant2Data no sean undefined
+      if (!participant1Data || !participant2Data) {
+          console.error(`[createKnockoutStageMatchesAction] Error crítico: participante no encontrado para emparejamiento. Index i: ${i}`);
+          continue; // Saltar este par
+      }
+      
+      console.log(`[createKnockoutStageMatchesAction] Attempting to pair: Slot ${i+1} (Seed ${participant1Data.seed}) vs Slot ${bracketSize-i} (Seed ${participant2Data.seed})`);
+
+      let couple1_id: string | null = null;
+      let couple2_id: string | null = null;
+      let status = 'NOT_STARTED';
+      let winner_id: string | null = null;
+
+      if (participant1Data.type === 'couple') couple1_id = participant1Data.data.couple_id;
+      else if (participant1Data.type === 'bye' && participant1Data.couple_id_for_bye) couple1_id = participant1Data.couple_id_for_bye; // Un BYE con pareja asignada
+
+      if (participant2Data.type === 'couple') couple2_id = participant2Data.data.couple_id;
+      else if (participant2Data.type === 'bye' && participant2Data.couple_id_for_bye) couple2_id = participant2Data.couple_id_for_bye; // Un BYE con pareja asignada
+      
+      // Caso 1: Pareja vs Pareja
+      if (participant1Data.type === 'couple' && participant2Data.type === 'couple') {
+        status = 'NOT_STARTED';
+        winner_id = null;
+        console.log(`[createKnockoutStageMatchesAction] Match ${matchOrderInRound + 1} (Order ${matchOrderInRound}): Couple Seed ${participant1Data.seed} (ID: ${couple1_id}) vs Couple Seed ${participant2Data.seed} (ID: ${couple2_id})`);
+      } 
+      // Caso 2: Pareja (P1) vs BYE implícito (P2 es un 'bye' sin couple_id_for_bye)
+      else if (participant1Data.type === 'couple' && participant2Data.type === 'bye' && !participant2Data.couple_id_for_bye) {
+        status = 'COMPLETED'; // P1 avanza por BYE
+        winner_id = couple1_id;
+        couple2_id = null; // No hay oponente real
+        console.log(`[createKnockoutStageMatchesAction] Match ${matchOrderInRound + 1} (Order ${matchOrderInRound}): Couple Seed ${participant1Data.seed} (ID: ${couple1_id}) gets BYE (vs empty slot ${participant2Data.seed})`);
+      }
+      // Caso 3: BYE implícito (P1 es 'bye' sin couple_id_for_bye) vs Pareja (P2)
+      else if (participant1Data.type === 'bye' && !participant1Data.couple_id_for_bye && participant2Data.type === 'couple') {
+        status = 'COMPLETED'; // P2 avanza por BYE
+        winner_id = couple2_id;
+        couple1_id = null; // No hay oponente real
+        console.log(`[createKnockoutStageMatchesAction] Match ${matchOrderInRound + 1} (Order ${matchOrderInRound}): Couple Seed ${participant2Data.seed} (ID: ${couple2_id}) gets BYE (vs empty slot ${participant1Data.seed})`);
+      }
+      // Caso 4: Pareja que recibió BYE (P1) vs BYE implícito (P2) -> P1 avanza
+      else if (participant1Data.type === 'bye' && participant1Data.couple_id_for_bye && participant2Data.type === 'bye' && !participant2Data.couple_id_for_bye) {
+        status = 'COMPLETED';
+        winner_id = participant1Data.couple_id_for_bye; // La pareja que tenía el BYE avanza
+        couple1_id = participant1Data.couple_id_for_bye;
+        couple2_id = null;
+        console.log(`[createKnockoutStageMatchesAction] Match ${matchOrderInRound + 1} (Order ${matchOrderInRound}): Seeded BYE ${participant1Data.seed} (ID: ${winner_id}) advances (vs empty slot ${participant2Data.seed})`);
+      }
+      // Caso 5: BYE implícito (P1) vs Pareja que recibió BYE (P2) -> P2 avanza
+      else if (participant1Data.type === 'bye' && !participant1Data.couple_id_for_bye && participant2Data.type === 'bye' && participant2Data.couple_id_for_bye) {
+        status = 'COMPLETED';
+        winner_id = participant2Data.couple_id_for_bye; // La pareja que tenía el BYE avanza
+        couple1_id = null;
+        couple2_id = participant2Data.couple_id_for_bye;
+        console.log(`[createKnockoutStageMatchesAction] Match ${matchOrderInRound + 1} (Order ${matchOrderInRound}): Seeded BYE ${participant2Data.seed} (ID: ${winner_id}) advances (vs empty slot ${participant1Data.seed})`);
+      }
+      // Caso 6: BYE vs BYE (ambos son 'bye' y tienen couple_id_for_bye - esto no debería pasar si los BYEs son solo para los mejores N)
+      // O BYE implícito vs BYE implícito - esto se salta
+      else if (participant1Data.type === 'bye' && participant2Data.type === 'bye') {
+         if (!participant1Data.couple_id_for_bye && !participant2Data.couple_id_for_bye) {
+            console.log(`[createKnockoutStageMatchesAction] Skipping EMPTY SLOT vs EMPTY SLOT for theoretical seeds ${participant1Data.seed} and ${participant2Data.seed}`);
+            continue; // No crear partido para dos slots vacíos
+         } else {
+            // Si uno tiene couple_id_for_bye y el otro no, ya está cubierto arriba.
+            // Si AMBOS tienen couple_id_for_bye, es un error de lógica de asignación de BYEs.
+            console.warn(`[createKnockoutStageMatchesAction] Potentially problematic BYE vs BYE scenario: P1 Seed ${participant1Data.seed}, P2 Seed ${participant2Data.seed}. Skipping match creation.`);
+            continue;
+         }
+      }
+      else {
+          console.warn(`[createKnockoutStageMatchesAction] Unhandled pairing scenario for Slot ${i+1} (Seed ${participant1Data.seed}, Type ${participant1Data.type}) vs Slot ${bracketSize-i} (Seed ${participant2Data.seed},  Type ${participant2Data.type}). Skipping.`);
+          continue; // Saltar si no es un caso manejado
+      }
+
+      matchesToInsertData.push({
+        tournament_id: tournamentId,
+        couple1_id: couple1_id,
+        couple2_id: couple2_id,
+        round: initialRoundName,
+        status: status,
+        order: matchOrderInRound,
+        winner_id: winner_id,
+      });
+      matchOrderInRound++;
+    }
+
+    if (matchesToInsertData.length === 0 && rankedCouples.length > 0) {
+      // This might happen if only one couple qualifies, they are the winner.
+      if (rankedCouples.length === 1) {
+         console.log(`[createKnockoutStageMatchesAction] Only one seeded couple (${rankedCouples[0].couple_id}), they are the tournament winner.`);
+         // Update tournament status to FINISHED and set winner_id
+         await supabase.from('tournaments').update({ status: 'FINISHED', winner_id: rankedCouples[0].couple_id }).eq('id', tournamentId);
+         return { success: true, message: `El torneo ha finalizado. Ganador: ${rankedCouples[0].couple?.player1_details?.first_name}/${rankedCouples[0].couple?.player2_details?.first_name}.`, matches: [] };
+      }
+      console.log("[createKnockoutStageMatchesAction] No matches generated, though there were ranked couples. Check pairing logic for byes.");
+      return { success: true, message: "No se generaron partidos de llave (posiblemente solo BYEs o un ganador directo).", matches: [] };
+    }
+
+    // 4. Clear existing ELIMINATION matches for this tournament before inserting new ones
+    const { error: deleteOldMatchesError } = await supabase
+      .from('matches')
+      .delete()
+      .eq('tournament_id', tournamentId)
+      .neq('round', 'ZONE'); // <-- MODIFIED: Delete if round is NOT 'ZONE'
+
+    if (deleteOldMatchesError) {
+      console.error("[createKnockoutStageMatchesAction] Error deleting old elimination matches:", deleteOldMatchesError);
+      return { success: false, error: `Error limpiando partidos de llave antiguos: ${deleteOldMatchesError.message}` };
+    }
+    console.log("[createKnockoutStageMatchesAction] Deleted old elimination matches.");
+
+    // 5. Insert new matches
     const createdMatches: any[] = [];
     for (const matchData of matchesToInsertData) {
-      const result = await _createMatch(supabase, matchData);
+      const result = await _createMatch(supabase, matchData); // Assuming _createMatch handles insert and returns {success, match, error}
       if (result.success && result.match) {
         createdMatches.push(result.match);
-        if (matchData.status === 'COMPLETED' && matchData.winner_id) { // BYE match, apply score changes
-          await _calculateAndApplyScoreChanges(matchData.winner_id, null, supabase);
+        if (matchData.status === 'COMPLETED' && matchData.winner_id) { 
+          // If it's a BYE match, we might want to award points if your system does that.
+          // await _calculateAndApplyScoreChanges(matchData.winner_id, null, supabase); // Example if BYEs grant points
         }
       } else {
-        return { success: false, error: `Error insertando partidos de eliminatoria: ${result.error}` };
+        console.error("[createKnockoutStageMatchesAction] Error inserting knockout match:", result.error, "MatchData:", matchData);
+        return { success: false, error: `Error insertando partidos de llave: ${result.error}` };
       }
     }
-    console.log(`[createKnockoutStageMatchesAction] Creados ${createdMatches.length} partidos de eliminatoria.`);
-    return { success: true, message: "Partidos de eliminatoria creados.", matches: createdMatches };
-  } catch (e: any) { return { success: false, error: e.message || "Error inesperado en eliminatorias." }; }
+
+    // Update tournament status if it was NOT_STARTED and now has a bracket
+    if (tData.status === 'NOT_STARTED' && createdMatches.length > 0) {
+        await supabase.from('tournaments').update({ status: 'IN_PROGRESS' }).eq('id', tournamentId);
+        console.log("[createKnockoutStageMatchesAction] Tournament status updated to IN_PROGRESS.");
+    } else if (tData.status === 'ZONE_COMPLETED' && createdMatches.length > 0) {
+        // Potentially update to a new status like 'KNOCKOUT_STARTED' or keep 'IN_PROGRESS'
+        // For now, we assume IN_PROGRESS covers this.
+    }
+
+    revalidatePath(`/my-tournaments/${tournamentId}`);
+    revalidatePath(`/tournaments/${tournamentId}`);
+    console.log(`[createKnockoutStageMatchesAction] Creados ${createdMatches.length} partidos de eliminatoria para la ronda ${initialRoundName}.`);
+    return { success: true, message: "Partidos de eliminatoria generados.", matches: createdMatches };
+
+  } catch (e: any) {
+    console.error("[createKnockoutStageMatchesAction] Unexpected error:", e);
+    return { success: false, error: `Error inesperado generando llaves: ${e.message}` };
+  }
 }
 
 // --- ACTION: advanceToNextStageAction (Refactored) ---
@@ -969,28 +1206,76 @@ export async function advanceToNextStageAction(tournamentId: string) {
     if (currentRound === "FINAL") return { success: true, message: "Torneo finalizado.", isFinal: true };
     
     const nextRound = roundOrder[currentRoundIdx + 1];
-    const currentRMatches = matchesFromDB.filter(m => m.round === currentRound);
-    if (!currentRMatches.every(m => m.status === "COMPLETED")) return { success: false, error: "No todos los partidos de la ronda actual están completados." };
+    const currentRMatches = matchesFromDB.filter(m => m.round === currentRound && m.round !== 'ZONE');
 
-    const winners = currentRMatches.filter(m => m.winner_id).map(m => ({ winnerId: m.winner_id as string})); 
+    console.log(`[advanceToNextStageAction] Current Round: ${currentRound}, Next Round: ${nextRound}`);
+    console.log(`[advanceToNextStageAction] currentRMatches count: ${currentRMatches.length}`);
+    console.log(`[advanceToNextStageAction] currentRMatches (first 3):`, JSON.stringify(currentRMatches.slice(0,3), null, 2));
+
+    if (!currentRMatches.every(m => m.status === "COMPLETED")) {
+        console.error("[advanceToNextStageAction] Not all current round matches are completed. Uncompleted matches:", 
+            JSON.stringify(currentRMatches.filter(m => m.status !== "COMPLETED"), null, 2)
+        );
+        return { success: false, error: "No todos los partidos de la ronda actual están completados." };
+    }
+
+    const winners = currentRMatches
+        .filter(m => m.winner_id)
+        .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
+        .map(m => ({ 
+            winnerId: m.winner_id as string, 
+            originalMatchOrder: m.order, 
+            coupleData: m.winner_id === m.couple1_id ? m.couple1 : m.couple2 // For logging names
+        })); 
+
+    console.log(`[advanceToNextStageAction] Number of winners identified: ${winners.length}`);
+    console.log(`[advanceToNextStageAction] Winners (IDs and originalMatchOrder):`, JSON.stringify(winners, null, 2));
+
     if (winners.length === 0 && currentRMatches.length > 0) {
         return { success: false, error: "No hay ganadores en la ronda actual para avanzar." };
     }
     
+    // If only one winner remains and it's not the final match being processed, they are the tournament winner.
+    if (winners.length === 1 && currentRound !== "SEMIFINAL") { // Assuming SEMIFINAL leads to FINAL match
+        const tournamentWinner = winners[0];
+        await supabase.from('tournaments').update({ status: 'FINISHED', winner_id: tournamentWinner.winnerId }).eq('id', tournamentId);
+        console.log(`[advanceToNextStageAction] Tournament ${tournamentId} concluded. Winner: ${tournamentWinner.winnerId}`);
+        revalidatePath(`/my-tournaments/${tournamentId}`);
+        revalidatePath(`/tournaments/${tournamentId}`);
+        return { success: true, message: `Torneo finalizado. Ganador determinado: Pareja ID ${tournamentWinner.winnerId}.`, isFinal: true };
+    }
+    
     const nextRMatchesData: GenericMatchInsertData[] = [];
+    let newMatchOrder = 0;
     for (let i = 0; i < winners.length; i += 2) {
-      const c1_id = winners[i].winnerId;
+      const winner1 = winners[i];
+      const c1_id = winner1.winnerId;
       let c2_id: string | null = null;
       let match_status = "NOT_STARTED";
       let match_winner_id: string | null = null;
+      let winner2 = null;
 
       if (i + 1 >= winners.length) { // Odd number of winners, last one gets a BYE
         match_status = "COMPLETED"; 
         match_winner_id = c1_id;
+        console.log(`[advanceToNextStageAction] Winner ${c1_id} (from match order ${winner1.originalMatchOrder}) gets a BYE to ${nextRound}`);
       } else {
-        c2_id = winners[i+1].winnerId;
+        winner2 = winners[i+1];
+        c2_id = winner2.winnerId;
+        console.log(`[advanceToNextStageAction] Pairing for ${nextRound} (Order: ${newMatchOrder}): Winner ${c1_id} (Match ${winner1.originalMatchOrder}) vs Winner ${c2_id} (Match ${winner2.originalMatchOrder})`);
       }
-      nextRMatchesData.push({ tournament_id: tournamentId, couple1_id: c1_id, couple2_id: c2_id, round: nextRound, status: match_status, order: i/2, winner_id: match_winner_id });
+      // Log before push
+      console.log(`[advanceToNextStageAction] Preparing to push to nextRMatchesData - P1: ${c1_id}, P2: ${c2_id}, Round: ${nextRound}, Order: ${newMatchOrder}, Status: ${match_status}, Winner: ${match_winner_id}`);
+      nextRMatchesData.push({ 
+          tournament_id: tournamentId, 
+          couple1_id: c1_id, 
+          couple2_id: c2_id, 
+          round: nextRound, 
+          status: match_status, 
+          order: newMatchOrder, 
+          winner_id: match_winner_id
+      });
+      newMatchOrder++;
     }
 
     const createdNextRMatches: any[] = [];
@@ -1323,5 +1608,142 @@ export async function acceptInscriptionRequest(inscriptionId: string, tournament
   } catch (e: any) {
     console.error("[acceptInscriptionRequest] Unexpected error:", e);
     return { success: false, message: "Error inesperado al aceptar la solicitud.", error: e.message };
+  }
+} 
+
+// --- ACTION: populateTournamentSeedCouples (New) ---
+export async function populateTournamentSeedCouples(tournamentId: string): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+  seededCouples?: any[];
+}> {
+  const supabase = await createClient();
+  console.log(`[populateTournamentSeedCouples] Starting for tournament: ${tournamentId}`);
+
+  try {
+    // 1. Fetch zones and their ranked couples
+    const zonesResult = await fetchTournamentZones(tournamentId);
+    if (!zonesResult.success || !zonesResult.zones) {
+      console.error("[populateTournamentSeedCouples] Error fetching zones:", zonesResult.error);
+      return { success: false, error: zonesResult.error || "No se pudieron obtener las zonas del torneo." };
+    }
+
+    if (zonesResult.zones.length === 0) {
+      console.log("[populateTournamentSeedCouples] No zones found for this tournament.");
+      return { success: true, message: "No hay zonas en el torneo para generar cabezas de serie.", seededCouples: [] };
+    }
+
+    let allRankedCouples: {
+      couple_id: string;
+      tournament_id: string;
+      zone_id: string;
+      zone_name?: string;
+      rank_in_zone: number;
+      stats: any; // Assuming stats object is available
+      player1_name?: string;
+      player2_name?: string;
+    }[] = [];
+
+    // 2. Determine ranking within each zone and collect all qualifying couples
+    // For now, we assume top N from each zone qualify, or all if not specified.
+    // Let's assume the ranking is based on 'points' in 'stats', then other criteria.
+    for (const zone of zonesResult.zones) {
+      if (!zone.couples || zone.couples.length === 0) {
+        console.log(`[populateTournamentSeedCouples] Zone ${zone.name} has no couples.`);
+        continue;
+      }
+
+      const sortedCouplesInZone = [...zone.couples].sort((a, b) => {
+        const pointsA = a.stats?.points || 0;
+        const pointsB = b.stats?.points || 0;
+        if (pointsB !== pointsA) return pointsB - pointsA; // Higher points first
+
+        // Add more tie-breaking criteria here if needed (e.g., sets difference, head-to-head)
+        const gamesWonA = a.stats?.scored || 0;
+        const gamesWonB = b.stats?.scored || 0;
+        if (gamesWonB !== gamesWonA) return gamesWonB - gamesWonA;
+        
+        const gamesConcededA = a.stats?.conceded || 0;
+        const gamesConcededB = b.stats?.conceded || 0;
+        return gamesConcededA - gamesConcededB; // Fewer games conceded is better
+      });
+
+      sortedCouplesInZone.forEach((couple, index) => {
+        allRankedCouples.push({
+          couple_id: couple.id,
+          tournament_id: tournamentId,
+          zone_id: zone.id,
+          zone_name: zone.name,
+          rank_in_zone: index + 1, // 1-based rank within the zone
+          stats: couple.stats,
+          player1_name: couple.player1_name,
+          player2_name: couple.player2_name,
+        });
+      });
+    }
+
+    if (allRankedCouples.length === 0) {
+      console.log("[populateTournamentSeedCouples] No couples found across all zones after ranking.");
+      return { success: true, message: "No hay parejas clasificadas de las zonas.", seededCouples: [] };
+    }
+    
+    // 3. Global seeding based on zone rank and then points/stats (inter-zone tie-breaking)
+    // Example: All #1s from zones are seeded first, then all #2s, etc.
+    // Within the same rank (e.g. all #1s), further sort by points or other stats.
+    const globallySeededCouples = allRankedCouples.sort((a, b) => {
+      if (a.rank_in_zone !== b.rank_in_zone) {
+        return a.rank_in_zone - b.rank_in_zone; // Lower rank_in_zone is better (1st, 2nd)
+      }
+      // Tie-breaking for couples with the same rank_in_zone (e.g. two zone winners)
+      const pointsA = a.stats?.points || 0;
+      const pointsB = b.stats?.points || 0;
+      if (pointsB !== pointsA) return pointsB - pointsA;
+
+      const gamesWonA = a.stats?.scored || 0;
+      const gamesWonB = b.stats?.scored || 0;
+      if (gamesWonB !== gamesWonA) return gamesWonB - gamesWonA;
+      
+      const gamesConcededA = a.stats?.conceded || 0;
+      const gamesConcededB = b.stats?.conceded || 0;
+      return gamesConcededA - gamesConcededB;
+    });
+
+    const seedInserts = globallySeededCouples.map((couple, index) => ({
+      tournament_id: tournamentId,
+      couple_id: couple.couple_id,
+      seed: index + 1, // Overall seed (1-based)
+      zone_id: couple.zone_id,
+      // You might want to store some stats here too, e.g., JSON.stringify(couple.stats)
+    }));
+
+    // 4. Clear old seeds for this tournament and insert new ones
+    const { error: deleteError } = await supabase
+      .from("tournament_couple_seeds")
+      .delete()
+      .eq("tournament_id", tournamentId);
+
+    if (deleteError) {
+      console.error("[populateTournamentSeedCouples] Error deleting old seeds:", deleteError);
+      return { success: false, error: `Error limpiando cabezas de serie antiguas: ${deleteError.message}` };
+    }
+
+    const { data: insertedSeeds, error: insertError } = await supabase
+      .from("tournament_couple_seeds")
+      .insert(seedInserts)
+      .select();
+
+    if (insertError) {
+      console.error("[populateTournamentSeedCouples] Error inserting new seeds:", insertError);
+      // Consider what to do if insert fails after delete. Maybe wrap in transaction if Supabase JS client supports it easily.
+      return { success: false, error: `Error guardando cabezas de serie: ${insertError.message}` };
+    }
+    
+    console.log(`[populateTournamentSeedCouples] Successfully seeded ${insertedSeeds?.length} couples for tournament ${tournamentId}.`);
+    return { success: true, message: "Cabezas de serie generadas y guardadas.", seededCouples: insertedSeeds || [] };
+
+  } catch (e: any) {
+    console.error("[populateTournamentSeedCouples] Unexpected error:", e);
+    return { success: false, error: `Error inesperado al generar cabezas de serie: ${e.message}` };
   }
 } 
