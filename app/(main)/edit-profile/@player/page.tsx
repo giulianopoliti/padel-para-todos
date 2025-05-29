@@ -62,7 +62,8 @@ export default function EditProfilePage() {
       try {
         const result = await getPlayerProfile()
         if (result.success && result.userProfile) {
-          setUserProfileData(result.userProfile as UserProfile) // Cast to ensure type compatibility
+          setUserProfileData(result.userProfile as UserProfile)
+          console.log("Fetched userProfileData in page.tsx:", result.userProfile)
           setAllClubsData(result.allClubs || [])
           if (result.message !== "Datos obtenidos con éxito.") { // Show non-default success messages
             toast({ title: "Información", description: result.message })
@@ -108,6 +109,7 @@ export default function EditProfilePage() {
       ...userProfileData,
       score: userProfileData.score?.toString() ?? '',
     }
+    console.log("defaultsForSections passed to PersonalDataSection:", defaultsForSections);
 
     // Render all sections, but control visibility with a wrapper div
     return (

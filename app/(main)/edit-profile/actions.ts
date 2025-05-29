@@ -10,7 +10,7 @@ const playerProfileSchema = z.object({
   // user_id will be taken from the authenticated user session
   first_name: z.string().min(1, "El nombre es requerido."),
   last_name: z.string().min(1, "El apellido es requerido."),
-  avatar_url: z.string().url("Debe ser una URL válida.").nullable().optional(),
+  // avatar_url is handled separately as a file upload
   dni: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
   date_of_birth: z.string().nullable().optional(), // Expecting yyyy-mm-dd or empty
@@ -28,7 +28,6 @@ export type FormState = {
   errors?: {
     first_name?: string[];
     last_name?: string[];
-    avatar_url?: string[];
     dni?: string[];
     phone?: string[];
     date_of_birth?: string[];
@@ -53,12 +52,13 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
   }
 
   const rawFormEntries = Object.fromEntries(formData.entries());
+  const avatarFile = formData.get('avatar_file') as File | null;
+  const existingAvatarUrl = rawFormEntries.avatar_url_existing as string | undefined;
 
   // Transform raw form data for Zod parsing
   const dataToValidate = {
     first_name: rawFormEntries.first_name,
     last_name: rawFormEntries.last_name,
-    avatar_url: rawFormEntries.avatar_url === '' || typeof rawFormEntries.avatar_url !== 'string' || (typeof rawFormEntries.avatar_url === 'string' && !rawFormEntries.avatar_url.startsWith('http')) ? null : rawFormEntries.avatar_url,
     dni: rawFormEntries.dni === '' ? null : rawFormEntries.dni,
     phone: rawFormEntries.phone === '' ? null : rawFormEntries.phone,
     date_of_birth: rawFormEntries.date_of_birth === '' ? null : rawFormEntries.date_of_birth,
@@ -83,24 +83,75 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
   }
 
   const validatedData = validation.data;
+  let newAvatarPublicUrl: string | null = null;
+  let shouldUpdateAvatar = false;
 
   try {
-    const userUpdatePayload: any = { 
-        role: 'PLAYER', 
-        avatar_url: validatedData.avatar_url,
-    };
-    
-    const { error: userUpdateError } = await supabase
-      .from('users')
-      .update(userUpdatePayload)
-      .eq('id', user.id);
+    if (avatarFile && avatarFile.size > 0) {
+      const fileExtension = avatarFile.name.split('.').pop();
+      const avatarFileName = `avatars/${user.id}-${Date.now()}.${fileExtension}`;
+      console.log("Attempting to upload with filename:", avatarFileName);
+      console.log("User ID for filename:", user.id);
+      
+      const { error: uploadError } = await supabase.storage
+        .from('avatars') // Ensure this bucket exists and has public read access
+        .upload(avatarFileName, avatarFile, {
+          cacheControl: '3600',
+          upsert: true, 
+        });
 
-    if (userUpdateError) {
-      console.error("Error updating user data:", userUpdateError);
-      if (userUpdateError.message.includes('column') && userUpdateError.message.includes('avatar_url') && userUpdateError.message.includes('does not exist')){
-        return { success: false, message: `Error al actualizar datos de usuario: La columna 'avatar_url' no existe en la tabla 'users'. Por favor, verifica tu esquema de base de datos y regenera los tipos.`, errors: null };  
+      if (uploadError) {
+        console.error("Error uploading avatar:", uploadError);
+        return { success: false, message: `Error al subir el avatar: ${uploadError.message}`, errors: { general: ["Error al subir la imagen."] } };
       }
-      return { success: false, message: `Error al actualizar datos de usuario: ${userUpdateError.message}`, errors: null };
+      
+      const { data: publicUrlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(avatarFileName);
+      
+      if (!publicUrlData || !publicUrlData.publicUrl) {
+        console.error("Error getting public URL for avatar:", avatarFileName);
+        // Optionally, attempt to delete the uploaded file if getting URL fails
+        // await supabase.storage.from('avatars').remove([avatarFileName]);
+        return { success: false, message: "Error al obtener la URL pública del avatar.", errors: { general: ["No se pudo obtener la URL de la imagen."] } };
+      }
+      newAvatarPublicUrl = publicUrlData.publicUrl;
+      shouldUpdateAvatar = true;
+    } else if (existingAvatarUrl === '') { // User explicitly wants to remove avatar
+        newAvatarPublicUrl = null;
+        shouldUpdateAvatar = true;
+    } else if (existingAvatarUrl && existingAvatarUrl.startsWith('http')) {
+        // No new file, and an existing valid URL was provided, implies keeping it.
+        // This path could also be used if frontend sends existing URL to confirm it shouldn't be changed.
+        // However, if `shouldUpdateAvatar` remains false, we won't touch the avatar_url in the DB.
+        // For clarity, if the intention is just to keep the existing avatar, the frontend doesn't need
+        // to send `avatar_url_existing` if no new file is selected. The logic below handles this.
+    }
+
+    const userUpdatePayload: Partial<Database['public']['Tables']['users']['Update']> = { 
+        role: 'PLAYER', // Assuming role is always updated or set for players
+    };
+
+    if (shouldUpdateAvatar) {
+        userUpdatePayload.avatar_url = newAvatarPublicUrl;
+    }
+    
+    // Only proceed with the update if there are actual changes to be made for the user record.
+    // For example, if only player details changed but not the role or avatar.
+    // If role is always PLAYER and doesn't change, and avatar isn't updated, this call might be skippable.
+    if (shouldUpdateAvatar || userUpdatePayload.role !== undefined /* Add other conditions if role can change */) {
+        const { error: userUpdateError } = await supabase
+          .from('users')
+          .update(userUpdatePayload)
+          .eq('id', user.id);
+
+        if (userUpdateError) {
+          console.error("Error updating user data:", userUpdateError);
+          if (userUpdateError.message.includes('column') && userUpdateError.message.includes('avatar_url') && userUpdateError.message.includes('does not exist')){
+            return { success: false, message: `Error al actualizar datos de usuario: La columna 'avatar_url' no existe en la tabla 'users'. Por favor, verifica tu esquema de base de datos y regenera los tipos.`, errors: null };  
+          }
+          return { success: false, message: `Error al actualizar datos de usuario: ${userUpdateError.message}`, errors: null };
+        }
     }
 
     const playerUpsertData: any = {
