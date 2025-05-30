@@ -199,101 +199,75 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
 export async function getPlayerProfile() {
   const supabase = await createClient();
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    console.error("[GetPlayerProfile DEBUG] Auth error or no user:", authError);
-    return { success: false, message: "Usuario no autenticado.", userProfile: null, allClubs: [] };
-  }
-  console.error("[GetPlayerProfile DEBUG] Authenticated user ID:", user.id);
-
   try {
-    const { data: userDataResult, error: userError } = await supabase
-      .from('users')
-      .select(`
-        id,
-        email,
-        role,
-        avatar_url
-      `)
-      .eq('id', user.id)
-      .single();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    console.error("[GetPlayerProfile DEBUG] userDataResult from users table:", userDataResult);
-    console.error("[GetPlayerProfile DEBUG] userError from users table:", userError);
+    if (authError || !user) {
+      return { success: false, message: "Usuario no autenticado." };
+    }
+
+    // Get user data with all related information
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select(`
+        *,
+        players (
+          *,
+          categories (name),
+          clubes (id, name)
+        )
+      `)
+      .eq("id", user.id)
+      .single();
 
     if (userError) {
-      console.error("GetPlayerProfile: Error fetching user data", userError);
-      if (userError.message.includes('column') && userError.message.includes('avatar_url') && userError.message.includes('does not exist')) {
-        return { success: false, message: "Error: La columna 'avatar_url' no existe en la tabla 'users'. Regenera los tipos.", userProfile: null, allClubs: [] };
-      }
-      throw userError;
-    }
-    
-    const userData: any = userDataResult;
-
-    if (!userData) {
-        console.error("[GetPlayerProfile DEBUG] No userData found after fetch.");
-        return { success: false, message: "No se encontraron datos de usuario.", userProfile: null, allClubs: [] };
-    }
-    console.error("[GetPlayerProfile DEBUG] Fetched userData:", userData);
-
-    // Ensure user is a player
-    if (userData.role !== 'PLAYER') {
-        console.error("[GetPlayerProfile DEBUG] User is not a PLAYER. Role:", userData.role);
-        return { success: false, message: "El usuario no es un jugador.", userProfile: { ...(userData as any), playerDetails: null }, allClubs: [] };
+      console.error("Error fetching user data:", userError);
+      return { success: false, message: "Error al obtener datos del usuario." };
     }
 
-    const { data: playerDetailsResult, error: playerError } = await supabase
-      .from('players')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-      
-    console.error("[GetPlayerProfile DEBUG] playerDetailsResult from players table:", playerDetailsResult);
-    console.error("[GetPlayerProfile DEBUG] playerError from players table:", playerError);
-      
-    const playerDetails: any = playerDetailsResult;
-
-    if (playerError && playerError.code !== 'PGRST116') { 
-      console.error("GetPlayerProfile: Error fetching player details", playerError);
-      if (playerError.message.includes('column') && playerError.message.includes('category_name') && playerError.message.includes('does not exist')) {
-        return { success: false, message: "Error: La columna 'category_name' no existe en la tabla 'players'. Regenera los tipos.", userProfile: null, allClubs: [] };
-      }
-      throw playerError;
-    }
-    if (playerDetails) {
-        console.error("[GetPlayerProfile DEBUG] Fetched playerDetails:", playerDetails);
-    } else {
-        console.error("[GetPlayerProfile DEBUG] No playerDetails found (this might be normal for a new player).");
-    }
-
-    const { data: clubs, error: clubsError } = await supabase
-      .from('clubes')
-      .select('id, name');
+    // Get all clubs for the dropdown
+    const { data: allClubs, error: clubsError } = await supabase
+      .from("clubes")
+      .select("id, name")
+      .order("name");
 
     if (clubsError) {
-      console.error("[GetPlayerProfile DEBUG] Error fetching clubs:", clubsError);
+      console.error("Error fetching clubs:", clubsError);
     }
 
-    const finalUserProfile = {
-      ...(userData as any),
-      ...(playerDetails || {}), 
-    };
-    console.error("[GetPlayerProfile DEBUG] Final combined userProfile object:", finalUserProfile);
+    // Flatten the player data if it exists
+    const playerData = userData.players?.[0];
 
-    return { 
-      success: true, 
-      message: "Datos obtenidos con éxito.", 
-      userProfile: finalUserProfile,
-      allClubs: clubs || [] 
+    const userProfile = {
+      ...userData,
+      // Player specific fields
+      ...(playerData && {
+        first_name: playerData.first_name,
+        last_name: playerData.last_name,
+        dni: playerData.dni,
+        phone: playerData.phone,
+        date_of_birth: playerData.date_of_birth,
+        category_name: playerData.category_name,
+        score: playerData.score,
+        preferred_hand: playerData.preferred_hand,
+        racket: playerData.racket,
+        gender: playerData.gender,
+        preferred_side: playerData.preferred_side,
+        club_id: playerData.club_id,
+      }),
     };
 
-  } catch (error: any) {
-    console.error("[GetPlayerProfile DEBUG] Unexpected error in try-catch:", error);
-    return { success: false, message: `Error inesperado al obtener el perfil: ${error.message}`, userProfile: null, allClubs: [] };
+    return {
+      success: true,
+      message: "Datos obtenidos con éxito.",
+      userProfile,
+      allClubs: allClubs || []
+    };
+  } catch (error) {
+    console.error("Unexpected error in getPlayerProfile:", error);
+    return { success: false, message: "Error inesperado al obtener el perfil." };
   }
-} 
+}
 
 // --- Zod Schema for Club Profile Validation ---
 const clubProfileSchema = z.object({
@@ -354,7 +328,7 @@ export async function getClubProfile(): Promise<ClubFormState> {
     // 2. Fetch club-specific details from 'clubes' table
     const { data: clubData, error: clubError } = await supabase
       .from('clubes')
-      .select('id, name, address, instagram') // Add other fields from 'clubes' as needed
+      .select('id, name, address, instagram, cover_image_url, gallery_images') // Added image fields
       .eq('user_id', user.id)
       .single();
 
@@ -595,5 +569,219 @@ export async function completeClubProfile(prevState: ClubFormState, formData: Fo
   } catch (error: any) {
     console.error("Unexpected error updating club profile:", error);
     return { success: false, message: `Error inesperado: ${error.message || 'Ocurrió un problema'}`, errors: null };
+  }
+} 
+
+// =================== CLUB IMAGE ACTIONS ===================
+
+/**
+ * Upload cover image for a club
+ */
+export async function uploadClubCoverAction(formData: FormData): Promise<{ success: boolean; message: string; url?: string }> {
+  console.log('🔧 uploadClubCoverAction called')
+  const supabase = await createClient();
+
+  try {
+    console.log('🔍 Checking authentication...')
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.log('❌ Authentication failed:', authError)
+      return { success: false, message: "Usuario no autenticado." };
+    }
+    console.log('✅ User authenticated:', user.id)
+
+    console.log('🏢 Getting user club...')
+    // Get user's club
+    const { data: userClub, error: clubError } = await supabase
+      .from("clubes")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (clubError || !userClub) {
+      console.log('❌ Club not found:', clubError)
+      return { success: false, message: "No tienes un club asociado." };
+    }
+    console.log('✅ Club found:', userClub.id)
+
+    console.log('📁 Checking formData entries:', Array.from(formData.entries()))
+    // Get file from form data - FIXED: looking for 'file' instead of 'cover_image'
+    const file = formData.get('file') as File;
+    if (!file || file.size === 0) {
+      console.log('❌ No file found in formData')
+      return { success: false, message: "No se seleccionó ningún archivo." };
+    }
+    console.log('✅ File found:', file.name, file.size, file.type)
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      console.log('❌ Invalid file type:', file.type)
+      return { success: false, message: "Tipo de archivo no permitido. Solo se permiten imágenes (JPG, PNG, WEBP)." };
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      console.log('❌ File too large:', file.size)
+      return { success: false, message: "El archivo es demasiado grande. Máximo 5MB." };
+    }
+
+    console.log('🚀 Calling uploadClubCoverImage...')
+    // Upload using the utility function
+    const { uploadClubCoverImage } = await import("@/app/api/users");
+    const result = await uploadClubCoverImage(userClub.id, file);
+    console.log('📥 Upload result:', result)
+
+    if (result.success) {
+      console.log('✅ Cover upload successful')
+      return { success: true, message: "Imagen de portada subida exitosamente.", url: result.url };
+    } else {
+      console.log('❌ Cover upload failed:', result.error)
+      return { success: false, message: result.error || "Error al subir la imagen." };
+    }
+  } catch (error) {
+    console.error("💥 Error in uploadClubCoverAction:", error);
+    return { success: false, message: "Error inesperado al subir la imagen." };
+  }
+}
+
+/**
+ * Upload gallery image for a club
+ */
+export async function uploadClubGalleryAction(formData: FormData): Promise<{ success: boolean; message: string; url?: string; galleryImages?: string[] }> {
+  console.log('🔧 uploadClubGalleryAction called')
+  const supabase = await createClient();
+
+  try {
+    console.log('🔍 Checking authentication...')
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.log('❌ Authentication failed:', authError)
+      return { success: false, message: "Usuario no autenticado." };
+    }
+    console.log('✅ User authenticated:', user.id)
+
+    console.log('🏢 Getting user club...')
+    // Get user's club
+    const { data: userClub, error: clubError } = await supabase
+      .from("clubes")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (clubError || !userClub) {
+      console.log('❌ Club not found:', clubError)
+      return { success: false, message: "No tienes un club asociado." };
+    }
+    console.log('✅ Club found:', userClub.id)
+
+    console.log('📁 Checking formData entries:', Array.from(formData.entries()))
+    // Get file from form data - FIXED: looking for 'file' instead of 'gallery_image'
+    const file = formData.get('file') as File;
+    if (!file || file.size === 0) {
+      console.log('❌ No file found in formData')
+      return { success: false, message: "No se seleccionó ningún archivo." };
+    }
+    console.log('✅ File found:', file.name, file.size, file.type)
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      console.log('❌ Invalid file type:', file.type)
+      return { success: false, message: "Tipo de archivo no permitido. Solo se permiten imágenes (JPG, PNG, WEBP)." };
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      console.log('❌ File too large:', file.size)
+      return { success: false, message: "El archivo es demasiado grande. Máximo 5MB." };
+    }
+
+    console.log('🚀 Calling uploadClubGalleryImage...')
+    // Upload using the utility function
+    const { uploadClubGalleryImage } = await import("@/app/api/users");
+    const result = await uploadClubGalleryImage(userClub.id, file);
+    console.log('📥 Gallery upload result:', result)
+
+    if (result.success) {
+      console.log('✅ Gallery upload successful')
+      return { 
+        success: true, 
+        message: "Imagen agregada a la galería exitosamente.", 
+        url: result.url,
+        galleryImages: result.galleryImages
+      };
+    } else {
+      console.log('❌ Gallery upload failed:', result.error)
+      return { success: false, message: result.error || "Error al subir la imagen." };
+    }
+  } catch (error) {
+    console.error("💥 Error in uploadClubGalleryAction:", error);
+    return { success: false, message: "Error inesperado al subir la imagen." };
+  }
+}
+
+/**
+ * Remove gallery image from a club
+ */
+export async function removeClubGalleryAction(formData: FormData): Promise<{ success: boolean; message: string; galleryImages?: string[] }> {
+  console.log('🔧 removeClubGalleryAction called')
+  const supabase = await createClient();
+
+  try {
+    console.log('🔍 Checking authentication...')
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.log('❌ Authentication failed:', authError)
+      return { success: false, message: "Usuario no autenticado." };
+    }
+    console.log('✅ User authenticated:', user.id)
+
+    console.log('🏢 Getting user club...')
+    // Get user's club
+    const { data: userClub, error: clubError } = await supabase
+      .from("clubes")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (clubError || !userClub) {
+      console.log('❌ Club not found:', clubError)
+      return { success: false, message: "No tienes un club asociado." };
+    }
+    console.log('✅ Club found:', userClub.id)
+
+    console.log('📁 Checking formData entries:', Array.from(formData.entries()))
+    // Get image URL from form data - FIXED: looking for 'imageUrl' instead of 'image_url'
+    const imageUrl = formData.get('imageUrl') as string;
+    if (!imageUrl) {
+      console.log('❌ No imageUrl found in formData')
+      return { success: false, message: "URL de imagen no válida." };
+    }
+    console.log('✅ ImageUrl found:', imageUrl)
+
+    console.log('🚀 Calling removeClubGalleryImage...')
+    // Remove using the utility function
+    const { removeClubGalleryImage } = await import("@/app/api/users");
+    const result = await removeClubGalleryImage(userClub.id, imageUrl);
+    console.log('📥 Remove result:', result)
+
+    if (result.success) {
+      console.log('✅ Image removal successful')
+      return { 
+        success: true, 
+        message: "Imagen eliminada de la galería exitosamente.",
+        galleryImages: result.galleryImages
+      };
+    } else {
+      console.log('❌ Image removal failed:', result.error)
+      return { success: false, message: result.error || "Error al eliminar la imagen." };
+    }
+  } catch (error) {
+    console.error("💥 Error in removeClubGalleryAction:", error);
+    return { success: false, message: "Error inesperado al eliminar la imagen." };
   }
 } 

@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react'
-import { Building, Shield, ListChecks } from 'lucide-react' // Using Building for legal, ListChecks for services
+import { Building, Shield, ListChecks, ImageIcon } from 'lucide-react' // Using Building for legal, ListChecks for services, ImageIcon for gallery
 
 interface ClubProfileSidebarProps {
   activeSection: string
@@ -18,6 +18,11 @@ const menuItems = [
     id: 'services',
     title: 'Servicios',
     icon: ListChecks,
+  },
+  {
+    id: 'gallery',
+    title: 'Galería de Imágenes',
+    icon: ImageIcon,
   },
   {
     id: 'security',

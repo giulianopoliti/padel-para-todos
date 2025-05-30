@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ClubProfileSidebar } from '@/components/profile/club/club-profile-sidebar'
 import { ClubLegalDataSection } from '@/components/profile/club/club-legal-data-section'
 import { ClubServicesSection, Service } from '@/components/profile/club/club-services-section'
+import { ClubGallerySection } from '@/components/profile/club/club-gallery-section'
 import { ClubSecuritySection } from '@/components/profile/club/club-security-section'
 import { getClubProfile, completeClubProfile, ClubFormState } from '@/app/(main)/edit-profile/actions'
 
@@ -22,6 +23,8 @@ interface ClubProfileData {
   name?: string | null // from 'clubes' table
   address?: string | null // from 'clubes' table
   instagram?: string | null // from 'clubes' table
+  cover_image_url?: string | null // from 'clubes' table
+  gallery_images?: string[] // from 'clubes' table
   // services will be an array of IDs, handled separately
 }
 
@@ -109,6 +112,11 @@ export default function EditClubProfilePage() {
       avatar_url: clubProfileData.avatar_url,
     }
 
+    const defaultsForGallerySection = {
+      coverImage: clubProfileData.cover_image_url,
+      galleryImages: clubProfileData.gallery_images || [],
+    }
+
     return (
       <>
         <div style={{ display: activeSection === 'legal' ? 'block' : 'none' }}>
@@ -119,6 +127,9 @@ export default function EditClubProfilePage() {
             allServices={allServices} 
             clubServices={clubSelectedServices} 
           />
+        </div>
+        <div style={{ display: activeSection === 'gallery' ? 'block' : 'none' }}>
+          <ClubGallerySection defaultValues={defaultsForGallerySection} />
         </div>
         <div style={{ display: activeSection === 'security' ? 'block' : 'none' }}>
           <ClubSecuritySection userEmail={clubProfileData.email} />
@@ -145,34 +156,44 @@ export default function EditClubProfilePage() {
               <Badge className="mb-3 px-4 py-1.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white border-0 rounded-full">
                 {activeSection === 'legal' && 'Datos Legales y Contacto'}
                 {activeSection === 'services' && 'Servicios Ofrecidos'}
+                {activeSection === 'gallery' && 'Galería de Imágenes'}
                 {activeSection === 'security' && 'Seguridad de la Cuenta'}
               </Badge>
               <h1 className="text-3xl font-bold text-slate-800 mb-2">
                 {activeSection === 'legal' && 'Información del Club'}
                 {activeSection === 'services' && 'Gestión de Servicios'}
+                {activeSection === 'gallery' && 'Gestión de Imágenes'}
                 {activeSection === 'security' && 'Configuración de Seguridad'}
               </h1>
               <p className="text-slate-600">
                 {activeSection === 'legal' && 'Actualiza la información legal, de contacto y general de tu club.'}
                 {activeSection === 'services' && 'Selecciona y gestiona los servicios que tu club ofrece a los usuarios.'}
+                {activeSection === 'gallery' && 'Administra la imagen de portada y galería de fotos de tu club.'}
                 {activeSection === 'security' && 'Administra la seguridad de la cuenta de tu club.'}
               </p>
             </div>
 
-            <form action={formAction} className="max-w-3xl">
-              {clubProfileData?.role && <input type="hidden" name="role" value={clubProfileData.role} />}
-              {renderActiveSection()}
-              
-              <div className="mt-8 sticky bottom-8 bg-white/80 backdrop-blur-sm p-4 -mx-4 border-t border-slate-200">
-                <Button 
-                  type="submit" 
-                  className="w-full bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200" 
-                  disabled={isPending || isFetchingData}
-                >
-                  {isPending ? 'Actualizando Club...' : 'Guardar Cambios del Club'}
-                </Button>
+            {/* Only show form for non-gallery sections since gallery handles its own uploads */}
+            {activeSection !== 'gallery' ? (
+              <form action={formAction} className="max-w-3xl">
+                {clubProfileData?.role && <input type="hidden" name="role" value={clubProfileData.role} />}
+                {renderActiveSection()}
+                
+                <div className="mt-8 sticky bottom-8 bg-white/80 backdrop-blur-sm p-4 -mx-4 border-t border-slate-200">
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200" 
+                    disabled={isPending || isFetchingData}
+                  >
+                    {isPending ? 'Actualizando Club...' : 'Guardar Cambios del Club'}
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div className="max-w-3xl">
+                {renderActiveSection()}
               </div>
-            </form>
+            )}
           </div>
         </div>
       </div>
