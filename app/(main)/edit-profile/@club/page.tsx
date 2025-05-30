@@ -79,11 +79,11 @@ export default function EditClubProfilePage() {
     } finally {
       setIsFetchingData(false)
     }
-  }, [toast]) // toast is from useToast, generally stable
+  }, [toast])
 
   useEffect(() => {
     fetchData() // Initial data load
-  }, [fetchData]) // Now depends on the memoized fetchData
+  }, [fetchData])
 
   useEffect(() => {
     if (formState?.message && formState.message !== "") {
@@ -97,11 +97,18 @@ export default function EditClubProfilePage() {
         fetchData()      // Step 2: Explicitly re-fetch and update client state
       }
     }
-  }, [formState, toast, router, fetchData]) // Added fetchData to dependency array
+  }, [formState, toast, router, fetchData])
 
   const renderActiveSection = () => {
     if (isFetchingData || !clubProfileData) {
-      return <div className="text-center p-10">Cargando datos del club...</div>
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-pulse flex flex-col items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-gradient-to-r from-teal-200 to-blue-200"></div>
+            <div className="h-5 w-48 bg-gradient-to-r from-teal-100 to-blue-100 rounded"></div>
+          </div>
+        </div>
+      )
     }
 
     const defaultsForLegalSection = {
@@ -139,61 +146,80 @@ export default function EditClubProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-blue-50">
+      {/* Header space */}
       <div className="h-14"></div>
       
-      <div className="container mx-auto">
-        <div className="flex min-h-screen">
-          <div className="w-64 border-r border-slate-200 pt-8 pr-8">
-            <ClubProfileSidebar 
-              activeSection={activeSection} 
-              onSectionChange={setActiveSection} 
-            />
-          </div>
-
-          <div className="flex-1 pt-8 px-8">
-            <div className="mb-8">
-              <Badge className="mb-3 px-4 py-1.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white border-0 rounded-full">
-                {activeSection === 'legal' && 'Datos Legales y Contacto'}
-                {activeSection === 'services' && 'Servicios Ofrecidos'}
-                {activeSection === 'gallery' && 'Galería de Imágenes'}
-                {activeSection === 'security' && 'Seguridad de la Cuenta'}
-              </Badge>
-              <h1 className="text-3xl font-bold text-slate-800 mb-2">
-                {activeSection === 'legal' && 'Información del Club'}
-                {activeSection === 'services' && 'Gestión de Servicios'}
-                {activeSection === 'gallery' && 'Gestión de Imágenes'}
-                {activeSection === 'security' && 'Configuración de Seguridad'}
-              </h1>
-              <p className="text-slate-600">
-                {activeSection === 'legal' && 'Actualiza la información legal, de contacto y general de tu club.'}
-                {activeSection === 'services' && 'Selecciona y gestiona los servicios que tu club ofrece a los usuarios.'}
-                {activeSection === 'gallery' && 'Administra la imagen de portada y galería de fotos de tu club.'}
-                {activeSection === 'security' && 'Administra la seguridad de la cuenta de tu club.'}
-              </p>
-            </div>
-
-            {/* Only show form for non-gallery sections since gallery handles its own uploads */}
-            {activeSection !== 'gallery' ? (
-              <form action={formAction} className="max-w-3xl">
-                {clubProfileData?.role && <input type="hidden" name="role" value={clubProfileData.role} />}
-                {renderActiveSection()}
-                
-                <div className="mt-8 sticky bottom-8 bg-white/80 backdrop-blur-sm p-4 -mx-4 border-t border-slate-200">
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200" 
-                    disabled={isPending || isFetchingData}
-                  >
-                    {isPending ? 'Actualizando Club...' : 'Guardar Cambios del Club'}
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <div className="max-w-3xl">
-                {renderActiveSection()}
+      <div className="container mx-auto px-4 py-6">
+        <div className="bg-white rounded-2xl shadow-lg border border-blue-50 overflow-hidden">
+          <div className="flex flex-col md:flex-row min-h-[calc(100vh-7rem)]">
+            {/* Sidebar */}
+            <div className="md:w-64 border-b md:border-b-0 md:border-r border-slate-100 bg-gradient-to-b from-teal-50/50 to-blue-50/50">
+              <div className="p-6">
+                <Badge className="mb-4 px-3 py-1 bg-gradient-to-r from-teal-600/10 to-blue-600/10 text-teal-800 border-0">
+                  Panel de Control
+                </Badge>
+                <h1 className="text-2xl font-bold text-slate-800 mb-2">Perfil del Club</h1>
+                <p className="text-sm text-slate-500 mb-6">Actualiza la información de tu club</p>
+              
+                <ClubProfileSidebar 
+                  activeSection={activeSection} 
+                  onSectionChange={setActiveSection} 
+                />
               </div>
-            )}
+            </div>
+            
+            {/* Main content */}
+            <div className="flex-1 md:max-h-[calc(100vh-7rem)] md:overflow-y-auto">
+              <div className="p-6 md:p-8">
+                <div className="mb-8">
+                  <Badge className="mb-3 px-4 py-1.5 bg-gradient-to-r from-teal-600 to-blue-600 text-white border-0 rounded-full">
+                    {activeSection === 'legal' && 'Datos Legales y Contacto'}
+                    {activeSection === 'services' && 'Servicios Ofrecidos'}
+                    {activeSection === 'gallery' && 'Galería de Imágenes'}
+                    {activeSection === 'security' && 'Seguridad de la Cuenta'}
+                  </Badge>
+                  <h2 className="text-2xl font-bold text-slate-800 mb-2">
+                    {activeSection === 'legal' && 'Información del Club'}
+                    {activeSection === 'services' && 'Gestión de Servicios'}
+                    {activeSection === 'gallery' && 'Gestión de Imágenes'}
+                    {activeSection === 'security' && 'Configuración de Seguridad'}
+                  </h2>
+                  <p className="text-slate-600 max-w-2xl">
+                    {activeSection === 'legal' && 'Actualiza la información legal, de contacto y general de tu club.'}
+                    {activeSection === 'services' && 'Selecciona y gestiona los servicios que tu club ofrece a los usuarios.'}
+                    {activeSection === 'gallery' && 'Administra la imagen de portada y galería de fotos de tu club.'}
+                    {activeSection === 'security' && 'Administra la seguridad de la cuenta de tu club.'}
+                  </p>
+                </div>
+
+                {/* Only show form for non-gallery sections since gallery handles its own uploads */}
+                {activeSection !== 'gallery' ? (
+                  <form action={formAction} className="max-w-3xl space-y-6">
+                    {clubProfileData?.role && <input type="hidden" name="role" defaultValue={clubProfileData.role} />}
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 transition-all duration-200">
+                      {renderActiveSection()}
+                    </div>
+                    
+                    <div className="sticky bottom-0 mt-8 pt-4 pb-6 -mx-4 px-4 bg-gradient-to-t from-white via-white to-transparent">
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 py-6" 
+                        disabled={isPending || isFetchingData}
+                      >
+                        {isPending ? 'Actualizando Club...' : 'Guardar Cambios del Club'}
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="max-w-3xl space-y-6">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 transition-all duration-200">
+                      {renderActiveSection()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

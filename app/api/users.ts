@@ -1,3 +1,5 @@
+"use server"
+
 import { createClient } from "@/utils/supabase/server";
 import { supabase } from "@/utils/supabase/client";
 import { Player, Couple, Category, Role } from "@/types";
@@ -232,65 +234,96 @@ export const getUser = async (): Promise<User | null> => {
   export async function getClubesWithServices() {
     const supabase = await createClient();
     
-    // First get all clubs
-    const { data: clubs, error: clubsError } = await supabase
-      .from("clubes")
-      .select("*, cover_image_url, gallery_images")
-      .order("name");
+    try {
+      // First get all clubs
+      const { data: clubs, error: clubsError } = await supabase
+        .from("clubes")
+        .select("id, name, address, instagram, courts, opens_at, closes_at, cover_image_url, gallery_images")
+        .order("name");
 
-    if (clubsError) {
-      console.error("Error fetching clubs:", clubsError);
+      if (clubsError) {
+        console.error("Error fetching clubs:", clubsError);
+        return [];
+      }
+
+      if (!clubs || clubs.length === 0) {
+        return [];
+      }
+
+      // Get services for each club
+      const clubsWithServices = await Promise.all(
+        clubs.map(async (club) => {
+          try {
+            const { data: services, error: servicesError } = await supabase
+              .from("services_clubes")
+              .select(`
+                services (
+                  id,
+                  name
+                )
+              `)
+              .eq("club_id", club.id);
+
+            if (servicesError) {
+              console.error(`Error fetching services for club ${club.id}:`, servicesError);
+            }
+
+            // Get average rating and review count
+            const { data: reviews, error: reviewsError } = await supabase
+              .from("reviews")
+              .select("score")
+              .eq("club_id", club.id);
+
+            if (reviewsError) {
+              console.error(`Error fetching reviews for club ${club.id}:`, reviewsError);
+            }
+
+            const reviewCount = reviews?.length || 0;
+            const averageRating = reviewCount > 0 && reviews
+              ? reviews.reduce((sum, review) => sum + (review.score || 0), 0) / reviewCount 
+              : 0;
+
+            // Return plain object with only serializable data
+            return {
+              id: club.id,
+              name: club.name || null,
+              address: club.address || null,
+              instagram: club.instagram || null,
+              courts: club.courts || 0,
+              opens_at: club.opens_at || null,
+              closes_at: club.closes_at || null,
+              services: services?.map(s => s.services).filter(Boolean) || [],
+              rating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
+              reviewCount: reviewCount,
+              coverImage: club.cover_image_url || null,
+              galleryImages: Array.isArray(club.gallery_images) ? club.gallery_images : []
+            };
+          } catch (error) {
+            console.error(`Error processing club ${club.id}:`, error);
+            // Return a safe fallback object
+            return {
+              id: club.id,
+              name: club.name || null,
+              address: club.address || null,
+              instagram: club.instagram || null,
+              courts: club.courts || 0,
+              opens_at: club.opens_at || null,
+              closes_at: club.closes_at || null,
+              services: [],
+              rating: 0,
+              reviewCount: 0,
+              coverImage: club.cover_image_url || null,
+              galleryImages: []
+            };
+          }
+        })
+      );
+
+      return clubsWithServices;
+    } catch (error) {
+      console.error("Error in getClubesWithServices:", error);
       return [];
     }
-
-    if (!clubs || clubs.length === 0) {
-      return [];
-    }
-
-    // Get services for each club
-    const clubsWithServices = await Promise.all(
-      clubs.map(async (club) => {
-        const { data: services, error: servicesError } = await supabase
-          .from("services_clubes")
-          .select(`
-            services (
-              id,
-              name
-            )
-          `)
-          .eq("club_id", club.id);
-
-        if (servicesError) {
-          console.error(`Error fetching services for club ${club.id}:`, servicesError);
-        }
-
-        // Get average rating and review count
-        const { data: reviews, error: reviewsError } = await supabase
-          .from("reviews")
-          .select("score")
-          .eq("club_id", club.id);
-
-        if (reviewsError) {
-          console.error(`Error fetching reviews for club ${club.id}:`, reviewsError);
-        }
-
-        const reviewCount = reviews?.length || 0;
-        const averageRating = reviewCount > 0 && reviews
-          ? reviews.reduce((sum, review) => sum + (review.score || 0), 0) / reviewCount 
-          : 0;
-
-        return {
-          ...club,
-          services: services?.map(s => s.services).filter(Boolean) || [],
-          rating: Number(averageRating.toFixed(1)),
-          reviewCount,
-          coverImage: club.cover_image_url,
-          galleryImages: club.gallery_images || []
-        };
-      })
-    );
-
-    return clubsWithServices;
   }
 
   /**

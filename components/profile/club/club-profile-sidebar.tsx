@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react'
-import { Building, Shield, ListChecks, ImageIcon } from 'lucide-react' // Using Building for legal, ListChecks for services, ImageIcon for gallery
+import { Building, Shield, ListChecks, ImageIcon } from 'lucide-react'
 
 interface ClubProfileSidebarProps {
   activeSection: string
@@ -35,20 +35,20 @@ export function ClubProfileSidebar({ activeSection, onSectionChange }: ClubProfi
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-sm font-medium text-slate-500 mb-2">
+        <h2 className="text-sm font-medium text-slate-500 mb-3">
           Configuración del Club
         </h2>
-        <nav className="space-y-1">
+        <nav className="space-y-2">
           {menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => onSectionChange(item.id)}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
                 ${activeSection === item.id 
-                  ? 'text-teal-700 bg-gradient-to-r from-teal-50 to-blue-50' 
+                  ? 'text-white bg-gradient-to-r from-teal-600 to-blue-600 shadow-md' 
                   : 'text-slate-600 hover:bg-slate-50'}`}
             >
-              <item.icon className="h-4 w-4" />
+              <item.icon className={`h-4 w-4 ${activeSection === item.id ? 'text-white' : 'text-slate-500'}`} />
               <span>{item.title}</span>
             </button>
           ))}
@@ -56,4 +56,4 @@ export function ClubProfileSidebar({ activeSection, onSectionChange }: ClubProfi
       </div>
     </div>
   )
-} 
+}
