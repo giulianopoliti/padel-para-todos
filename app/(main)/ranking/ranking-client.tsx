@@ -358,7 +358,7 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
                       {filteredPlayers.map((player, index) => (
                         <div key={player.id}>
                           <Link
-                            href={`/players/${player.id}`}
+                            href={`/ranking/${player.id}`}
                             className="block"
                             onMouseEnter={() => setHoveredPlayer(player.id)}
                             onMouseLeave={() => setHoveredPlayer(null)}
@@ -516,7 +516,7 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
                                           size="sm"
                                           className="w-full bg-gradient-to-r from-teal-600 to-blue-600 hover:opacity-90"
                                         >
-                                          <Link href={`/players/${player.id}`}>Ver perfil completo</Link>
+                                          <Link href={`/ranking/${player.id}`}>Ver perfil completo</Link>
                                         </Button>
                                       </div>
                                     </div>

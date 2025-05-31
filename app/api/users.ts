@@ -702,3 +702,80 @@ export const getUser = async (): Promise<User | null> => {
       galleryImages: (data.gallery_images as string[]) || []
     };
   }
+
+  /**
+   * Get detailed player profile information including stats
+   */
+  export async function getPlayerProfile(playerId: string) {
+    try {
+      // Get player basic info including club
+      const { data: player, error: playerError } = await supabase
+        .from("players")
+        .select(`
+          *,
+          clubes (
+            id,
+            name,
+            address
+          )
+        `)
+        .eq("id", playerId)
+        .single();
+
+      if (playerError) {
+        console.error("Error fetching player profile:", playerError);
+        return null;
+      }
+
+      if (!player) return null;
+
+      // Calculate age from date_of_birth
+      const age = player.date_of_birth 
+        ? new Date().getFullYear() - new Date(player.date_of_birth).getFullYear()
+        : null;
+
+      // For now, return basic stats - we can enhance later
+      return {
+        id: player.id,
+        name: `${player.first_name || ''} ${player.last_name || ''}`.trim(),
+        profileImage: player.profile_image_url || null,
+        ranking: {
+          current: 1, // This would need a proper ranking calculation
+          variation: 0,
+          isPositive: true,
+        },
+        status: player.status || 'active',
+        dominantHand: player.preferred_hand || 'N/A',
+        circuitJoinDate: player.created_at,
+        lastTournament: {
+          name: "Torneo de ejemplo",
+          date: new Date().toISOString(),
+        },
+        age,
+        stats: {
+          tournamentsPlayed: 0, // Will calculate later
+          winRate: 0,
+          finals: { played: 0, won: 0 },
+          matchesPlayed: 0,
+        },
+        contact: {
+          instagram: player.instagram_handle ? `@${player.instagram_handle}` : null,
+          phone: player.phone || null,
+          address: player.address || (player.clubes as any)?.address || null,
+        },
+        gallery: Array.isArray(player.gallery_images) ? player.gallery_images : [],
+        club: player.clubes ? {
+          id: (player.clubes as any).id,
+          name: (player.clubes as any).name,
+        } : null,
+        // Additional fields
+        category: player.category_name,
+        preferredSide: player.preferred_side,
+        racket: player.racket,
+        score: player.score,
+      };
+    } catch (error) {
+      console.error("Error in getPlayerProfile:", error);
+      return null;
+    }
+  }
