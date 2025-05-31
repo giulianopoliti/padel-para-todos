@@ -2,10 +2,20 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Star, ChevronRight, Users, Clock, Search, Filter, Award, Zap } from "lucide-react"
-import { getClubesWithServices } from "@/app/api/users"
+import { getClubesWithServices, getUserRole } from "@/app/api/users"
 
 export default async function ClubesPage() {
   const clubes = await getClubesWithServices()
+  
+  // Handle userRole safely for public pages
+  let userRole = null
+  try {
+    userRole = await getUserRole()
+  } catch (error) {
+    // User not authenticated - that's fine for public pages
+    console.log("User not authenticated, showing public view")
+    userRole = null
+  }
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-teal-900 relative overflow-hidden">
@@ -16,15 +26,15 @@ export default async function ClubesPage() {
 
       <div className="container mx-auto px-4 py-20 relative z-10">
         <div className="text-center mb-16">
-          <Badge className="mb-6 px-4 py-2 bg-gradient-to-r from-teal-500/20 to-blue-500/20 text-white border-white/20 backdrop-blur-sm">
+          {/* <Badge className="mb-6 px-4 py-2 bg-gradient-to-r from-teal-500/20 to-blue-500/20 text-white border-white/20 backdrop-blur-sm">
             <Award className="mr-2 h-4 w-4" />
             Clubes Premium
-          </Badge>
+          </Badge> */}
           <h1 className="text-4xl md:text-6xl font-black text-white mb-6">
-            Clubes de Pádel Elite
+            Clubes de Pádel
           </h1>
           <p className="text-white/80 text-xl max-w-3xl mx-auto leading-relaxed">
-            Encuentra los mejores clubes de pádel con instalaciones de primera calidad y servicios exclusivos.
+            Encuentra los mejores clubes de pádel con instalaciones de primera calidad
           </p>
         </div>
 
@@ -172,7 +182,7 @@ export default async function ClubesPage() {
           </div>
         )}
 
-        <div className="flex justify-center mt-16">
+        {userRole && userRole != "CLUB" && (<div className="flex justify-center mt-16">
           <Link 
             href="/clubs/register"
             className="inline-flex items-center bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 text-white rounded-2xl shadow-2xl px-8 py-4 font-medium transition-all duration-300"
@@ -181,7 +191,7 @@ export default async function ClubesPage() {
             Registrar Mi Club
             <ChevronRight className="ml-2 h-5 w-5" />
           </Link>
-        </div>
+        </div>)}
       </div>
     </div>
   )

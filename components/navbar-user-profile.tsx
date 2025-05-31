@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -25,16 +26,21 @@ interface NavLink {
 
 interface NavbarUserProfileProps {
   profileLinks?: NavLink[];
+  params?: {
+    id?: string;
+  };
 }
 
-export default function NavbarUserProfile({ profileLinks = [] }: NavbarUserProfileProps) {
+export default function NavbarUserProfile({ profileLinks = [], params }: NavbarUserProfileProps) {
   const { user, logout, userDetails } = useUser();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const router = useRouter();
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
       await logout();
+      router.refresh();
     } catch (error) {
       console.error("[NavbarUserProfile] Error logging out:", error);
     } finally {

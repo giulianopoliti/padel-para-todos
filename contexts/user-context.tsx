@@ -108,7 +108,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(null);
         setUserDetails(null);
         console.log("[UserContext] Logout successful via server action.");
-        router.push("/login"); 
+        // Let the component handle navigation instead of auto-redirecting
+        // router.push("/login"); 
         router.refresh(); 
       } else {
         throw new Error(result.error || "Server action signout failed");
@@ -173,8 +174,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           setUserDetails(null);
           if (event === 'SIGNED_OUT') {
-            // Optionally redirect or clear further app state
-            router.push('/login'); 
+            // Let the component handle navigation instead of auto-redirecting
+            // router.push('/login'); 
           }
         }
       }

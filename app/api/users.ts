@@ -134,26 +134,29 @@ export const getUser = async (): Promise<User | null> => {
   
 
   export const getUserRole = async (): Promise<Role | null> => {
-    const supabase = await createClient();
-    const user = await getUser();
-    
-    if (!user) {
-      console.log("No user ID available, user might be logged out");
-      return null;
-    }
-  
-    const { data, error } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-  
-    if (error) {
+    try {
+      const supabase = await createClient();
+      const user = await getUser();
+      if (!user) {
+        console.log("No user ID available, user might be logged out");
+        return null;
+      }
+      const { data, error } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching user role:", error);
+        return null;
+      }
+      
+      return data.role as Role;
+    } catch (error) {
       console.error("Error fetching user role:", error);
       return null;
     }
-  
-    return data.role as Role;
   };
 
 
