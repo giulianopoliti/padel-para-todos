@@ -120,38 +120,17 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
     } else if (existingAvatarUrl === '') { // User explicitly wants to remove avatar
         newAvatarPublicUrl = null;
         shouldUpdateAvatar = true;
-    } else if (existingAvatarUrl && existingAvatarUrl.startsWith('http')) {
-        // No new file, and an existing valid URL was provided, implies keeping it.
-        // This path could also be used if frontend sends existing URL to confirm it shouldn't be changed.
-        // However, if `shouldUpdateAvatar` remains false, we won't touch the avatar_url in the DB.
-        // For clarity, if the intention is just to keep the existing avatar, the frontend doesn't need
-        // to send `avatar_url_existing` if no new file is selected. The logic below handles this.
     }
 
-    const userUpdatePayload: Partial<Database['public']['Tables']['users']['Update']> = { 
-        role: 'PLAYER', // Assuming role is always updated or set for players
-    };
+    // Update user role (always set to PLAYER)
+    const { error: userUpdateError } = await supabase
+      .from('users')
+      .update({ role: 'PLAYER' })
+      .eq('id', user.id);
 
-    if (shouldUpdateAvatar) {
-        userUpdatePayload.avatar_url = newAvatarPublicUrl;
-    }
-    
-    // Only proceed with the update if there are actual changes to be made for the user record.
-    // For example, if only player details changed but not the role or avatar.
-    // If role is always PLAYER and doesn't change, and avatar isn't updated, this call might be skippable.
-    if (shouldUpdateAvatar || userUpdatePayload.role !== undefined /* Add other conditions if role can change */) {
-        const { error: userUpdateError } = await supabase
-          .from('users')
-          .update(userUpdatePayload)
-          .eq('id', user.id);
-
-        if (userUpdateError) {
-          console.error("Error updating user data:", userUpdateError);
-          if (userUpdateError.message.includes('column') && userUpdateError.message.includes('avatar_url') && userUpdateError.message.includes('does not exist')){
-            return { success: false, message: `Error al actualizar datos de usuario: La columna 'avatar_url' no existe en la tabla 'users'. Por favor, verifica tu esquema de base de datos y regenera los tipos.`, errors: null };  
-          }
-          return { success: false, message: `Error al actualizar datos de usuario: ${userUpdateError.message}`, errors: null };
-        }
+    if (userUpdateError) {
+      console.error("Error updating user role:", userUpdateError);
+      return { success: false, message: `Error al actualizar rol de usuario: ${userUpdateError.message}`, errors: null };
     }
 
     const playerUpsertData: any = {
@@ -169,6 +148,11 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
       preferred_side: validatedData.preferred_side as Database["public"]["Enums"]["PREFERRED_SIDE"],
       club_id: validatedData.club_id,
     };
+
+    // Add profile image URL to player data if it should be updated
+    if (shouldUpdateAvatar) {
+      playerUpsertData.profile_image_url = newAvatarPublicUrl;
+    }
     
     const { error: playerUpsertError } = await supabase
       .from('players')
@@ -254,6 +238,7 @@ export async function getPlayerProfile() {
         gender: playerData.gender,
         preferred_side: playerData.preferred_side,
         club_id: playerData.club_id,
+        profile_image_url: playerData.profile_image_url,
       }),
     };
 

@@ -19,56 +19,13 @@ import {
   ChevronLeft,
 } from "lucide-react"
 import { notFound } from "next/navigation"
-
-// Mock function para obtener datos del jugador
-async function getPlayerProfile(id: string) {
-  // En producción, aquí iría la llamada a la API real
-  const mockPlayerData = {
-    id,
-    name: "Carlos Martínez",
-    profileImage: "/placeholder.svg?height=128&width=128",
-    status: "active",
-    ranking: {
-      current: 1,
-      variation: 2,
-      isPositive: true,
-    },
-    age: 28,
-    dominantHand: "Diestro",
-    circuitJoinDate: "2020-01-15",
-    stats: {
-      tournamentsPlayed: 24,
-      finals: {
-        played: 8,
-        won: 5,
-      },
-      matchesPlayed: 156,
-      winRate: 87,
-    },
-    lastTournament: {
-      name: "Madrid Open 2024",
-      date: "2024-11-15",
-    },
-    contact: {
-      instagram: "@carlosmartinez_padel",
-      phone: "+34 666 123 456",
-      address: "Madrid, España",
-    },
-    club: {
-      name: "Club Padel Madrid Elite",
-    },
-    gallery: [
-      "/placeholder.svg?height=200&width=300",
-      "/placeholder.svg?height=200&width=300",
-      "/placeholder.svg?height=200&width=300",
-    ],
-  }
-
-  return mockPlayerData
-}
+import { getPlayerProfile } from "@/app/api/users"
 
 export default async function PlayerProfilePage({ params }: { params: { id: string } }) {
   const playerData = await getPlayerProfile(params.id)
+
+  console.log("🎯 PlayerProfilePage - Received playerData:", playerData);
+  console.log("🖼️ PlayerProfilePage - profileImage value:", playerData?.profileImage);
 
   if (!playerData) {
     notFound()
@@ -104,7 +61,7 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
             <div className="relative">
               <img
-                src={playerData.profileImage || "/placeholder.svg?height=128&width=128" || "/placeholder.svg"}
+                src={playerData.profileImage || "/placeholder.svg?height=128&width=128"}
                 alt={playerData.name}
                 className="w-32 h-32 rounded-lg object-cover shadow-sm border border-gray-200"
               />
@@ -119,19 +76,23 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
 
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <Badge className="px-3 py-1 bg-blue-600 text-white">Ranking #{playerData.ranking.current}</Badge>
-                <Badge
-                  className={`px-3 py-1 ${
-                    playerData.ranking.isPositive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {playerData.ranking.isPositive ? (
-                    <TrendingUp className="h-4 w-4 mr-1" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4 mr-1" />
-                  )}
-                  {Math.abs(playerData.ranking.variation)} posiciones
+                <Badge className="px-3 py-1 bg-blue-600 text-white">
+                  Ranking #{playerData.ranking.current || "N/A"}
                 </Badge>
+                {playerData.ranking.variation !== 0 && (
+                  <Badge
+                    className={`px-3 py-1 ${
+                      playerData.ranking.isPositive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {playerData.ranking.isPositive ? (
+                      <TrendingUp className="h-4 w-4 mr-1" />
+                    ) : (
+                      <TrendingDown className="h-4 w-4 mr-1" />
+                    )}
+                    {Math.abs(playerData.ranking.variation)} posiciones
+                  </Badge>
+                )}
               </div>
               <h1 className="text-3xl font-bold text-gray-800 mb-2">{playerData.name}</h1>
               <div className="flex flex-wrap gap-4 text-gray-600">
@@ -143,12 +104,24 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
                 )}
                 <span className="flex items-center gap-1">
                   <Hand className="h-4 w-4" />
-                  {playerData.dominantHand}
+                  {playerData.dominantHand === "LEFT" ? "Zurdo" : "Derecho"}
                 </span>
+                {playerData.preferredSide && (
+                  <span className="flex items-center gap-1">
+                    <Swords className="h-4 w-4" />
+                    {playerData.preferredSide === "DRIVE" ? "Drive" : "Revés"}
+                  </span>
+                )}
                 <span className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
                   Desde {new Date(playerData.circuitJoinDate).toLocaleDateString()}
                 </span>
+                {playerData.score && (
+                  <span className="flex items-center gap-1">
+                    <Trophy className="h-4 w-4" />
+                    {playerData.score} puntos
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -259,6 +232,12 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
                   <div className="flex items-center gap-3 text-gray-600">
                     <Trophy className="h-4 w-4" />
                     <span>Club: {playerData.club.name}</span>
+                  </div>
+                )}
+                {playerData.category && (
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <User className="h-4 w-4" />
+                    <span>Categoría: {playerData.category}</span>
                   </div>
                 )}
               </div>

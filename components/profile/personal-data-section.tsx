@@ -14,14 +14,14 @@ interface PersonalDataSectionProps {
 }
 
 export function PersonalDataSection({ defaultValues }: PersonalDataSectionProps) {
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(defaultValues.avatar_url || null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(defaultValues.profile_image_url || null)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
 
   useEffect(() => {
-    if (!avatarFile && defaultValues.avatar_url !== avatarPreview) {
-      setAvatarPreview(defaultValues.avatar_url || null)
+    if (!avatarFile && defaultValues.profile_image_url !== avatarPreview) {
+      setAvatarPreview(defaultValues.profile_image_url || null)
     }
-  }, [defaultValues.avatar_url, avatarFile, avatarPreview])
+  }, [defaultValues.profile_image_url, avatarFile, avatarPreview])
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -34,7 +34,7 @@ export function PersonalDataSection({ defaultValues }: PersonalDataSectionProps)
       reader.readAsDataURL(file)
     } else {
       setAvatarFile(null)
-      setAvatarPreview(defaultValues.avatar_url || null)
+      setAvatarPreview(defaultValues.profile_image_url || null)
     }
   }
 
@@ -101,7 +101,7 @@ export function PersonalDataSection({ defaultValues }: PersonalDataSectionProps)
           <input
             type="hidden"
             name="avatar_url_existing"
-            value={avatarPreview === null ? "" : avatarFile ? defaultValues.avatar_url || "" : avatarPreview || ""}
+            value={avatarPreview === null ? "" : avatarFile ? defaultValues.profile_image_url || "" : avatarPreview || ""}
           />
         </div>
 

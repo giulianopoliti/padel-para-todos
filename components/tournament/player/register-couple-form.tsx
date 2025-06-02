@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { registerCoupleForTournament } from "@/app/api/tournaments/actions"
+import { registerNewPlayer } from "@/app/api/players/actions"
 import { useUser } from "@/contexts/user-context"
 import { Search, UserPlus, AlertCircle, Users, User, Phone, CreditCard } from "lucide-react"
 import PlayerSearchResults from "./player-search-results"
@@ -268,20 +269,65 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
       return
     }
 
+    if (!userDetails?.player_id) {
+      toast({
+        title: "Error de usuario",
+        description: "No se pudo obtener tu ID de jugador. Verifica tu perfil.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
-      const result = await registerCoupleForTournament(tournamentId, userDetails?.player_id!, data.dni)
-      if (result.success) {
-        toast({
-          title: "¡Pareja registrada!",
-          description: "Se ha registrado la pareja con el nuevo jugador",
-        })
-        onComplete(true)
+      // Crear el nuevo jugador usando registerNewPlayer
+      const newPlayerResult = await registerNewPlayer({
+        playerId: undefined,
+        tournamentId,
+        playerData: {
+          first_name: data.firstName,
+          last_name: data.lastName,
+          gender: "MALE", // Por defecto, podrías agregar un campo para esto
+          dni: data.dni
+        },
+        isExistingPlayer: false
+      })
+
+      if (newPlayerResult.success) {
+        // Buscar el jugador recién creado por DNI para obtener su ID
+        const createdPlayer = players.find(p => p.dni === data.dni)
+        
+        if (createdPlayer) {
+          // Registrar la pareja
+          const result = await registerCoupleForTournament(tournamentId, userDetails.player_id, createdPlayer.id)
+          
+          if (result.success) {
+            toast({
+              title: "¡Pareja registrada!",
+              description: "Se ha registrado la pareja con el nuevo jugador",
+            })
+            onComplete(true)
+          } else {
+            toast({
+              title: "Error en el registro de pareja",
+              description: "El jugador se creó pero no se pudo registrar la pareja",
+              variant: "destructive",
+            })
+            onComplete(false)
+          }
+        } else {
+          toast({
+            title: "Error",
+            description: "No se pudo encontrar el jugador recién creado",
+            variant: "destructive",
+          })
+          onComplete(false)
+        }
       } else {
         toast({
-          title: "Error en el registro",
-          description: "No se pudo registrar la pareja",
+          title: "Error al crear jugador",
+          description: newPlayerResult.message || "No se pudo crear el nuevo jugador",
           variant: "destructive",
         })
         onComplete(false)
