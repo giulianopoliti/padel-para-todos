@@ -1,31 +1,30 @@
 import { Suspense } from "react"
 import { notFound } from "next/navigation"
-import PlayerTournamentClient from "@/components/tournament/player/player-tournament-client"
 import GuestTournamentClient from "@/components/tournament/guest-tournament-client"
-import { getTournamentById } from "@/app/api/tournaments/actions"
-import { getCategoryByName } from "@/app/api/categories/actions"
-import { getClubById } from "@/app/api/users"
-import { getCouplesByTournamentId, getPlayersByTournamentId } from "@/app/api/tournaments/actions"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getAllPlayersDTO } from "@/app/api/players/actions"
-import { createClient } from "@/utils/supabase/server"
+import { getTournamentById } from "@/app/api/tournaments"
+import { getCategories } from "@/app/api/users"
+import { getClubById } from "@/app/api/users"
+import { getCouplesByTournamentId } from "@/app/api/couples/actions"
+import { getPlayersByTournamentId } from "@/app/api/tournaments/actions"
+import { getPlayersMale } from "@/app/api/users"
 
-// Componente de carga para usar con Suspense
+// Componente de carga
 function TournamentLoading() {
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <Skeleton className="h-10 w-3/4" />
-        <Skeleton className="h-6 w-1/2" />
+      <div className="text-center space-y-2">
+        <Skeleton className="h-10 w-3/4 mx-auto" />
+        <Skeleton className="h-6 w-1/2 mx-auto" />
       </div>
-      <div className="bg-white rounded-lg shadow-sm border border-slate-100 p-6 space-y-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
         <Skeleton className="h-8 w-1/3" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
         </div>
       </div>
-      <div className="bg-white rounded-lg shadow-sm border border-slate-100 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <Skeleton className="h-8 w-1/4 mb-4" />
         <div className="space-y-2">
           <Skeleton className="h-12 w-full" />
@@ -38,70 +37,47 @@ function TournamentLoading() {
 }
 
 export default async function DefaultTournamentPage({ params: { id: tournamentId } }: { params: { id: string } }) {
-  // Obtener datos del torneo desde el servidor
+  // Obtener datos del torneo desde Supabase
   const tournamentData = await getTournamentById(tournamentId)
   if (!tournamentData) {
     notFound()
   }
 
-  // Obtener datos relacionados
-  const categoryData = tournamentData.category ? await getCategoryByName(tournamentData.category) : null
-  const clubData = tournamentData.club?.id ? await getClubById(tournamentData.club.id) : null
-  const playersData = await getPlayersByTournamentId(tournamentId)
-  const rawCouplesData = await getCouplesByTournamentId(tournamentId)
-  const playersDTO = await getAllPlayersDTO()
+  // Obtener datos relacionados en paralelo
+  const [categoryData, clubData, playersData, rawCouplesData, allPlayers] = await Promise.all([
+    // Obtener categoría por nombre
+    tournamentData.category ? 
+      getCategories().then(categories => categories.find(cat => cat.name === tournamentData.category) || null) : 
+      Promise.resolve(null),
+    // Obtener club si existe
+    tournamentData.club?.id ? getClubById(tournamentData.club.id) : Promise.resolve(null),
+    // Obtener jugadores del torneo
+    getPlayersByTournamentId(tournamentId),
+    // Obtener parejas del torneo
+    getCouplesByTournamentId(tournamentId),
+    // Obtener todos los jugadores para el buscador
+    getPlayersMale()
+  ])
 
-  // Verificar si el usuario está autenticado
-  const supabase = await createClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  const isAuthenticated = !!session
-
-  // Enrich couplesData with player names from playersDTO
-  const processedCouplesData = rawCouplesData.map((couple) => {
-    // Default to empty strings or null if player IDs are missing, though they should exist for a valid couple
-    const player1Id = couple.player1_id
-    const player2Id = couple.player2_id
-
-    const player1Info = player1Id ? playersDTO.find((p) => p.id === player1Id) : null
-    const player2Info = player2Id ? playersDTO.find((p) => p.id === player2Id) : null
-
-    return {
-      ...couple, // Spread all properties from the 'couples' table row (id, created_at, etc.)
-      player_1_info: player1Info
-        ? {
-            id: player1Info.id,
-            first_name: player1Info.first_name,
-            last_name: player1Info.last_name,
-            score: player1Info.score,
-          }
-        : null,
-      player_2_info: player2Info
-        ? {
-            id: player2Info.id,
-            first_name: player2Info.first_name,
-            last_name: player2Info.last_name,
-            score: player2Info.score,
-          }
-        : null,
-    }
-  })
+  // Transformar Player a PlayerDTO para el componente
+  const playersDTO = allPlayers.map(player => ({
+    id: player.id,
+    first_name: player.firstName,
+    last_name: player.lastName,
+    dni: player.id, // Usando id como fallback para dni
+    score: player.score
+  }))
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-      <div className="container mx-auto px-4 py-8">
-        <Suspense fallback={<TournamentLoading />}>
-            <GuestTournamentClient
-              tournament={tournamentData}
-              category={categoryData}
-              club={clubData}
-              players={playersData}
-              couples={processedCouplesData}
-              allPlayersForSearch={playersDTO}
-            />
-        </Suspense>
-      </div>
-    </div>
+    <Suspense fallback={<TournamentLoading />}>
+      <GuestTournamentClient
+        tournament={tournamentData}
+        category={categoryData}
+        club={clubData}
+        players={playersData}
+        couples={rawCouplesData}
+        allPlayersForSearch={playersDTO}
+      />
+    </Suspense>
   )
 }

@@ -1,22 +1,16 @@
-'use client';
+"use client"
 
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import { motion } from "framer-motion";
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
 
 export default function CreateTournamentClientButton() {
   return (
-    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-      <Button
-        asChild
-        className="bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white rounded-xl px-8 py-7 text-lg font-medium shadow-lg"
-      >
-        <Link href="/my-tournaments/create">
-          <Plus className="mr-2 h-5 w-5" />
-          Crear Nuevo Torneo
-        </Link>
-      </Button>
-    </motion.div>
-  );
-} 
+    <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-sm">
+      <Link href="/my-tournaments/create" className="flex items-center gap-2">
+        <Plus className="h-5 w-5" />
+        Crear Nuevo Torneo
+      </Link>
+    </Button>
+  )
+}

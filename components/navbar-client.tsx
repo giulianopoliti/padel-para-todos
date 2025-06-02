@@ -3,11 +3,12 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Trophy, Menu } from 'lucide-react'
+import { Trophy, Menu, X, BarChart3, Calendar, MapPin, User, Bell, Search, Home } from "lucide-react"
 import type { User as AuthUser } from "@supabase/supabase-js"
 import NavbarUserProfile from "./navbar-user-profile"
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { getIcon, IconName } from "@/components/icons"
 
 interface NavLink {
   label: string
@@ -21,100 +22,176 @@ interface NavbarClientProps {
   user: AuthUser | null
 }
 
+// Helper function to get the correct icon component
+const getIconComponent = (iconName: string) => {
+  // Map of common icon names to Lucide components
+  const iconMap: Record<string, any> = {
+    Home: Home,
+    Trophy: Trophy,
+    Calendar: Calendar,
+    BarChart3: BarChart3,
+    MapPin: MapPin,
+    User: User,
+    BarChart: BarChart3, // Fallback for ranking
+  }
+  
+  // Try to get from iconMap first, then from getIcon function
+  if (iconMap[iconName]) {
+    return iconMap[iconName]
+  }
+  
+  // Try to get from the existing getIcon function
+  try {
+    return getIcon(iconName as IconName)
+  } catch {
+    // Fallback to Trophy if icon not found
+    return Trophy
+  }
+}
+
 export default function NavbarClient({ mainLinks, profileLinks, user }: NavbarClientProps) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <header className="bg-gradient-to-r from-teal-600 to-blue-600 text-white shadow-md sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-14">
-          <Link href="/home" className="text-lg font-bold flex items-center">
-            <div className="bg-white rounded-full p-1.5 mr-2">
-              <Trophy className="h-4 w-4 text-teal-600" />
+    <header className="sticky top-0 z-50 bg-gray-900 shadow-md">
+      <div className="container mx-auto px-6">
+        <div className="flex items-center justify-between h-20">
+          {/* Logo */}
+          <Link href="/home" className="flex items-center space-x-3">
+            <div className="bg-blue-500 w-10 h-10 rounded-full flex items-center justify-center">
+              <Trophy className="h-5 w-5 text-white" />
             </div>
-            <span>PadelPRO</span>
+            <span className="text-xl font-medium text-white">PadelPRO</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-1">
-            {mainLinks.map((link) => (
-              <Link
-                key={link.path}
-                href={link.path}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 ${
-                  pathname === link.path ? "bg-white text-teal-600 shadow-sm" : "hover:bg-white/10 text-white"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+          <nav className="hidden lg:flex items-center space-x-2">
+            {mainLinks.map((link) => {
+              const IconComponent = getIconComponent(link.icon)
+              const isActive = pathname === link.path
+
+              return (
+                <Link
+                  key={link.path}
+                  href={link.path}
+                  className={`flex items-center space-x-2 px-5 py-2.5 rounded-full text-base transition-all duration-200 ${
+                    isActive ? "bg-blue-600 text-white font-medium" : "text-gray-300 hover:text-white hover:bg-gray-800"
+                  }`}
+                >
+                  <IconComponent className="h-5 w-5" />
+                  <span>{link.label}</span>
+                </Link>
+              )
+            })}
           </nav>
 
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden text-white p-1.5 rounded-full hover:bg-white/10"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-
-          <div className="ml-4 hidden md:block">
+          {/* Desktop Actions */}
+          <div className="hidden lg:flex items-center space-x-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-gray-300 hover:text-white hover:bg-gray-800 rounded-full"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-gray-300 hover:text-white hover:bg-gray-800 rounded-full"
+            >
+              <Bell className="h-5 w-5" />
+            </Button>
+            
             {user ? (
               <NavbarUserProfile profileLinks={profileLinks} />
             ) : (
-              <Button
-                asChild
-                size="sm"
-                variant="secondary"
-                className="bg-white text-teal-600 hover:bg-white/90 rounded-full shadow-sm"
-              >
-                <Link href="/login">Iniciar Sesión</Link>
-              </Button>
+              <div className="flex items-center space-x-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-300 hover:text-white hover:bg-gray-800 px-4 py-2 text-base"
+                  asChild
+                >
+                  <Link href="/login">Iniciar Sesión</Link>
+                </Button>
+                <Button 
+                  size="sm" 
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-base"
+                  asChild
+                >
+                  <Link href="/register">Registrarse</Link>
+                </Button>
+              </div>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white border-t border-white/10 shadow-lg"
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden p-2 rounded-full text-gray-300 hover:text-white hover:bg-gray-800"
           >
-            <div className="container mx-auto px-4 py-3">
-              <nav className="flex flex-col space-y-2">
-                {mainLinks.map((link) => (
-                  <Link
-                    key={link.path}
-                    href={link.path}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                      pathname === link.path
-                        ? "bg-gradient-to-r from-teal-100 to-blue-100 text-teal-600"
-                        : "text-slate-700 hover:bg-slate-100"
-                    }`}
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-                {!user && (
-                  <Link
-                    href="/login"
-                    className="bg-gradient-to-r from-teal-600 to-blue-600 text-white py-2 px-4 rounded-lg text-sm font-medium text-center"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Iniciar Sesión
-                  </Link>
-                )}
+            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="lg:hidden border-t border-gray-800 py-4"
+            >
+              <nav className="space-y-2">
+                {mainLinks.map((link) => {
+                  const IconComponent = getIconComponent(link.icon)
+                  const isActive = pathname === link.path
+
+                  return (
+                    <Link
+                      key={link.path}
+                      href={link.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-base transition-all duration-200 ${
+                        isActive ? "bg-blue-600 text-white" : "text-gray-300 hover:text-white hover:bg-gray-800"
+                      }`}
+                    >
+                      <IconComponent className="h-5 w-5" />
+                      <span>{link.label}</span>
+                    </Link>
+                  )
+                })}
               </nav>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+              <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-gray-800">
+                {user ? (
+                  <div className="px-4">
+                    <NavbarUserProfile profileLinks={profileLinks} />
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      variant="ghost"
+                      className="justify-start text-gray-300 hover:text-white hover:bg-gray-800 text-base"
+                      asChild
+                    >
+                      <Link href="/login">Iniciar Sesión</Link>
+                    </Button>
+                    <Button 
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-base"
+                      asChild
+                    >
+                      <Link href="/register">Registrarse</Link>
+                    </Button>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </header>
   )
 }

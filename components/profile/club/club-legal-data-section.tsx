@@ -1,10 +1,7 @@
 "use client"
-
-import React from 'react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { Building, Mail, MapPin, Instagram } from 'lucide-react'
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Building, Mail, MapPin, Instagram, Info } from "lucide-react"
 
 interface ClubLegalDataSectionProps {
   defaultValues?: {
@@ -18,68 +15,69 @@ interface ClubLegalDataSectionProps {
 export function ClubLegalDataSection({ defaultValues }: ClubLegalDataSectionProps) {
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium text-slate-700">Información de Contacto y Legal</h3>
-        <p className="text-sm text-slate-500 mb-6">Actualiza los datos principales de tu club.</p>
-      </div>
-      <Separator className="bg-slate-100" />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <Label htmlFor="name" className="flex items-center gap-2 text-slate-700">
-            <Building className="h-4 w-4 text-teal-600" /> Nombre del Club
+          <Label htmlFor="name" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <Building className="h-4 w-4 text-blue-600" /> Nombre del Club
           </Label>
-          <Input 
-            id="name" 
-            name="name" 
-            defaultValue={defaultValues?.name ?? ''} 
-            placeholder="Nombre oficial del club" 
-            className="border-slate-200 focus:border-teal-500 focus:ring-teal-500/10"
+          <Input
+            id="name"
+            name="name"
+            defaultValue={defaultValues?.name ?? ""}
+            placeholder="Nombre oficial del club"
+            className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="address" className="flex items-center gap-2 text-slate-700">
-            <MapPin className="h-4 w-4 text-teal-600" /> Dirección
+          <Label htmlFor="address" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <MapPin className="h-4 w-4 text-blue-600" /> Dirección
           </Label>
-          <Input 
-            id="address" 
-            name="address" 
-            defaultValue={defaultValues?.address ?? ''} 
-            placeholder="Calle, Número, Ciudad" 
-            className="border-slate-200 focus:border-teal-500 focus:ring-teal-500/10"
+          <Input
+            id="address"
+            name="address"
+            defaultValue={defaultValues?.address ?? ""}
+            placeholder="Calle, Número, Ciudad"
+            className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="email" className="flex items-center gap-2 text-slate-700">
-            <Mail className="h-4 w-4 text-teal-600" /> Email de Contacto
+          <Label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <Mail className="h-4 w-4 text-blue-600" /> Email de Contacto
           </Label>
-          <Input 
-            id="email" 
-            name="email" 
-            type="email" 
-            defaultValue={defaultValues?.email ?? ''} 
-            placeholder="contacto@tuclub.com" 
-            className="border-slate-200 focus:border-teal-500 focus:ring-teal-500/10"
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            defaultValue={defaultValues?.email ?? ""}
+            placeholder="contacto@tuclub.com"
+            className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="instagram" className="flex items-center gap-2 text-slate-700">
-            <Instagram className="h-4 w-4 text-teal-600" /> Instagram (opcional)
+          <Label htmlFor="instagram" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <Instagram className="h-4 w-4 text-blue-600" /> Instagram (opcional)
           </Label>
-          <Input 
-            id="instagram" 
-            name="instagram" 
-            defaultValue={defaultValues?.instagram ?? ''} 
-            placeholder="@tuclubdeportivo" 
-            className="border-slate-200 focus:border-teal-500 focus:ring-teal-500/10"
+          <Input
+            id="instagram"
+            name="instagram"
+            defaultValue={defaultValues?.instagram ?? ""}
+            placeholder="@tuclubdeportivo"
+            className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
       </div>
 
-      <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-teal-50 border border-blue-100">
-        <p className="text-sm text-blue-700">
-          <span className="font-medium">Importante:</span> Asegúrate de que la información proporcionada sea correcta y actualizada para una mejor experiencia de los usuarios.
-        </p>
+      <div className="mt-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
+        <div className="flex items-start gap-3">
+          <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+          <div>
+            <p className="text-sm text-blue-800 font-medium">Información importante</p>
+            <p className="text-sm text-blue-700 mt-1">
+              Asegúrate de que la información proporcionada sea correcta y actualizada para una mejor experiencia de los
+              usuarios.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   )

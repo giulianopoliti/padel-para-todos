@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,19 +22,16 @@ interface NavLink {
   icon: string;
   path: string;
 }
-
 interface NavbarUserProfileProps {
   profileLinks?: NavLink[];
   params?: {
     id?: string;
   };
 }
-
 export default function NavbarUserProfile({ profileLinks = [], params }: NavbarUserProfileProps) {
   const { user, logout, userDetails } = useUser();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
-
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -47,11 +43,9 @@ export default function NavbarUserProfile({ profileLinks = [], params }: NavbarU
       setIsLoggingOut(false);
     }
   };
-
   if (!user) {
     return null;
   }
-
   const getInitials = () => {
     const UDetails = userDetails as any;
     if (UDetails && typeof UDetails.first_name === 'string' && UDetails.first_name && typeof UDetails.last_name === 'string' && UDetails.last_name) {
@@ -63,49 +57,46 @@ export default function NavbarUserProfile({ profileLinks = [], params }: NavbarU
     if (user?.email) return user.email.substring(0, 2).toUpperCase();
     return "U";
   };
-  
   const displayName = 
     (userDetails && typeof (userDetails as any).first_name === 'string' && (userDetails as any).first_name) ||
     (userDetails && typeof (userDetails as any).name === 'string' && (userDetails as any).name) ||
     user.email?.split('@')[0] || 
     "Usuario";
-  
   const userEmail = user.email || "No email available";
   const userIdShort = user.id.substring(0, 8);
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative rounded-full p-0 h-10 w-10 text-white hover:bg-teal-500 focus-visible:ring-white focus-visible:ring-offset-0 focus-visible:ring-offset-teal-600">
+        <Button variant="ghost" className="relative rounded-full p-0 h-10 w-10 text-white hover:bg-gray-800 focus-visible:ring-white focus-visible:ring-offset-0 focus-visible:ring-offset-gray-900">
           <Avatar className="h-9 w-9">
-            <AvatarFallback className="bg-teal-700 text-sm font-semibold text-white">{getInitials()}</AvatarFallback>
+            <AvatarFallback className="bg-blue-600 text-sm font-semibold text-white">{getInitials()}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64 bg-white border-slate-200 shadow-lg rounded-md mt-1">
+      <DropdownMenuContent align="end" className="w-64 bg-white border-gray-200 shadow-lg rounded-md mt-1">
         <DropdownMenuLabel className="px-3 py-2.5">
           <div className="flex flex-col space-y-0.5">
-            <p className="text-sm font-semibold leading-none text-slate-800 truncate" title={displayName}>{displayName}</p>
-            <p className="text-xs leading-none text-slate-500 truncate" title={userEmail}>
+            <p className="text-sm font-semibold leading-none text-gray-800 truncate" title={displayName}>{displayName}</p>
+            <p className="text-xs leading-none text-gray-500 truncate" title={userEmail}>
               {userEmail}
             </p>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator className="bg-slate-100" />
+        <DropdownMenuSeparator className="bg-gray-100" />
         
         {profileLinks.map(link => {
           const IconComponent = getIcon(link.icon as IconName);
           return (
             <DropdownMenuItem key={link.path} asChild>
-              <Link href={link.path} className="cursor-pointer flex items-center px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-sm focus:bg-slate-100 focus:text-slate-900">
-                {IconComponent && <IconComponent className="mr-2.5 h-4 w-4 text-slate-500" />}
+              <Link href={link.path} className="cursor-pointer flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-sm focus:bg-gray-100 focus:text-gray-900">
+                {IconComponent && <IconComponent className="mr-2.5 h-4 w-4 text-gray-500" />}
                 <span>{link.label}</span>
               </Link>
             </DropdownMenuItem>
           );
         })}
         
-        {profileLinks.length > 0 && <DropdownMenuSeparator className="bg-slate-100"/>}
+        {profileLinks.length > 0 && <DropdownMenuSeparator className="bg-gray-100"/>}
         
         <DropdownMenuItem 
           className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer flex items-center px-3 py-2 text-sm rounded-sm"

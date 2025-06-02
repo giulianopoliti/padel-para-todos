@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,11 +15,9 @@ import {
   Timer,
   Users,
   Award,
-  Plus,
-  Sparkles,
+  TrendingUp,
 } from "lucide-react"
 import Link from "next/link"
-import { motion } from "framer-motion"
 
 // Tipos para las props
 interface TournamentsTabsProps {
@@ -40,8 +37,6 @@ export default function TournamentsTabs({
   canceledTournaments,
   clubAddress,
 }: TournamentsTabsProps) {
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null)
-
   // Formatear fecha
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -53,14 +48,11 @@ export default function TournamentsTabs({
     if (!timeString) return "No especificado"
 
     try {
-      // Si es una fecha ISO completa, extraer solo la parte de la hora
       if (timeString.includes("T")) {
         const date = new Date(timeString)
         return date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
       }
-
-      // Si ya es solo una hora (formato HH:MM:SS)
-      return timeString.substring(0, 5) // Tomar solo HH:MM
+      return timeString.substring(0, 5)
     } catch (error) {
       return timeString || "No especificado"
     }
@@ -70,17 +62,17 @@ export default function TournamentsTabs({
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "NOT_STARTED":
-        return <Clock className="h-5 w-5" />
+        return <Clock className="h-4 w-4" />
       case "PAIRING":
-        return <PauseCircle className="h-5 w-5" />
+        return <PauseCircle className="h-4 w-4" />
       case "IN_PROGRESS":
-        return <Trophy className="h-5 w-5" />
+        return <TrendingUp className="h-4 w-4" />
       case "FINISHED":
-        return <CheckCircle className="h-5 w-5" />
+        return <CheckCircle className="h-4 w-4" />
       case "CANCELED":
-        return <Ban className="h-5 w-5" />
+        return <Ban className="h-4 w-4" />
       default:
-        return <Trophy className="h-5 w-5" />
+        return <Trophy className="h-4 w-4" />
     }
   }
 
@@ -88,17 +80,47 @@ export default function TournamentsTabs({
   const getStatusColor = (status: string) => {
     switch (status) {
       case "NOT_STARTED":
-        return { bg: "bg-amber-500", text: "text-amber-500", light: "bg-amber-100" }
+        return {
+          bg: "bg-amber-50",
+          text: "text-amber-700",
+          border: "border-amber-200",
+          accent: "bg-amber-500",
+        }
       case "PAIRING":
-        return { bg: "bg-violet-500", text: "text-violet-500", light: "bg-violet-100" }
+        return {
+          bg: "bg-blue-50",
+          text: "text-blue-700",
+          border: "border-blue-200",
+          accent: "bg-blue-500",
+        }
       case "IN_PROGRESS":
-        return { bg: "bg-emerald-500", text: "text-emerald-500", light: "bg-emerald-100" }
+        return {
+          bg: "bg-emerald-50",
+          text: "text-emerald-700",
+          border: "border-emerald-200",
+          accent: "bg-emerald-500",
+        }
       case "FINISHED":
-        return { bg: "bg-blue-500", text: "text-blue-500", light: "bg-blue-100" }
+        return {
+          bg: "bg-slate-50",
+          text: "text-slate-700",
+          border: "border-slate-200",
+          accent: "bg-slate-500",
+        }
       case "CANCELED":
-        return { bg: "bg-rose-500", text: "text-rose-500", light: "bg-rose-100" }
+        return {
+          bg: "bg-red-50",
+          text: "text-red-700",
+          border: "border-red-200",
+          accent: "bg-red-500",
+        }
       default:
-        return { bg: "bg-emerald-500", text: "text-emerald-500", light: "bg-emerald-100" }
+        return {
+          bg: "bg-gray-50",
+          text: "text-gray-700",
+          border: "border-gray-200",
+          accent: "bg-gray-500",
+        }
     }
   }
 
@@ -122,161 +144,143 @@ export default function TournamentsTabs({
 
   // Renderizar tarjeta de torneo
   const renderTournamentCard = (tournament: any) => {
-    // Calcular porcentaje de inscripciones
     const maxRegistrations = tournament.max_couples || tournament.max_inscriptions || 0
     const currentRegistrations = tournament.couplesCount || 0
     const registrationPercentage =
       maxRegistrations > 0 ? Math.min(Math.round((currentRegistrations / maxRegistrations) * 100), 100) : 0
 
-    // Determinar color de la barra de progreso
-    let progressColor = "bg-emerald-500"
-    if (registrationPercentage > 90) progressColor = "bg-rose-500"
-    else if (registrationPercentage > 75) progressColor = "bg-amber-500"
-    else if (registrationPercentage > 50) progressColor = "bg-violet-500"
-
     const statusColor = getStatusColor(tournament.status)
-    const isHovered = hoveredCard === tournament.id
 
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full"
-        onMouseEnter={() => setHoveredCard(tournament.id)}
-        onMouseLeave={() => setHoveredCard(null)}
-      >
-        <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-slate-100 h-full flex flex-col">
-          {/* Cabecera con estado */}
-          <div className={`${statusColor.bg} h-3 w-full`}></div>
+      <div className="bg-white rounded-xl border border-gray-200 hover:border-slate-300 transition-all duration-300 shadow-sm hover:shadow-md group">
+        {/* Status indicator bar */}
+        <div className={`h-1 w-full ${statusColor.accent} rounded-t-xl`}></div>
 
-          {/* Contenido principal */}
-          <div className="p-6 flex-grow">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+        {/* Card content */}
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-slate-900 mb-1 group-hover:text-slate-700 transition-colors">
                 {tournament.name}
               </h3>
-              <div
-                className={`${statusColor.light} ${statusColor.text} text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1`}
-              >
-                {getStatusIcon(tournament.status)}
-                <span>{getStatusText(tournament.status)}</span>
+              <div className="flex items-center text-slate-500 text-sm">
+                <Calendar className="h-4 w-4 mr-2" />
+                <span>
+                  {formatDate(tournament.start_date)} - {formatDate(tournament.end_date)}
+                </span>
+              </div>
+            </div>
+            <div
+              className={`${statusColor.bg} ${statusColor.text} px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 border ${statusColor.border}`}
+            >
+              {getStatusIcon(tournament.status)}
+              <span>{getStatusText(tournament.status)}</span>
+            </div>
+          </div>
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+              <div className="flex items-center justify-between">
+                <Users className="h-5 w-5 text-slate-600" />
+                <span className="text-xs text-slate-500">Inscripciones</span>
+              </div>
+              <div className="mt-2">
+                <span className="text-xl font-bold text-slate-900">{currentRegistrations}</span>
+                <span className="text-sm text-slate-500 ml-1">/ {maxRegistrations > 0 ? maxRegistrations : "∞"}</span>
               </div>
             </div>
 
-            <div className="flex items-center text-slate-500 mb-6">
-              <Calendar className="h-4 w-4 mr-2" />
-              <span className="text-sm">
-                {formatDate(tournament.start_date)} - {formatDate(tournament.end_date)}
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+              <div className="flex items-center justify-between">
+                <Trophy className="h-5 w-5 text-slate-600" />
+                <span className="text-xs text-slate-500">Categoría</span>
+              </div>
+              <div className="mt-2">
+                <span className="text-sm font-semibold text-slate-900">{tournament.category?.name || "General"}</span>
+                <div className="text-xs text-slate-500">{tournament.tournament_type || "Estándar"}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Details */}
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center text-sm">
+              <MapPin className="h-4 w-4 mr-3 text-slate-400 flex-shrink-0" />
+              <span className="text-slate-600 truncate">{clubAddress || tournament.address || "No especificada"}</span>
+            </div>
+
+            <div className="flex items-center text-sm">
+              <Timer className="h-4 w-4 mr-3 text-slate-400 flex-shrink-0" />
+              <span className="text-slate-600">
+                {formatTime(tournament.start_time || "")} - {formatTime(tournament.end_time || "")}
               </span>
             </div>
 
-            {/* Información en grid */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div
-                className={`${statusColor.light} rounded-xl p-4 flex flex-col items-center justify-center text-center`}
-              >
-                <Users className={`h-6 w-6 mb-2 ${statusColor.text}`} />
-                <div className="text-sm text-slate-700">
-                  <span className="block font-bold text-lg">{currentRegistrations}</span>
-                  <span className="text-xs text-slate-500">
-                    de {maxRegistrations > 0 ? maxRegistrations : "∞"} inscripciones
-                  </span>
-                </div>
-              </div>
-
-              <div className={`bg-slate-100 rounded-xl p-4 flex flex-col items-center justify-center text-center`}>
-                <Trophy className="h-6 w-6 mb-2 text-slate-500" />
-                <div className="text-sm text-slate-700">
-                  <span className="block font-bold text-lg">{tournament.category?.name || "General"}</span>
-                  <span className="text-xs text-slate-500">{tournament.tournament_type || "Estándar"}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3 mb-6">
+            {tournament.prize && (
               <div className="flex items-center text-sm">
-                <MapPin className="h-4 w-4 mr-2 text-slate-400 flex-shrink-0" />
-                <span className="text-slate-600 truncate">
-                  {clubAddress || tournament.address || "No especificada"}
-                </span>
-              </div>
-
-              <div className="flex items-center text-sm">
-                <Timer className="h-4 w-4 mr-2 text-slate-400 flex-shrink-0" />
-                <span className="text-slate-600">
-                  {formatTime(tournament.start_time || "")} - {formatTime(tournament.end_time || "")}
-                </span>
-              </div>
-
-              {tournament.prize && (
-                <div className="flex items-center text-sm">
-                  <Award className="h-4 w-4 mr-2 text-slate-400 flex-shrink-0" />
-                  <span className="text-slate-600">{tournament.prize}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Barra de progreso */}
-            {maxRegistrations > 0 && (
-              <div className="mb-6">
-                <div className="flex justify-between items-center text-xs mb-1.5">
-                  <span className="text-slate-500">Ocupación</span>
-                  <span className={`font-medium ${statusColor.text}`}>{registrationPercentage}%</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2">
-                  <div
-                    className={`${progressColor} h-2 rounded-full transition-all duration-500`}
-                    style={{ width: `${registrationPercentage}%` }}
-                  ></div>
-                </div>
+                <Award className="h-4 w-4 mr-3 text-slate-400 flex-shrink-0" />
+                <span className="text-slate-600">{tournament.prize}</span>
               </div>
             )}
           </div>
 
-          {/* Botón de acción */}
-          <div className="p-4 mt-auto">
-            <Button
-              asChild
-              className={`w-full rounded-xl ${isHovered ? "bg-gradient-to-r from-violet-600 to-emerald-500" : statusColor.bg} hover:opacity-90 text-white transition-all duration-300`}
-              size="lg"
-            >
-              <Link href={`/my-tournaments/${tournament.id}`} className="flex items-center justify-center">
-                {isHovered ? <Sparkles className="mr-2 h-4 w-4" /> : null}
-                Ver detalles
-                <ArrowRight
-                  className={`ml-2 h-4 w-4 transition-transform duration-300 ${isHovered ? "translate-x-1" : ""}`}
-                />
-              </Link>
-            </Button>
-          </div>
+          {/* Progress bar */}
+          {maxRegistrations > 0 && (
+            <div className="mb-6">
+              <div className="flex justify-between items-center text-xs mb-2">
+                <span className="text-slate-500">Ocupación</span>
+                <span className="font-semibold text-slate-700">{registrationPercentage}%</span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-2">
+                <div
+                  className="bg-slate-600 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${registrationPercentage}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+
+          {/* Action button */}
+          <Button asChild className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-lg">
+            <Link href={`/my-tournaments/${tournament.id}`} className="flex items-center justify-center gap-2">
+              Ver detalles
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </Button>
         </div>
-      </motion.div>
+      </div>
     )
   }
 
   // Renderizar sección de torneos
-  const renderTournamentsSection = (title: string, tournaments: any[], icon: React.ReactNode, color: string) => (
-    <div className="mb-16">
-      <div className="flex items-center gap-3 mb-8 justify-center">
-        <div className={`p-2.5 rounded-xl ${color}`}>{icon}</div>
-        <h2 className="text-2xl font-bold text-slate-800">{title}</h2>
-        <span className="bg-white text-slate-700 text-sm font-medium px-3 py-1 rounded-full shadow-sm border border-slate-100">
-          {tournaments.length}
-        </span>
+  const renderTournamentsSection = (title: string, tournaments: any[], icon: React.ReactNode, colorClass: string) => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <div className={`p-3 rounded-xl ${colorClass}`}>{icon}</div>
+        <div className="flex-1">
+          <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
+          <p className="text-sm text-slate-500">
+            {tournaments.length} torneo{tournaments.length !== 1 ? "s" : ""}
+          </p>
+        </div>
       </div>
 
       {tournaments.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {tournaments.map((tournament) => (
             <div key={tournament.id}>{renderTournamentCard(tournament)}</div>
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 bg-white rounded-2xl border border-slate-100 max-w-3xl mx-auto shadow-sm">
-          <div className="flex flex-col items-center gap-3">
-            <div className={`p-3 rounded-full ${color}`}>{icon}</div>
-            <p className="text-slate-500 font-medium">No hay torneos en esta categoría.</p>
+        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+          <div className="flex flex-col items-center gap-4">
+            <div className={`p-4 rounded-full ${colorClass}`}>{icon}</div>
+            <div>
+              <h3 className="text-lg font-medium text-slate-900 mb-1">No hay torneos</h3>
+              <p className="text-slate-500">No hay torneos en esta categoría.</p>
+            </div>
           </div>
         </div>
       )}
@@ -284,69 +288,71 @@ export default function TournamentsTabs({
   )
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <Tabs defaultValue="all" className="mb-12">
-        <TabsList className="w-full max-w-2xl mx-auto bg-white p-1.5 rounded-full shadow-md border border-slate-100 mb-10">
-          <TabsTrigger
-            value="all"
-            className="rounded-full data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-md py-2.5 px-4"
-          >
-            <Trophy className="mr-2 h-4 w-4" />
-            Todos
-          </TabsTrigger>
-          <TabsTrigger
-            value="upcoming"
-            className="rounded-full data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-md py-2.5 px-4"
-          >
-            <Clock className="mr-2 h-4 w-4" />
-            Próximos
-          </TabsTrigger>
-          <TabsTrigger
-            value="active"
-            className="rounded-full data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-md py-2.5 px-4"
-          >
-            <Trophy className="mr-2 h-4 w-4" />
-            Activos
-          </TabsTrigger>
-          <TabsTrigger
-            value="finished"
-            className="rounded-full data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-md py-2.5 px-4"
-          >
-            <CheckCircle className="mr-2 h-4 w-4" />
-            Finalizados
-          </TabsTrigger>
-        </TabsList>
+    <div className="space-y-8">
+      <Tabs defaultValue="all" className="space-y-8">
+        <div className="flex justify-center">
+          <TabsList className="bg-white border border-gray-200 p-1.5 rounded-xl shadow-sm">
+            <TabsTrigger
+              value="all"
+              className="data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2"
+            >
+              <Trophy className="mr-2 h-4 w-4" />
+              Todos
+            </TabsTrigger>
+            <TabsTrigger
+              value="upcoming"
+              className="data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2"
+            >
+              <Clock className="mr-2 h-4 w-4" />
+              Próximos
+            </TabsTrigger>
+            <TabsTrigger
+              value="active"
+              className="data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2"
+            >
+              <TrendingUp className="mr-2 h-4 w-4" />
+              Activos
+            </TabsTrigger>
+            <TabsTrigger
+              value="finished"
+              className="data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2"
+            >
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Finalizados
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-        <TabsContent value="all">
+        <TabsContent value="all" className="space-y-12">
           {renderTournamentsSection(
             "Torneos Próximos",
             notStartedTournaments,
             <Clock className="h-6 w-6 text-white" />,
-            "bg-amber-100 text-amber-500",
+            "bg-amber-500",
           )}
           {renderTournamentsSection(
             "Torneos en Emparejamiento",
             pairingTournaments,
             <PauseCircle className="h-6 w-6 text-white" />,
-            "bg-violet-100 text-violet-500",
+            "bg-blue-500",
           )}
           {renderTournamentsSection(
             "Torneos en Curso",
             inProgressTournaments,
-            <Trophy className="h-6 w-6 text-white" />,
-            "bg-emerald-100 text-emerald-500",
+            <TrendingUp className="h-6 w-6 text-white" />,
+            "bg-emerald-500",
           )}
           {renderTournamentsSection(
             "Torneos Finalizados",
             finishedTournaments,
             <CheckCircle className="h-6 w-6 text-white" />,
-            "bg-blue-100 text-blue-500",
+            "bg-slate-500",
           )}
           {renderTournamentsSection(
             "Torneos Cancelados",
             canceledTournaments,
             <Ban className="h-6 w-6 text-white" />,
-            "bg-rose-100 text-rose-500",
+            "bg-red-500",
           )}
         </TabsContent>
 
@@ -355,7 +361,7 @@ export default function TournamentsTabs({
             "Torneos Próximos",
             notStartedTournaments,
             <Clock className="h-6 w-6 text-white" />,
-            "bg-amber-100 text-amber-500",
+            "bg-amber-500",
           )}
         </TabsContent>
 
@@ -364,13 +370,13 @@ export default function TournamentsTabs({
             "Torneos en Emparejamiento",
             pairingTournaments,
             <PauseCircle className="h-6 w-6 text-white" />,
-            "bg-violet-100 text-violet-500",
+            "bg-blue-500",
           )}
           {renderTournamentsSection(
             "Torneos en Curso",
             inProgressTournaments,
-            <Trophy className="h-6 w-6 text-white" />,
-            "bg-emerald-100 text-emerald-500",
+            <TrendingUp className="h-6 w-6 text-white" />,
+            "bg-emerald-500",
           )}
         </TabsContent>
 
@@ -379,7 +385,7 @@ export default function TournamentsTabs({
             "Torneos Finalizados",
             finishedTournaments,
             <CheckCircle className="h-6 w-6 text-white" />,
-            "bg-blue-100 text-blue-500",
+            "bg-slate-500",
           )}
         </TabsContent>
       </Tabs>

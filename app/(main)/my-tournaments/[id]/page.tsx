@@ -1,7 +1,5 @@
-import React from "react"
 import { Suspense } from "react"
-import { redirect, notFound } from "next/navigation"
-import { createClient } from "@/utils/supabase/server"
+import { notFound } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,14 +15,15 @@ import {
   PauseCircle,
   Phone,
   Mail,
-  Play
+  TrendingUp,
+  Building,
 } from "lucide-react"
 import Link from "next/link"
 import TournamentDetailsTabs from "@/components/tournament/tournament-details-tab"
-import {  getTournamentDetailsWithInscriptions, startTournament, startTournament2 } from "@/app/api/tournaments/actions"
 import { getAllPlayersDTO } from "@/app/api/players/actions"
-import PlayerCoupleForm from "@/components/tournament/couple-registration/forms/player-couple-form"
+import { getTournamentDetailsWithInscriptions } from "@/app/api/tournaments/actions"
 import StartTournamentButton from "@/components/tournament/club/start-tournament"
+
 // Componente de carga para usar con Suspense
 function TournamentDetailsLoading() {
   return (
@@ -33,140 +32,95 @@ function TournamentDetailsLoading() {
         <Skeleton className="h-10 w-40" />
         <Skeleton className="h-10 w-32" />
       </div>
-      <div className="space-y-2">
-        <Skeleton className="h-10 w-3/4 max-w-md" />
-        <Skeleton className="h-6 w-1/2 max-w-sm" />
-      </div>
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 space-y-4">
-        <Skeleton className="h-8 w-1/3" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
+      <div className="bg-white rounded-xl border border-gray-200 p-8">
+        <Skeleton className="h-8 w-3/4 mb-4" />
+        <Skeleton className="h-4 w-1/2 mb-8" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+          </div>
         </div>
       </div>
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-        <Skeleton className="h-8 w-1/4 mb-4" />
-        <div className="space-y-2">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-        </div>
-      </div>
+      <Skeleton className="h-96 w-full" />
     </div>
   )
 }
 
-
-// Función para obtener los detalles del torneo
-async function getData(tournamentId: string) {
-  const supabase = await createClient()
-
-  // 1. Verificar autenticación del usuario
-  const {
-    data: { user: authUser },
-    error: authError,
-  } = await supabase.auth.getUser()
-
-  if (authError || !authUser) {
-    redirect("/login") // Redirect to login if not authenticated
-  }
-
-  // Create an explicitly plain user object for the result
-  const plainUser = {
-    id: authUser.id,
-    email: authUser.email,
-    // Add any other specific, primitive properties you need from authUser
-    // Avoid passing the whole authUser object if it might contain non-plain parts
-  };
-
-  // 2. Obtener detalles del torneo e inscripciones
-  const { tournament, inscriptions: rawInscriptions } = await getTournamentDetailsWithInscriptions(tournamentId)
-
-  if (!tournament) {
-    // Si el torneo no se encuentra (devuelto como null por la acción), mostrar notFound
-    notFound()
-  }
-
-  console.log("Inscripciones recibidas:", JSON.stringify(rawInscriptions, null, 2));
-
-  // Define an interface for the shape of a plain inscription object
-  interface PlainPlayerDetail {
-    id: string;
-    first_name: string | null;
-    last_name: string | null;
-    score: number | null;
-    phone?: string | null; 
-    created_at: string | null; 
-    dni?: string | null; 
-  }
-
-  interface PlainCoupleDetail {
-    id: string;
-    created_at: string | null; 
-    player1: PlainPlayerDetail[] | null; 
-    player2: PlainPlayerDetail[] | null; 
-  }
-
-  interface PlainInscription {
-    id: string;
-    created_at: string | null; 
-    phone: string | null;
-    is_pending: boolean;
-    tournament_id: string;
-    player: PlainPlayerDetail[] | null; 
-    couple: PlainCoupleDetail[] | null; 
-  }
-
-  // 3. Obtener todos los jugadores para búsqueda
-  const allPlayers = await getAllPlayersDTO()
-
-  // 4. Separar inscripciones individuales y parejas
-  const individualInscriptions = (rawInscriptions as PlainInscription[])
-    .filter((insc: PlainInscription) => !insc.couple || insc.couple.length === 0)
-    .map((insc: PlainInscription) => ({
-      id: insc.player && insc.player.length > 0 ? insc.player[0]?.id : insc.id, // Guard for insc.player
-      first_name: insc.player && insc.player.length > 0 ? insc.player[0]?.first_name : null,
-      last_name: insc.player && insc.player.length > 0 ? insc.player[0]?.last_name : null,
-      dni: insc.player && insc.player.length > 0 ? insc.player[0]?.dni : null,
-      phone: insc.player && insc.player.length > 0 ? insc.player[0]?.phone : null,
-      score: insc.player && insc.player.length > 0 ? insc.player[0]?.score : null
-    }));
-    
-  const coupleInscriptions = (rawInscriptions as PlainInscription[])
-    .filter((insc: PlainInscription) => insc.couple && insc.couple.length > 0)
-    .map((insc: PlainInscription) => ({
-      id: insc.id,
-      tournament_id: tournament.id,
-      player_1_id: insc.couple && insc.couple.length > 0 && insc.couple[0].player1 && insc.couple[0].player1.length > 0 ? insc.couple[0].player1[0]?.id : null,
-      player_2_id: insc.couple && insc.couple.length > 0 && insc.couple[0].player2 && insc.couple[0].player2.length > 0 ? insc.couple[0].player2[0]?.id : null,
-      player_1_info: {
-        id: insc.couple && insc.couple.length > 0 && insc.couple[0].player1 && insc.couple[0].player1.length > 0 ? insc.couple[0].player1[0]?.id : null,
-        first_name: insc.couple && insc.couple.length > 0 && insc.couple[0].player1 && insc.couple[0].player1.length > 0 ? insc.couple[0].player1[0]?.first_name : null,
-        last_name: insc.couple && insc.couple.length > 0 && insc.couple[0].player1 && insc.couple[0].player1.length > 0 ? insc.couple[0].player1[0]?.last_name : null,
-        dni: insc.couple && insc.couple.length > 0 && insc.couple[0].player1 && insc.couple[0].player1.length > 0 ? insc.couple[0].player1[0]?.dni : null,
-        score: insc.couple && insc.couple.length > 0 && insc.couple[0].player1 && insc.couple[0].player1.length > 0 ? insc.couple[0].player1[0]?.score : null
-      },
-      player_2_info: {
-        id: insc.couple && insc.couple.length > 0 && insc.couple[0].player2 && insc.couple[0].player2.length > 0 ? insc.couple[0].player2[0]?.id : null,
-        first_name: insc.couple && insc.couple.length > 0 && insc.couple[0].player2 && insc.couple[0].player2.length > 0 ? insc.couple[0].player2[0]?.first_name : null,
-        last_name: insc.couple && insc.couple.length > 0 && insc.couple[0].player2 && insc.couple[0].player2.length > 0 ? insc.couple[0].player2[0]?.last_name : null,
-        dni: insc.couple && insc.couple.length > 0 && insc.couple[0].player2 && insc.couple[0].player2.length > 0 ? insc.couple[0].player2[0]?.dni : null,
-        score: insc.couple && insc.couple.length > 0 && insc.couple[0].player2 && insc.couple[0].player2.length > 0 ? insc.couple[0].player2[0]?.score : null
-      },
-      created_at: insc.created_at || new Date().toISOString(), // Fallback for created_at
-      status: "ACTIVE"
-    }));
-
-  const result = { tournament, individualInscriptions, coupleInscriptions, user: plainUser, allPlayers };
+async function getData(id: string) {
   try {
-    // Ensure the entire result passed from getData to the Server Component is plain
-    return JSON.parse(JSON.stringify(result));
-  } catch (e: any) {
-    console.error("Error stringifying/parsing result in getData:", e, result);
-    // Handle error appropriately, perhaps by returning a structure that leads to an error page
-    // For now, rethrow or return a structure that leads to `notFound()` if critical data is missing.
-    // This situation indicates a severe problem with the data if it can't even be stringified.
-    throw new Error(`Failed to serialize data in getData: ${e.message}`);
+    // Usar las funciones de la API en lugar de llamadas directas a Supabase
+    const { tournament, inscriptions } = await getTournamentDetailsWithInscriptions(id)
+    
+    if (!tournament) {
+      notFound()
+    }
+
+    // Transformar las inscripciones individuales a la estructura esperada
+    const individualInscriptions = inscriptions
+      .filter((inscription: any) => inscription.player_id && !inscription.couple_id)
+      .map((inscription: any) => {
+        // Si la inscripción tiene el jugador nested en 'player', usarlo
+        if (inscription.player && inscription.player.length > 0) {
+          return inscription.player[0]
+        }
+        // Si no, crear el objeto con los datos disponibles
+        return {
+          id: inscription.player_id,
+          first_name: null,
+          last_name: null,
+          score: null,
+          dni: null,
+          phone: null,
+        }
+      })
+    
+    // Transformar las inscripciones de parejas a la estructura esperada
+    const coupleInscriptions = inscriptions
+      .filter((inscription: any) => inscription.couple_id)
+      .map((inscription: any) => {
+        // Si la inscripción tiene la pareja nested en 'couple', usarla
+        if (inscription.couple && inscription.couple.length > 0) {
+          const couple = inscription.couple[0]
+          return {
+            id: couple.id,
+            tournament_id: id,
+            player_1_id: couple.player1_id,
+            player_2_id: couple.player2_id,
+            created_at: couple.created_at || new Date().toISOString(),
+            player_1_info: couple.player1 && couple.player1.length > 0 ? couple.player1[0] : null,
+            player_2_info: couple.player2 && couple.player2.length > 0 ? couple.player2[0] : null,
+          }
+        }
+        // Si no, crear el objeto con los datos disponibles
+        return {
+          id: inscription.couple_id,
+          tournament_id: id,
+          player_1_id: null,
+          player_2_id: null,
+          created_at: inscription.created_at || new Date().toISOString(),
+          player_1_info: null,
+          player_2_info: null,
+        }
+      })
+
+    const allPlayers = await getAllPlayersDTO()
+
+    return {
+      tournament,
+      individualInscriptions,
+      coupleInscriptions,
+      allPlayers,
+    }
+  } catch (error) {
+    console.error("Error fetching tournament data:", error)
+    notFound()
   }
 }
 
@@ -174,17 +128,17 @@ async function getData(tournamentId: string) {
 function getStatusIcon(status: string) {
   switch (status) {
     case "NOT_STARTED":
-      return <Clock className="h-5 w-5 text-amber-500" />
+      return <Clock className="h-5 w-5" />
     case "PAIRING":
-      return <PauseCircle className="h-5 w-5 text-violet-500" />
+      return <PauseCircle className="h-5 w-5" />
     case "IN_PROGRESS":
-      return <Trophy className="h-5 w-5 text-emerald-500" />
+      return <TrendingUp className="h-5 w-5" />
     case "FINISHED":
-      return <CheckCircle className="h-5 w-5 text-blue-500" />
+      return <CheckCircle className="h-5 w-5" />
     case "CANCELED":
-      return <Ban className="h-5 w-5 text-rose-500" />
+      return <Ban className="h-5 w-5" />
     default:
-      return <Trophy className="h-5 w-5 text-emerald-500" />
+      return <Trophy className="h-5 w-5" />
   }
 }
 
@@ -192,17 +146,17 @@ function getStatusIcon(status: string) {
 function getStatusColor(status: string) {
   switch (status) {
     case "NOT_STARTED":
-      return "bg-amber-50 text-amber-700 border-amber-200"
+      return "bg-amber-100 text-amber-700 border-amber-200"
     case "PAIRING":
-      return "bg-violet-50 text-violet-700 border-violet-200"
+      return "bg-blue-100 text-blue-700 border-blue-200"
     case "IN_PROGRESS":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200"
+      return "bg-emerald-100 text-emerald-700 border-emerald-200"
     case "FINISHED":
-      return "bg-blue-50 text-blue-700 border-blue-200"
-    case "CANCELED":
-      return "bg-rose-50 text-rose-700 border-rose-200"
-    default:
       return "bg-slate-100 text-slate-700 border-slate-200"
+    case "CANCELED":
+      return "bg-red-100 text-red-700 border-red-200"
+    default:
+      return "bg-gray-100 text-gray-700 border-gray-200"
   }
 }
 
@@ -238,23 +192,22 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
   const maxPlayers = tournament.max_participants || 32
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-emerald-50">
+    <div className="min-h-screen bg-slate-50">
       <div className="container mx-auto px-4 py-8">
         <Suspense fallback={<TournamentDetailsLoading />}>
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <Button asChild className="flex items-center gap-2 bg-gradient-to-r from-teal-400 to-blue-400 text-white hover:from-teal-500 hover:to-blue-500 hover:text-white">
-                <Link href="/my-tournaments">
+          <div className="max-w-7xl mx-auto space-y-8">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <Button asChild variant="outline" className="border-gray-300 w-fit">
+                <Link href="/my-tournaments" className="flex items-center gap-2">
                   <ArrowLeft className="h-4 w-4" />
                   Volver a Mis Torneos
                 </Link>
               </Button>
-              <div className="flex items-center">
-                {tournament.status === "NOT_STARTED" && (
-                  <StartTournamentButton tournamentId={params.id} />
-                )}
+              <div className="flex items-center gap-3">
+                {tournament.status === "NOT_STARTED" && <StartTournamentButton tournamentId={params.id} />}
                 <span
-                  className={`px-3 py-1.5 rounded-full font-medium ${getStatusColor(
+                  className={`px-4 py-2 rounded-xl font-medium border ${getStatusColor(
                     tournament.status,
                   )} flex items-center gap-2`}
                 >
@@ -264,90 +217,123 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
               </div>
             </div>
 
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent mb-2">
-                {tournament.name}
-              </h1>
-              <p className="text-slate-600 max-w-2xl mx-auto">{tournament.clubes?.name}</p>
+            {/* Tournament Header */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+              <div className="p-8">
+                <div className="flex items-start gap-6">
+                  <div className="bg-slate-100 p-4 rounded-xl">
+                    <Trophy className="h-8 w-8 text-slate-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">{tournament.name}</h1>
+                    <div className="flex items-center gap-2 text-slate-600">
+                      <Building className="h-4 w-4" />
+                      <span>{tournament.clubes?.name || "Club no especificado"}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <Card className="bg-white rounded-xl shadow-md border border-slate-100 hover:border-violet-100 transition-all duration-300">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-medium bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
+            {/* Tournament Info Card */}
+            <Card className="bg-white border-gray-200 shadow-sm">
+              <CardHeader className="border-b border-gray-200 bg-slate-50">
+                <CardTitle className="text-xl font-semibold text-slate-900 flex items-center gap-3">
+                  <div className="bg-slate-200 p-2 rounded-lg">
+                    <Trophy className="h-5 w-5 text-slate-600" />
+                  </div>
                   Información del Torneo
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center">
-                      <Calendar className="h-5 w-5 mr-2 text-teal-600" />
-                      <span className="text-teal-700 font-medium">Fechas:</span>
-                      <span className="ml-2 text-slate-600">
-                        {formatDate(tournament.start_date)} - {formatDate(tournament.end_date)}
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      <Trophy className="h-5 w-5 mr-2 text-teal-600" />
-                      <span className="text-teal-700 font-medium">Categoría:</span>
-                      <span className="ml-2 inline-block bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full text-sm font-medium border border-teal-100">
-                        {tournament.categories?.name || "No especificada"}
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      <Trophy className="h-5 w-5 mr-2 text-teal-600" />
-                      <span className="text-teal-700 font-medium">Tipo:</span>
-                      <span className="ml-2 text-slate-600">
-                        {tournament.type === "AMERICAN" ? "Americano" : "Eliminación"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex items-start">
-                      <div className="flex-shrink-0 mt-1">
-                        <MapPin className="h-5 w-5 mr-2 text-emerald-600" />
+              <CardContent className="p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div className="flex items-start gap-4">
+                      <div className="bg-blue-100 p-2 rounded-lg mt-1">
+                        <Calendar className="h-5 w-5 text-blue-600" />
                       </div>
                       <div>
-                        <span className="text-slate-700 font-medium">Dirección:</span>
-                        <div className="ml-2 text-slate-600">
-                          <div>{tournament.clubes?.address || "No especificada"}</div>
-                        </div>
+                        <h3 className="font-semibold text-slate-900 mb-1">Fechas del torneo</h3>
+                        <p className="text-slate-600">
+                          {tournament.start_date ? formatDate(tournament.start_date) : "Fecha no especificada"} - {tournament.end_date ? formatDate(tournament.end_date) : "Fecha no especificada"}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex items-center">
-                      <Phone className="h-5 w-5 mr-2 text-emerald-600" />
-                      <span className="text-slate-700 font-medium">Teléfono:</span>
-                      <span className="ml-2 text-slate-600">{tournament.clubes?.phone || "No especificado"}</span>
+
+                    <div className="flex items-start gap-4">
+                      <div className="bg-emerald-100 p-2 rounded-lg mt-1">
+                        <Trophy className="h-5 w-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-slate-900 mb-1">Categoría y tipo</h3>
+                        <p className="text-slate-600">{tournament.categories?.name || "No especificada"}</p>
+                        <p className="text-sm text-slate-500">
+                          {tournament.type === "AMERICAN" ? "Torneo Americano" : "Eliminación Directa"}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center">
-                      <Mail className="h-5 w-5 mr-2 text-emerald-600" />
-                      <span className="text-slate-700 font-medium">Email:</span>
-                      <span className="ml-2 text-slate-600">{tournament.clubes?.email || "No especificado"}</span>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="flex items-start gap-4">
+                      <div className="bg-slate-100 p-2 rounded-lg mt-1">
+                        <MapPin className="h-5 w-5 text-slate-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-slate-900 mb-1">Ubicación</h3>
+                        <p className="text-slate-600">{tournament.clubes?.address || "No especificada"}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="bg-amber-100 p-2 rounded-lg mt-1">
+                          <Phone className="h-4 w-4 text-amber-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-slate-900 text-sm">Teléfono</h4>
+                          <p className="text-slate-600 text-sm">{tournament.clubes?.phone || "No especificado"}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <div className="bg-teal-100 p-2 rounded-lg mt-1">
+                          <Mail className="h-4 w-4 text-teal-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-slate-900 text-sm">Email</h4>
+                          <p className="text-slate-600 text-sm">{tournament.clubes?.email || "No especificado"}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-slate-100">
+                <div className="mt-8 pt-8 border-t border-gray-200">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-violet-600" />
-                      <span className="text-slate-700 font-medium">Inscripciones:</span>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg">
+                        <Users className="h-5 w-5 text-slate-600" />
+                      </div>
+                      <h3 className="font-semibold text-slate-900">Inscripciones</h3>
                     </div>
-                    <div className="flex gap-4">
-                      <span className="text-slate-600">
-                        <span className="font-medium text-violet-700">{individualInscriptions.length}</span> de{" "}
-                        <span className="font-medium text-violet-700">{maxPlayers}</span> jugadores individuales
-                      </span>
-                      <span className="text-slate-600">
-                        <span className="font-medium text-emerald-700">{coupleInscriptions.length}</span> parejas
-                      </span>
+                    <div className="flex gap-8">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-slate-900">{individualInscriptions.length}</div>
+                        <div className="text-sm text-slate-500">Jugadores individuales</div>
+                        <div className="text-xs text-slate-400">de {maxPlayers} máximo</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-slate-900">{coupleInscriptions.length}</div>
+                        <div className="text-sm text-slate-500">Parejas</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Componente cliente para las pestañas */}
+            {/* Tournament Details Tabs */}
             <TournamentDetailsTabs
               individualInscriptions={individualInscriptions}
               coupleInscriptions={coupleInscriptions}

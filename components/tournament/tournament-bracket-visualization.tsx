@@ -1,11 +1,14 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Loader2, Trophy, GitFork, ArrowRight, CheckCircle, Clock, Users } from "lucide-react"
-import { fetchTournamentMatches, advanceToNextStageAction, getTournamentById } from "@/app/api/tournaments/actions"
-import { useToast } from "@/components/ui/use-toast"
+import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
+import { fetchTournamentMatches } from "@/app/api/tournaments/actions"
+import { getTournamentById } from "@/app/api/tournaments/actions"
+import { advanceToNextStageAction } from "@/app/api/tournaments/actions"
+import { updateMatchResult } from "@/app/api/tournaments/actions"
+import { Loader2, GitFork, CheckCircle, Clock, Trophy, ArrowRight } from "lucide-react"
 import MatchResultDialog from "@/components/tournament/match-result-dialog"
-import { Button } from "../ui/button"
 
 interface TournamentBracketVisualizationProps {
   tournamentId: string
@@ -44,11 +47,6 @@ interface ConnectorLine {
   roundIndex: number
 }
 
-interface TournamentData {
-    id: string;
-    status: string;
-}
-
 export default function TournamentBracketVisualization({ tournamentId }: TournamentBracketVisualizationProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isAdvancing, setIsAdvancing] = useState(false)
@@ -63,7 +61,9 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
   const bracketRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
 
-  const matchSpacing = 70
+  const matchSpacing = 80
+  const matchHeight = 130
+  const columnWidth = 420
 
   const loadTournamentData = async () => {
     try {
@@ -75,6 +75,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
       if (tournamentDetails && tournamentDetails.status === "FINISHED") {
         setIsTournamentFinished(true)
       }
+
       const result = await fetchTournamentMatches(tournamentId)
       if (result.success && result.matches) {
         const knockoutMatches = result.matches.filter(
@@ -87,29 +88,29 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
             "16VOS": 1,
             "8VOS": 2,
             "4TOS": 3,
-            "SEMIFINAL": 4,
-            "FINAL": 5,
+            SEMIFINAL: 4,
+            FINAL: 5,
           }
           const roundAIndex = roundOrderMap[a.round] ?? 99
           const roundBIndex = roundOrderMap[b.round] ?? 99
 
           if (roundAIndex !== roundBIndex) return roundAIndex - roundBIndex
 
-          const orderA = typeof a.order === 'number' ? a.order : Infinity
-          const orderB = typeof b.order === 'number' ? b.order : Infinity
+          const orderA = typeof a.order === "number" ? a.order : Number.POSITIVE_INFINITY
+          const orderB = typeof b.order === "number" ? b.order : Number.POSITIVE_INFINITY
           return orderA - orderB
         })
 
         setMatches(sortedMatches)
-        
+
         const currentRoundVal = getCurrentRound(sortedMatches)
         setCurrentTournamentRound(currentRoundVal)
 
         if (!isTournamentFinished && currentRoundVal === "FINAL") {
-            const finalRoundMatches = sortedMatches.filter((match: Match) => match.round === "FINAL")
-            if (finalRoundMatches.length > 0 && finalRoundMatches.every((match: Match) => match.status === "COMPLETED")) {
-                setIsTournamentFinished(true)
-            }
+          const finalRoundMatches = sortedMatches.filter((match: Match) => match.round === "FINAL")
+          if (finalRoundMatches.length > 0 && finalRoundMatches.every((match: Match) => match.status === "COMPLETED")) {
+            setIsTournamentFinished(true)
+          }
         }
       } else {
         setError(result.error || "Error al cargar los partidos de llaves")
@@ -134,7 +135,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
 
   const calculatePositionsAndLines = () => {
     const roundOrder = ["32VOS", "16VOS", "8VOS", "4TOS", "SEMIFINAL", "FINAL"]
-    
+
     const matchesByRound: Record<string, Match[]> = {}
     matches.forEach((match) => {
       const round = match.round || "Unknown"
@@ -145,9 +146,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
     })
 
     const activeRounds = roundOrder.filter((round) => matchesByRound[round] && matchesByRound[round].length > 0)
-    
-    const columnWidth = 330
-    const matchHeight = 200
+
     const positions: MatchPosition[] = []
     const lines: ConnectorLine[] = []
 
@@ -156,99 +155,95 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
       const x = roundIndex * columnWidth
 
       if (roundIndex === 0) {
-        const totalHeight = roundMatches.length * (matchHeight + matchSpacing) - matchSpacing
-        const startY = 50
-                
+        const startY = 60
+
         roundMatches.forEach((match, matchIndex) => {
           const y = startY + matchIndex * (matchHeight + matchSpacing)
           positions.push({
             match,
             x,
             y,
-            width: 280,
-            height: matchHeight
+            width: 380,
+            height: matchHeight,
           })
         })
       } else {
         const prevRoundMatches = matchesByRound[activeRounds[roundIndex - 1]]
-        
+
         roundMatches.forEach((match, matchIndex) => {
           const startParentIndex = matchIndex * 2
           const endParentIndex = startParentIndex + 1
-          
-          const startParent = positions.find(p => p.match.id === prevRoundMatches[startParentIndex]?.id)
-          const endParent = positions.find(p => p.match.id === prevRoundMatches[endParentIndex]?.id)
-          
+
+          const startParent = positions.find((p) => p.match.id === prevRoundMatches[startParentIndex]?.id)
+          const endParent = positions.find((p) => p.match.id === prevRoundMatches[endParentIndex]?.id)
+
           if (startParent && endParent) {
-            const centerY = (startParent.y + startParent.height/2 + endParent.y + endParent.height/2) / 2 - matchHeight/2
-            
+            const centerY =
+              (startParent.y + startParent.height / 2 + endParent.y + endParent.height / 2) / 2 - matchHeight / 2
+
             positions.push({
               match,
               x,
               y: centerY,
-              width: 280,
-              height: matchHeight
+              width: 380,
+              height: matchHeight,
             })
 
             const currentMatchPos = positions[positions.length - 1]
             const currentMatchCenterY = currentMatchPos.y + currentMatchPos.height / 2
-
-            // Crear líneas conectoras con perfecta simetría
             const startParentCenterY = startParent.y + startParent.height / 2
             const endParentCenterY = endParent.y + endParent.height / 2
-            
-            // Only draw lines if parent matches are completed
+
             if (prevRoundMatches[startParentIndex]?.status === "COMPLETED") {
-              // Línea horizontal del primer padre
               lines.push({
                 x1: startParent.x + startParent.width,
                 y1: startParentCenterY,
-                x2: startParent.x + startParent.width + 50,
+                x2: startParent.x + startParent.width + 40,
                 y2: startParentCenterY,
-                roundIndex: roundIndex - 1
+                roundIndex: roundIndex - 1,
               })
             }
-            
+
             if (prevRoundMatches[endParentIndex]?.status === "COMPLETED") {
-              // Línea horizontal del segundo padre
               lines.push({
                 x1: endParent.x + endParent.width,
                 y1: endParentCenterY,
-                x2: endParent.x + endParent.width + 50,
+                x2: endParent.x + endParent.width + 40,
                 y2: endParentCenterY,
-                roundIndex: roundIndex - 1
+                roundIndex: roundIndex - 1,
               })
             }
 
-            // Vertical connector line between the two horizontal lines
-            if (prevRoundMatches[startParentIndex]?.status === "COMPLETED" || prevRoundMatches[endParentIndex]?.status === "COMPLETED") {
+            if (
+              prevRoundMatches[startParentIndex]?.status === "COMPLETED" ||
+              prevRoundMatches[endParentIndex]?.status === "COMPLETED"
+            ) {
               lines.push({
-                x1: startParent.x + startParent.width + 50,
+                x1: startParent.x + startParent.width + 40,
                 y1: startParentCenterY,
-                x2: startParent.x + startParent.width + 50,
+                x2: startParent.x + startParent.width + 40,
                 y2: endParentCenterY,
-                roundIndex: roundIndex - 1
+                roundIndex: roundIndex - 1,
               })
 
-              // Final horizontal line to current match
               const midPointY = (startParentCenterY + endParentCenterY) / 2
               lines.push({
-                x1: startParent.x + startParent.width + 50,
+                x1: startParent.x + startParent.width + 40,
                 y1: midPointY,
                 x2: currentMatchPos.x,
                 y2: currentMatchCenterY,
-                roundIndex: roundIndex - 1
+                roundIndex: roundIndex - 1,
               })
             }
           } else if (startParent && !endParent) {
             const centerY = startParent.y + (startParent.height - matchHeight) / 2
-            
+
             positions.push({
               match,
               x,
               y: centerY,
-              width: 280,
-              height: matchHeight
+              width: 380,
+              height: matchHeight,
             })
 
             const currentMatchPos = positions[positions.length - 1]
@@ -256,13 +251,12 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
             const startParentCenterY = startParent.y + startParent.height / 2
 
             if (prevRoundMatches[startParentIndex]?.status === "COMPLETED") {
-              // Direct line from parent to current match
               lines.push({
                 x1: startParent.x + startParent.width,
                 y1: startParentCenterY,
                 x2: currentMatchPos.x,
                 y2: currentMatchCenterY,
-                roundIndex: roundIndex - 1
+                roundIndex: roundIndex - 1,
               })
             }
           }
@@ -295,7 +289,9 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
       if (result.success) {
         toast({
           title: result.isFinal ? "Torneo Finalizado" : "Avance Exitoso",
-          description: result.message || (result.isFinal ? "El torneo ha concluido." : "Se ha avanzado a la siguiente etapa del torneo."),
+          description:
+            result.message ||
+            (result.isFinal ? "El torneo ha concluido." : "Se ha avanzado a la siguiente etapa del torneo."),
         })
         if (result.isFinal) {
           setIsTournamentFinished(true)
@@ -343,26 +339,32 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <Loader2 className="h-8 w-8 text-emerald-500 animate-spin" />
-        <span className="ml-2 text-slate-500">Cargando llaves del torneo...</span>
+      <div className="flex justify-center items-center py-16">
+        <Loader2 className="h-8 w-8 text-slate-600 animate-spin" />
+        <span className="ml-3 text-slate-500">Cargando llaves del torneo...</span>
       </div>
     )
   }
 
   if (error) {
-    return <div className="bg-rose-50 text-rose-600 p-4 rounded-lg border border-rose-100 text-center">{error}</div>
+    return (
+      <div className="bg-red-50 text-red-700 p-6 rounded-lg border border-red-200 text-center">
+        <div className="font-semibold mb-1">Error al cargar llaves</div>
+        <div className="text-sm">{error}</div>
+      </div>
+    )
   }
 
   if (matches.length === 0) {
     return (
-      <div className="text-center py-8">
-        <div className="bg-emerald-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
-          <GitFork className="h-8 w-8 text-emerald-500" />
+      <div className="text-center py-16">
+        <div className="bg-slate-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+          <GitFork className="h-10 w-10 text-slate-400" />
         </div>
-        <h3 className="text-xl font-medium text-emerald-600 mb-2">No hay llaves generadas</h3>
+        <h3 className="text-xl font-semibold text-slate-900 mb-2">No hay llaves generadas</h3>
         <p className="text-slate-500 max-w-md mx-auto">
-          Aún no se han generado las llaves para la etapa de eliminación directa o no hay partidos de este tipo.
+          Aún no se han generado las llaves para la etapa de eliminación directa. Las llaves se crearán automáticamente
+          cuando termine la fase de grupos.
         </p>
       </div>
     )
@@ -388,27 +390,23 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
   })
 
   const activeRoundsForLayout = roundOrder.filter((round) => matchesByRound[round] && matchesByRound[round].length > 0)
-  const totalWidthForLayout = activeRoundsForLayout.length * 330
-  const maxMatchesInAnyRoundForLayout = Math.max(0, ...activeRoundsForLayout.map(round => matchesByRound[round] ? matchesByRound[round].length : 0))
-  const calculatedTotalHeightForLayout = maxMatchesInAnyRoundForLayout * (200 + matchSpacing) + 100
+
+  const totalWidthForLayout = activeRoundsForLayout.length * columnWidth
+  const allMatches = Object.values(matchesByRound).flat()
+  const maxMatchesInRound = Math.max(...activeRoundsForLayout.map((round) => matchesByRound[round].length))
+  const calculatedTotalHeightForLayout = Math.max(600, 60 + maxMatchesInRound * (matchHeight + matchSpacing) + 100)
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-center mb-4">
-        <div className="bg-white rounded-full p-1 shadow-sm border border-emerald-100 inline-flex">
-          <Button variant="ghost" className="bg-emerald-500 text-white rounded-full px-4">
-            <Trophy className="h-4 w-4 mr-2" />
-            Vista de Llaves
-          </Button>
-          <Button variant="ghost" className="text-emerald-600 rounded-full px-4">
-            <Clock className="h-4 w-4 mr-2" />
-            Vista de Tabla
-          </Button>
-        </div>
-      </div>
-
-      <div className="tournament-bracket px-4 overflow-x-auto" ref={bracketRef}>
-        <div className="relative" style={{ width: totalWidthForLayout, minHeight: calculatedTotalHeightForLayout }}>
+    <div className="space-y-6">
+      <div
+        ref={bracketRef}
+        className="tournament-bracket overflow-x-auto overflow-y-auto border border-gray-200 rounded-lg bg-gray-50"
+        style={{ maxHeight: "70vh" }}
+      >
+        <div
+          className="relative py-8"
+          style={{ width: totalWidthForLayout, minHeight: calculatedTotalHeightForLayout }}
+        >
           <svg
             className="absolute top-0 left-0 pointer-events-none"
             width={totalWidthForLayout}
@@ -422,7 +420,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                   y1={line.y1}
                   x2={line.x2}
                   y2={line.y2}
-                  stroke="#10b981"
+                  stroke="#64748b"
                   strokeWidth="2"
                   fill="none"
                 />
@@ -435,22 +433,23 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
               key={`header-${round}`}
               className="absolute text-center"
               style={{
-                left: roundIndex * 330,
-                top: -60,
-                width: 280,
-                zIndex: 2
+                left: roundIndex * columnWidth,
+                top: 0,
+                width: 380,
+                zIndex: 2,
               }}
             >
-              <h3 className="text-lg font-semibold text-emerald-700 bg-emerald-50 rounded-lg py-2 px-4 border border-emerald-200">
-                {roundTranslation[round] || round}
-              </h3>
+              <div className="bg-slate-900 text-white rounded-lg py-3 px-4 shadow-sm">
+                <h3 className="text-sm font-semibold">{roundTranslation[round] || round}</h3>
+              </div>
             </div>
           ))}
 
           {matchPositions.map((position, index) => {
             const match = position.match
             const isCompleted = match.status === "COMPLETED"
-            const isBye = match.couple1_id === "BYE_MARKER" || match.couple2_id === "BYE_MARKER" || match.couple2_id === null
+            const isBye =
+              match.couple1_id === "BYE_MARKER" || match.couple2_id === "BYE_MARKER" || match.couple2_id === null
 
             return (
               <div
@@ -461,38 +460,24 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                   top: position.y,
                   width: position.width,
                   height: position.height,
-                  zIndex: 3
+                  zIndex: 3,
                 }}
               >
-                <div className={`bg-white rounded-xl shadow-lg h-full transition-all hover:shadow-xl border-0 ${
-                  isCompleted ? "ring-2 ring-emerald-200" : "ring-2 ring-slate-200"
-                } overflow-hidden`}>
-                  
-                  {/* Header del partido */}
-                  <div className={`px-4 py-3 ${isCompleted ? "bg-gradient-to-r from-emerald-50 to-emerald-100" : "bg-gradient-to-r from-slate-50 to-slate-100"}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <Users className="h-4 w-4 text-slate-600 mr-2" />
-                        <span className="text-sm font-semibold text-slate-700">Partido {match.order || index + 1}</span>
-                      </div>
-                      <div className="flex items-center">
-                        {isCompleted ? (
-                          <CheckCircle className="h-4 w-4 text-emerald-600" />
-                        ) : (
-                          <Clock className="h-4 w-4 text-amber-500" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
+                <div
+                  className={`bg-white rounded-lg shadow-md h-full transition-all hover:shadow-lg border-2 ${
+                    isCompleted ? "border-slate-300" : "border-gray-200"
+                  } overflow-hidden`}
+                >
                   {/* Pareja 1 */}
-                  <div className={`px-4 py-3 ${
-                    isCompleted && match.winner_id === match.couple1_id
-                      ? "bg-emerald-50"
-                      : "bg-white"
-                  }`}>
-                    <div className="flex justify-between items-center min-h-7">
-                      <div className="font-medium text-slate-800 text-sm truncate max-w-[140px]">
+                  <div
+                    className={`px-4 py-2 ${
+                      isCompleted && match.winner_id === match.couple1_id
+                        ? "bg-emerald-50 border-l-4 border-emerald-500"
+                        : "bg-white"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center min-h-6">
+                      <div className="font-medium text-slate-900 text-sm max-w-[240px]">
                         {match.couple1_player1_name && match.couple1_player2_name
                           ? `${match.couple1_player1_name} / ${match.couple1_player2_name}`
                           : match.couple1_id === "BYE_MARKER"
@@ -500,7 +485,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                             : "Por determinar"}
                       </div>
                       {isCompleted && (
-                        <div className="bg-emerald-600 text-white text-sm font-bold px-3 py-1 rounded-full shadow-sm">
+                        <div className="bg-slate-900 text-white text-xs font-bold px-2 py-1 rounded shadow-sm">
                           {match.result_couple1}
                         </div>
                       )}
@@ -508,16 +493,18 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                   </div>
 
                   {/* Separador */}
-                  <div className="border-t border-slate-100"></div>
+                  <div className="border-t border-gray-200"></div>
 
                   {/* Pareja 2 */}
-                  <div className={`px-4 py-3 ${
-                    isCompleted && match.winner_id === match.couple2_id
-                      ? "bg-emerald-50"
-                      : "bg-white"
-                  }`}>
-                    <div className="flex justify-between items-center min-h-7">
-                      <div className="font-medium text-slate-800 text-sm truncate max-w-[140px]">
+                  <div
+                    className={`px-4 py-2 ${
+                      isCompleted && match.winner_id === match.couple2_id
+                        ? "bg-emerald-50 border-l-4 border-emerald-500"
+                        : "bg-white"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center min-h-6">
+                      <div className="font-medium text-slate-900 text-sm max-w-[240px]">
                         {match.couple2_player1_name && match.couple2_player2_name
                           ? `${match.couple2_player1_name} / ${match.couple2_player2_name}`
                           : match.couple2_id === "BYE_MARKER" || match.couple2_id === null
@@ -525,7 +512,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                             : "Por determinar"}
                       </div>
                       {isCompleted && (
-                        <div className="bg-emerald-600 text-white text-sm font-bold px-3 py-1 rounded-full shadow-sm">
+                        <div className="bg-slate-900 text-white text-xs font-bold px-2 py-1 rounded shadow-sm">
                           {match.result_couple2}
                         </div>
                       )}
@@ -533,19 +520,26 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                   </div>
 
                   {/* Footer */}
-                  <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-                    <span className={`text-xs font-semibold ${isCompleted ? "text-emerald-700" : "text-amber-600"}`}>
-                      {isCompleted ? "Completado" : "Pendiente"}
-                    </span>
+                  <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      {isCompleted ? (
+                        <CheckCircle className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <Clock className="h-4 w-4 text-amber-500" />
+                      )}
+                      <span className={`text-xs font-medium ${isCompleted ? "text-emerald-700" : "text-amber-600"}`}>
+                        {isCompleted ? "Completado" : "Pendiente"}
+                      </span>
+                    </div>
 
                     {!isBye && (
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-xs h-7 px-3 bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-800 rounded-full"
+                        className="text-xs h-6 px-2 bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 rounded"
                         onClick={() => handleOpenResultDialog(match)}
                       >
-                        Editar
+                        {isCompleted ? "Editar" : "Cargar"}
                       </Button>
                     )}
                   </div>
@@ -560,19 +554,12 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
         <div className="flex justify-center mt-8">
           <Button
             onClick={handleAdvanceToNextStage}
-            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-6 rounded-full shadow-md hover:shadow-lg transition-all"
+            className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-3 rounded-lg shadow-sm"
             disabled={isAdvancing || isTournamentFinished}
           >
             {isAdvancing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Trophy className="mr-2 h-5 w-5" />}
             {isAdvancing ? "Avanzando..." : "Avanzar a la siguiente etapa"}
             {!isAdvancing && <ArrowRight className="ml-2 h-5 w-5" />}
-          </Button>
-        </div>
-      )}
-      {isAdvancing && (
-        <div className="flex justify-center mt-8">
-          <Button disabled className="bg-emerald-100 text-emerald-700 cursor-not-allowed">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Avanzando...
           </Button>
         </div>
       )}
@@ -591,15 +578,15 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
           height: 8px;
         }
         .tournament-bracket::-webkit-scrollbar-track {
-          background: #f1f1f1;
+          background: #f1f5f9;
           border-radius: 4px;
         }
         .tournament-bracket::-webkit-scrollbar-thumb {
-          background: #10b981;
+          background: #64748b;
           border-radius: 4px;
         }
         .tournament-bracket::-webkit-scrollbar-thumb:hover {
-          background: #0d9488;
+          background: #475569;
         }
       `}</style>
     </div>

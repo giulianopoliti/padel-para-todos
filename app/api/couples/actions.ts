@@ -51,8 +51,8 @@ export async function registerCoupleForTournament({
   const { data: existingCouple, error: coupleCheckError } = await supabase
     .from('couples')
     .select('id')
-    .or(`player_1.eq.${player1Id},player_2.eq.${player1Id}`)
-    .or(`player_1.eq.${player2Id},player_2.eq.${player2Id}`)
+    .or(`player1_id.eq.${player1Id},player2_id.eq.${player1Id}`)
+    .or(`player1_id.eq.${player2Id},player2_id.eq.${player2Id}`)
     .maybeSingle();
     
   if (coupleCheckError) {
@@ -71,8 +71,8 @@ export async function registerCoupleForTournament({
     const { data: newCouple, error: createCoupleError } = await supabase
       .from('couples')
       .insert({
-        player_1: player1Id,
-        player_2: player2Id,
+        player1_id: player1Id,
+        player2_id: player2Id,
         created_at: new Date().toISOString()
       })
       .select('id')
@@ -109,8 +109,10 @@ export async function registerCoupleForTournament({
   const { error: inscriptionError } = await supabase
     .from('inscriptions')
     .insert({
+      player_id: player1Id,
       couple_id: coupleId,
       tournament_id: tournamentId,
+      is_pending: false,
       created_at: new Date().toISOString()
     });
     
@@ -169,13 +171,13 @@ export async function getCouplesByTournamentId(tournamentId: string) {
   }
 
   // 2. Obtener los detalles de esas parejas
-  // Incluimos detalles de player_1 y player_2 para mostrar nombres, etc.
+  // Incluimos detalles de player1_id y player2_id para mostrar nombres, etc.
   const { data: couples, error: couplesError } = await supabase
     .from('couples')
     .select(`
       *,
-      player_1:players!couples_player_1_fkey ( id, first_name, last_name ),
-      player_2:players!couples_player_2_fkey ( id, first_name, last_name )
+      player1:players!couples_player1_id_fkey ( id, first_name, last_name, score ),
+      player2:players!couples_player2_id_fkey ( id, first_name, last_name, score )
     `)
     .in('id', coupleIds);
 
@@ -184,6 +186,26 @@ export async function getCouplesByTournamentId(tournamentId: string) {
     throw couplesError;
   }
 
-  // console.log(`[getCouplesByTournamentId] Fetched ${couples?.length || 0} couples for tournament ${tournamentId}`);
-  return couples || [];
+  // 3. Transformar los datos al formato esperado por los componentes del frontend
+  const transformedCouples = (couples || []).map(couple => ({
+    id: couple.id,
+    player1_id: couple.player1_id,
+    player2_id: couple.player2_id,
+    created_at: couple.created_at,
+    player_1_info: couple.player1 ? {
+      id: couple.player1.id,
+      first_name: couple.player1.first_name,
+      last_name: couple.player1.last_name,
+      score: couple.player1.score
+    } : null,
+    player_2_info: couple.player2 ? {
+      id: couple.player2.id,
+      first_name: couple.player2.first_name,
+      last_name: couple.player2.last_name,
+      score: couple.player2.score
+    } : null
+  }));
+
+  // console.log(`[getCouplesByTournamentId] Fetched ${transformedCouples.length || 0} couples for tournament ${tournamentId}`);
+  return transformedCouples;
 }

@@ -1,28 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Trophy,
@@ -31,21 +13,14 @@ import {
   MapPin,
   Phone,
   UserPlus,
-  UserCog,
   ChevronLeft,
   Clock,
   Award,
   Mail,
-  UserX,
-  AlertTriangle
+  Settings,
 } from "lucide-react"
-import RegisterPlayerForm from "./register-player-form"
-import RegisterCoupleForm from "./register-couple-form"
-import { useUser } from "@/contexts/user-context"
-import { removePlayerFromTournament } from "@/app/api/tournaments/actions"
-import { toast } from "@/components/ui/use-toast"
 
-// Tipos (mismos que guest-tournament-client)
+// Tipos (mismos que los otros componentes)
 interface Tournament {
   id: string
   name: string
@@ -66,6 +41,7 @@ interface Tournament {
     name: string
     image?: string
   }
+  ownerId?: string
 }
 
 interface Category {
@@ -105,31 +81,25 @@ interface ProcessedCouple {
   player_2_info: PlayerInfo | null
 }
 
-interface PlayerTournamentClientProps {
+interface ClubTournamentClientProps {
   tournament: Tournament
   category: Category | null
   club: Club | null
   players: PlayerInfo[]
   couples: ProcessedCouple[]
   allPlayersForSearch: PlayerDTO[]
+  isOwner: boolean
 }
 
-export default function PlayerTournamentClient({
+export default function ClubTournamentClient({
   tournament,
   category,
   club,
   players,
   couples,
   allPlayersForSearch,
-}: PlayerTournamentClientProps) {
-  const [coupleDialogOpen, setCoupleDialogOpen] = useState(false)
-  const [soloDialogOpen, setSoloDialogOpen] = useState(false)
-  const [isUnregistering, setIsUnregistering] = useState(false)
-  const router = useRouter()
-  const { userDetails } = useUser()
-
-  const isTournamentActive = tournament.status !== "NOT_STARTED"
-
+  isOwner,
+}: ClubTournamentClientProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })
@@ -169,68 +139,6 @@ export default function PlayerTournamentClient({
     }
   }
 
-  const handleRegistrationComplete = (success: boolean) => {
-    if (success) {
-      setCoupleDialogOpen(false)
-      setSoloDialogOpen(false)
-      router.refresh() // Recargar la página para mostrar los datos actualizados
-    }
-  }
-
-  const isUserRegistered = () => {
-    if (!userDetails?.player_id) return false
-    
-    // Verificar si el usuario ya está registrado como jugador individual o en pareja
-    return (
-      players.some((player) => player.id === userDetails.player_id) ||
-      couples.some(
-        (couple) => couple.player_1_info?.id === userDetails.player_id || couple.player_2_info?.id === userDetails.player_id,
-      )
-    )
-  }
-
-  const handleUnregister = async () => {
-    if (!userDetails?.player_id) {
-      toast({
-        title: "Error",
-        description: "No se pudo obtener tu información de jugador",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsUnregistering(true)
-
-    try {
-      const result = await removePlayerFromTournament(tournament.id)
-      
-      if (result.success) {
-        toast({
-          title: "Inscripción eliminada",
-          description: result.message,
-        })
-        
-        // Recargar la página para actualizar el estado
-        router.refresh()
-      } else {
-        toast({
-          title: "Error al eliminar inscripción",
-          description: result.message,
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Error al eliminar inscripción:", error)
-      toast({
-        title: "Error inesperado",
-        description: "Ocurrió un error al eliminar la inscripción",
-        variant: "destructive",
-      })
-    } finally {
-      setIsUnregistering(false)
-    }
-  }
-
   return (
     <div className="space-y-8">
       {/* Navegación */}
@@ -248,7 +156,24 @@ export default function PlayerTournamentClient({
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold text-gray-800 mb-4">{tournament.name}</h1>
         <p className="text-gray-600 text-lg">{tournament.club?.name || "Club no especificado"}</p>
+        {isOwner && (
+          <div className="mt-4">
+            <Badge className="bg-blue-100 text-blue-800 border-blue-200 px-3 py-1">Tu torneo</Badge>
+          </div>
+        )}
       </div>
+
+      {/* Botón de modificar torneo (solo para propietarios) */}
+      {isOwner && (
+        <div className="flex justify-center mb-8">
+          <Link href={`/my-tournaments/${tournament.id}`}>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3">
+              <Settings className="mr-2 h-4 w-4" />
+              Modificar Torneo
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {/* Imagen y información principal */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -391,114 +316,6 @@ export default function PlayerTournamentClient({
           </div>
         </CardContent>
       </Card>
-
-      {/* Botones de acción */}
-      {!isTournamentActive && (
-        <div className="flex flex-wrap gap-4 justify-center">
-          {!isUserRegistered() ? (
-            <>
-              {/* Dialog para registro individual */}
-              <Dialog open={soloDialogOpen} onOpenChange={setSoloDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
-                  >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Inscribirme solo
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
-                    <DialogTitle>Inscripción Individual</DialogTitle>
-                    <DialogDescription>
-                      Completa tu registro individual para el torneo {tournament.name}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <RegisterPlayerForm
-                    tournamentId={tournament.id}
-                    tournament={tournament}
-                    onComplete={handleRegistrationComplete}
-                  />
-                </DialogContent>
-              </Dialog>
-
-              {/* Dialog para registro de pareja */}
-              <Dialog open={coupleDialogOpen} onOpenChange={setCoupleDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3">
-                    <Users className="mr-2 h-4 w-4" />
-                    Inscribir pareja
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Inscripción de Pareja</DialogTitle>
-                    <DialogDescription>
-                      Registra una pareja para el torneo {tournament.name}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <RegisterCoupleForm
-                    tournamentId={tournament.id}
-                    onComplete={handleRegistrationComplete}
-                    players={allPlayersForSearch}
-                  />
-                </DialogContent>
-              </Dialog>
-            </>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              {/* Mensaje de confirmación */}
-              <div className="flex items-center bg-green-50 text-green-700 px-4 py-2 rounded-lg border border-green-200">
-                <Trophy className="mr-2 h-5 w-5" />
-                <span className="font-medium">Ya estás registrado en este torneo</span>
-              </div>
-              
-              {/* Botón eliminar inscripción */}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 px-6 py-3"
-                    disabled={isUnregistering}
-                  >
-                    <UserX className="mr-2 h-4 w-4" />
-                    Eliminar inscripción
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[400px]">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center text-red-600">
-                      <AlertTriangle className="mr-2 h-5 w-5" />
-                      Confirmar eliminación
-                    </DialogTitle>
-                    <DialogDescription className="pt-2">
-                      ¿Estás seguro de que quieres eliminar tu inscripción del torneo "{tournament.name}"? 
-                      Esta acción no se puede deshacer.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="flex gap-3 pt-4">
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => {}}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      className="flex-1"
-                      onClick={handleUnregister}
-                      disabled={isUnregistering}
-                    >
-                      {isUnregistering ? "Eliminando..." : "Eliminar"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Tabs para diferentes secciones */}
       <Tabs defaultValue="players" className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">

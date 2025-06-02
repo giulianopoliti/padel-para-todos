@@ -1,13 +1,44 @@
 import { Suspense } from "react"
 import { notFound } from "next/navigation"
-import PlayerTournamentClient from "@/components/tournament/player/player-tournament-client"
+import ClubTournamentClient from "@/components/tournament/club/club-tournament-client"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getTournamentById } from "@/app/api/tournaments"
 import { getCategories } from "@/app/api/users"
 import { getClubById } from "@/app/api/users"
 import { getCouplesByTournamentId } from "@/app/api/couples/actions"
 import { getPlayersByTournamentId } from "@/app/api/tournaments/actions"
-import { getPlayersMale } from "@/app/api/users"
+import { getPlayersMale, getUser, getUserRole } from "@/app/api/users"
+
+// Función para obtener el club del usuario actual
+async function getCurrentClubId() {
+  try {
+    const user = await getUser()
+    const role = await getUserRole()
+    
+    if (!user || role !== 'CLUB') {
+      return null
+    }
+
+    // Buscar el club asociado al usuario
+    const { createClient } = await import('@/utils/supabase/server')
+    const supabase = await createClient()
+    
+    const { data: club, error } = await supabase
+      .from('clubes')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+
+    if (error || !club) {
+      return null
+    }
+
+    return club.id
+  } catch (error) {
+    console.error('Error getting current club ID:', error)
+    return null
+  }
+}
 
 function TournamentLoading() {
   return (
@@ -31,7 +62,7 @@ function TournamentLoading() {
   )
 }
 
-export default async function PlayerTournamentPage({ params: { id: tournamentId } }: { params: { id: string } }) {
+export default async function ClubTournamentPage({ params: { id: tournamentId } }: { params: { id: string } }) {
   // Obtener datos del torneo desde Supabase
   const tournamentData = await getTournamentById(tournamentId)
   if (!tournamentData) {
@@ -39,7 +70,7 @@ export default async function PlayerTournamentPage({ params: { id: tournamentId 
   }
 
   // Obtener datos relacionados en paralelo
-  const [categoryData, clubData, playersData, rawCouplesData, allPlayers] = await Promise.all([
+  const [categoryData, clubData, playersData, rawCouplesData, allPlayers, currentClubId] = await Promise.all([
     // Obtener categoría por nombre
     tournamentData.category ? 
       getCategories().then(categories => categories.find(cat => cat.name === tournamentData.category) || null) : 
@@ -51,7 +82,9 @@ export default async function PlayerTournamentPage({ params: { id: tournamentId 
     // Obtener parejas del torneo
     getCouplesByTournamentId(tournamentId),
     // Obtener todos los jugadores para el buscador
-    getPlayersMale()
+    getPlayersMale(),
+    // Obtener ID del club actual
+    getCurrentClubId()
   ])
 
   // Transformar Player a PlayerDTO para el componente
@@ -63,17 +96,21 @@ export default async function PlayerTournamentPage({ params: { id: tournamentId 
     score: player.score
   }))
 
+  // Verificar si el club actual es propietario del torneo
+  const isOwner = currentClubId === tournamentData.club?.id
+
   return (
     <div className="min-h-screen bg-white">
       <div className="container mx-auto px-6 py-12">
         <Suspense fallback={<TournamentLoading />}>
-          <PlayerTournamentClient
+          <ClubTournamentClient
             tournament={tournamentData}
             category={categoryData}
             club={clubData}
             players={playersData}
             couples={rawCouplesData}
             allPlayersForSearch={playersDTO}
+            isOwner={isOwner}
           />
         </Suspense>
       </div>

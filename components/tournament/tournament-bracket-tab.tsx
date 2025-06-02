@@ -4,7 +4,6 @@ import { useState } from "react"
 import TournamentBracketVisualization from "./tournament-bracket-visualization"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { GitFork, Table2 } from "lucide-react"
-import { Card } from "@/components/ui/card"
 
 interface TournamentBracketTabProps {
   tournamentId: string
@@ -14,15 +13,15 @@ export default function TournamentBracketTab({ tournamentId }: TournamentBracket
   const [viewMode, setViewMode] = useState<"visual" | "table">("visual")
 
   return (
-    <div className="space-y-6">
-      <Card className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100">
+    <div className="p-8 space-y-6">
+      <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
         <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "visual" | "table")} className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 bg-emerald-100/50">
-            <TabsTrigger value="visual" className="data-[state=active]:bg-white data-[state=active]:text-emerald-600">
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 bg-white border border-gray-200">
+            <TabsTrigger value="visual" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white">
               <GitFork className="h-4 w-4 mr-2" />
               Vista de Llaves
             </TabsTrigger>
-            <TabsTrigger value="table" className="data-[state=active]:bg-white data-[state=active]:text-emerald-600">
+            <TabsTrigger value="table" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white">
               <Table2 className="h-4 w-4 mr-2" />
               Vista de Tabla
             </TabsTrigger>
@@ -33,11 +32,12 @@ export default function TournamentBracketTab({ tournamentId }: TournamentBracket
           </TabsContent>
 
           <TabsContent value="table" className="mt-6">
-            {/* Aquí puedes mantener tu implementación actual de tabla */}
-            <div className="text-center py-4 text-slate-500">Vista de tabla disponible</div>
+            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+              <div className="text-slate-500">Vista de tabla disponible próximamente</div>
+            </div>
           </TabsContent>
         </Tabs>
-      </Card> 
+      </div>
     </div>
   )
 }

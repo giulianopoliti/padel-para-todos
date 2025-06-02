@@ -27,8 +27,10 @@ export default async function TournamentsLayout({
   }
 
   return (
-    <div className="container py-6">
-      {contentToRender}
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto px-6 py-12 max-w-6xl">
+        {contentToRender}
+      </div>
     </div>
   );
 } 

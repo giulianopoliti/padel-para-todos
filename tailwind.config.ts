@@ -11,13 +11,6 @@ const config = {
   ],
   prefix: "",
   theme: {
-    container: {
-      center: true,
-      padding: "2rem",
-      screens: {
-        "2xl": "1400px",
-      },
-    },
     extend: {
       colors: {
         border: "hsl(var(--border))",
@@ -25,6 +18,18 @@ const config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        blue: {
+          50: "#f0f4fa",
+          100: "#dce5f3",
+          200: "#c0d0e9",
+          300: "#9ab6dc",
+          400: "#7b9dcf", // El color que mencionaste
+          500: "#6085c4",
+          600: "#4a6db8",
+          700: "#3e5ca8",
+          800: "#374c89",
+          900: "#31426f",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",

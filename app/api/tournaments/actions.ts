@@ -547,7 +547,7 @@ export async function getCouplesByTournamentId(tournamentId: string): Promise<an
   return couples || [];
 }
 
-export async function registerAuthenticatedPlayerForTournament(tournamentId: string): Promise<{ success: boolean; message: string; inscriptionId?: string }> {
+export async function registerAuthenticatedPlayerForTournament(tournamentId: string, phone?: string): Promise<{ success: boolean; message: string; inscriptionId?: string }> {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return { success: false, message: authError?.message || "Debes iniciar sesión." };
@@ -579,6 +579,7 @@ export async function registerAuthenticatedPlayerForTournament(tournamentId: str
       player_id: playerId, 
       tournament_id: tournamentId, 
       couple_id: null, 
+      phone: phone || null, // Guardar el teléfono de contacto
       created_at: new Date().toISOString(),
       is_pending: false // Direct registration is not pending
     })
@@ -1781,3 +1782,93 @@ export async function populateTournamentSeedCouples(tournamentId: string): Promi
     return { success: false, error: `Error inesperado al generar cabezas de serie: ${e.message}` };
   }
 } 
+
+export async function removePlayerFromTournament(tournamentId: string, playerId?: string): Promise<{ success: boolean; message: string }> {
+  const supabase = await createClient();
+  
+  // Si no se proporciona playerId, obtener el del usuario autenticado
+  let targetPlayerId = playerId;
+  
+  if (!targetPlayerId) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return { success: false, message: "Debes iniciar sesión para eliminar tu inscripción." };
+    }
+    
+    const { data: playerData, error: playerError } = await supabase
+      .from('players')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (playerError || !playerData?.id) {
+      return { success: false, message: "No se pudo encontrar tu perfil de jugador." };
+    }
+    
+    targetPlayerId = playerData.id;
+  }
+
+  try {
+    // Buscar todas las inscripciones del jugador en este torneo
+    const { data: inscriptions, error: fetchError } = await supabase
+      .from('inscriptions')
+      .select('id, couple_id')
+      .eq('tournament_id', tournamentId)
+      .eq('player_id', targetPlayerId);
+
+    if (fetchError) {
+      console.error("[removePlayerFromTournament] Error fetching inscriptions:", fetchError);
+      return { success: false, message: "Error al buscar las inscripciones." };
+    }
+
+    if (!inscriptions || inscriptions.length === 0) {
+      return { success: false, message: "No se encontró ninguna inscripción para eliminar." };
+    }
+
+    // Eliminar todas las inscripciones del jugador
+    const { error: deleteError } = await supabase
+      .from('inscriptions')
+      .delete()
+      .eq('tournament_id', tournamentId)
+      .eq('player_id', targetPlayerId);
+
+    if (deleteError) {
+      console.error("[removePlayerFromTournament] Error deleting inscriptions:", deleteError);
+      return { success: false, message: "Error al eliminar la inscripción." };
+    }
+
+    // Si había una pareja asociada, verificar si queda sin inscripciones y eliminarla si es necesario
+    const coupleInscriptions = inscriptions.filter(ins => ins.couple_id);
+    for (const inscription of coupleInscriptions) {
+      if (inscription.couple_id) {
+        // Verificar si quedan otras inscripciones para esta pareja
+        const { data: remainingInscriptions, error: checkError } = await supabase
+          .from('inscriptions')
+          .select('id')
+          .eq('couple_id', inscription.couple_id);
+
+        if (!checkError && remainingInscriptions && remainingInscriptions.length === 0) {
+          // No quedan inscripciones para esta pareja, se puede eliminar
+          const { error: deleteCoupleError } = await supabase
+            .from('couples')
+            .delete()
+            .eq('id', inscription.couple_id);
+
+          if (deleteCoupleError) {
+            console.error("[removePlayerFromTournament] Error deleting orphaned couple:", deleteCoupleError);
+            // No fallar por esto, la inscripción ya se eliminó correctamente
+          }
+        }
+      }
+    }
+
+    // Revalidar las rutas para actualizar la UI
+    revalidatePath(`/tournaments/${tournamentId}`);
+    revalidatePath('/tournaments');
+
+    return { success: true, message: "Inscripción eliminada exitosamente." };
+  } catch (error) {
+    console.error("[removePlayerFromTournament] Unexpected error:", error);
+    return { success: false, message: "Error inesperado al eliminar la inscripción." };
+  }
+}

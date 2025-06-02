@@ -1,10 +1,7 @@
 "use client"
-
-import React from 'react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { Shield, Mail, KeyRound, AlertCircle } from 'lucide-react'
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Mail, KeyRound, AlertCircle } from "lucide-react"
 
 interface ClubSecuritySectionProps {
   userEmail?: string | null
@@ -13,24 +10,16 @@ interface ClubSecuritySectionProps {
 export function ClubSecuritySection({ userEmail }: ClubSecuritySectionProps) {
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium text-slate-700">Seguridad de la Cuenta</h3>
-        <p className="text-sm text-slate-500 mb-6">
-          Administra la configuración de seguridad de tu club.
-        </p>
-      </div>
-      <Separator className="bg-slate-100" />
-
       {userEmail && (
-        <div className="pt-4 bg-gradient-to-r from-blue-50 to-teal-50 rounded-xl p-4 border border-blue-100">
+        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex gap-3">
             <div className="shrink-0 mt-0.5">
               <Mail className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <Label className="text-slate-700 font-medium">Email Registrado</Label>
-              <p className="text-sm text-slate-700 font-medium mt-1">{userEmail}</p>
-              <p className="text-xs text-slate-500 mt-1">
+              <Label className="text-sm font-medium text-gray-700">Email Registrado</Label>
+              <p className="text-sm text-gray-900 font-medium mt-1">{userEmail}</p>
+              <p className="text-xs text-gray-600 mt-1">
                 Este es el email asociado a la cuenta de tu club. Para cambiarlo, contacta con soporte.
               </p>
             </div>
@@ -38,47 +27,55 @@ export function ClubSecuritySection({ userEmail }: ClubSecuritySectionProps) {
         </div>
       )}
 
-      <div className="pt-4 space-y-5">
+      <div className="space-y-4">
         <div className="flex items-center gap-3 mb-4">
-          <div className="bg-gradient-to-r from-teal-500 to-blue-500 text-white w-8 h-8 rounded-lg flex items-center justify-center">
-            <KeyRound className="h-4 w-4" />
+          <div className="bg-blue-100 w-8 h-8 rounded-lg flex items-center justify-center">
+            <KeyRound className="h-4 w-4 text-blue-600" />
           </div>
-          <h4 className="text-lg font-medium text-slate-700">Cambiar Contraseña</h4>
+          <h4 className="text-lg font-medium text-gray-900">Cambiar Contraseña</h4>
         </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="currentPassword" className="text-slate-700">Contraseña Actual</Label>
-          <Input 
-            id="currentPassword" 
-            name="currentPassword" 
-            type="password" 
-            placeholder="••••••••" 
-            className="border-slate-200 focus:border-teal-500 focus:ring-teal-500/10"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="newPassword" className="text-slate-700">Nueva Contraseña</Label>
-          <Input 
-            id="newPassword" 
-            name="newPassword" 
-            type="password" 
-            placeholder="••••••••" 
-            className="border-slate-200 focus:border-teal-500 focus:ring-teal-500/10"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="confirmNewPassword" className="text-slate-700">Confirmar Nueva Contraseña</Label>
-          <Input 
-            id="confirmNewPassword" 
-            name="confirmNewPassword" 
-            type="password" 
-            placeholder="••••••••"
-            className="border-slate-200 focus:border-teal-500 focus:ring-teal-500/10" 
-          />
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="currentPassword" className="text-sm font-medium text-gray-700">
+              Contraseña Actual
+            </Label>
+            <Input
+              id="currentPassword"
+              name="currentPassword"
+              type="password"
+              placeholder="••••••••"
+              className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="newPassword" className="text-sm font-medium text-gray-700">
+              Nueva Contraseña
+            </Label>
+            <Input
+              id="newPassword"
+              name="newPassword"
+              type="password"
+              placeholder="••••••••"
+              className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirmNewPassword" className="text-sm font-medium text-gray-700">
+              Confirmar Nueva Contraseña
+            </Label>
+            <Input
+              id="confirmNewPassword"
+              name="confirmNewPassword"
+              type="password"
+              placeholder="••••••••"
+              className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-100 p-4 mt-6">
+      <div className="bg-amber-50 rounded-lg border border-amber-200 p-4">
         <div className="flex items-start gap-3">
           <div className="shrink-0 mt-0.5">
             <AlertCircle className="h-5 w-5 text-amber-600" />

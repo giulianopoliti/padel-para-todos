@@ -1,12 +1,17 @@
 "use client"
 
-import React, { useState, useRef, useTransition } from 'react'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Camera, Upload, Trash2, ImageIcon, Info } from 'lucide-react'
-import { uploadClubCoverAction, uploadClubGalleryAction, removeClubGalleryAction } from '@/app/(main)/edit-profile/actions'
-import { useToast } from '@/hooks/use-toast'
+import type React from "react"
+import { useState, useRef, useTransition } from "react"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Camera, Upload, Trash2, ImageIcon, Info } from "lucide-react"
+import {
+  uploadClubCoverAction,
+  uploadClubGalleryAction,
+  removeClubGalleryAction,
+} from "@/app/(main)/edit-profile/actions"
+import { useToast } from "@/hooks/use-toast"
 
 interface ClubGallerySectionProps {
   defaultValues?: {
@@ -19,21 +24,21 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
   const { toast } = useToast()
   const coverInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
-  
+
   const [coverImage, setCoverImage] = useState(defaultValues?.coverImage || null)
   const [galleryImages, setGalleryImages] = useState<string[]>(defaultValues?.galleryImages || [])
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
 
   // Use transitions for handling actions
   const [isPending, startTransition] = useTransition()
-  const [uploadType, setUploadType] = useState<'cover' | 'gallery' | 'remove' | null>(null)
+  const [uploadType, setUploadType] = useState<"cover" | "gallery" | "remove" | null>(null)
 
   const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    
+
     if (file) {
       // Validate file type
-      if (!file.type.startsWith('image/')) {
+      if (!file.type.startsWith("image/")) {
         toast({
           title: "Archivo no válido",
           description: "Por favor selecciona un archivo de imagen válido.",
@@ -61,13 +66,13 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
 
       // Upload automatically
       const formData = new FormData()
-      formData.append('file', file)
-      
-      setUploadType('cover')
+      formData.append("file", file)
+
+      setUploadType("cover")
       startTransition(async () => {
         try {
           const result = await uploadClubCoverAction(formData)
-          
+
           if (result.success && result.url) {
             setCoverImage(result.url)
             setCoverPreview(null)
@@ -97,10 +102,10 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
 
   const handleGalleryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    
+
     if (file) {
       // Validate file type
-      if (!file.type.startsWith('image/')) {
+      if (!file.type.startsWith("image/")) {
         toast({
           title: "Archivo no válido",
           description: "Por favor selecciona un archivo de imagen válido.",
@@ -121,13 +126,13 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
 
       // Upload automatically
       const formData = new FormData()
-      formData.append('file', file)
-      
-      setUploadType('gallery')
+      formData.append("file", file)
+
+      setUploadType("gallery")
       startTransition(async () => {
         try {
           const result = await uploadClubGalleryAction(formData)
-          
+
           if (result.success && result.galleryImages) {
             setGalleryImages(result.galleryImages)
             toast({
@@ -153,18 +158,18 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
       })
     }
     // Reset input
-    e.target.value = ''
+    e.target.value = ""
   }
 
   const handleRemoveGalleryImage = (imageUrl: string) => {
     const formData = new FormData()
-    formData.append('imageUrl', imageUrl)
-    
-    setUploadType('remove')
+    formData.append("imageUrl", imageUrl)
+
+    setUploadType("remove")
     startTransition(async () => {
       try {
         const result = await removeClubGalleryAction(formData)
-        
+
         if (result.success && result.galleryImages) {
           setGalleryImages(result.galleryImages)
           toast({
@@ -190,27 +195,28 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
     })
   }
 
-  const isCoverPending = isPending && uploadType === 'cover'
-  const isGalleryPending = isPending && uploadType === 'gallery'
-  const isRemovePending = isPending && uploadType === 'remove'
+  const isCoverPending = isPending && uploadType === "cover"
+  const isGalleryPending = isPending && uploadType === "gallery"
+  const isRemovePending = isPending && uploadType === "remove"
 
   return (
     <div className="space-y-8">
       {/* Cover Image Section */}
-      <div className="bg-gradient-to-r from-teal-50 to-blue-50 rounded-xl border border-teal-100 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+      <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="bg-gradient-to-r from-teal-500 to-blue-500 text-white w-10 h-10 rounded-lg flex items-center justify-center">
-            <Camera className="h-5 w-5" />
+          <div className="bg-blue-100 w-10 h-10 rounded-lg flex items-center justify-center">
+            <Camera className="h-5 w-5 text-blue-600" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-800">Imagen de Portada</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Imagen de Portada</h3>
         </div>
-        <p className="text-slate-600 mb-6">
-          Esta imagen aparecerá como portada principal de tu club. Recomendamos una imagen de alta calidad que represente tu club.
+        <p className="text-gray-600 mb-6">
+          Esta imagen aparecerá como portada principal de tu club. Recomendamos una imagen de alta calidad que
+          represente tu club.
         </p>
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="cover-image" className="text-sm font-medium text-slate-700">
+            <Label htmlFor="cover-image" className="text-sm font-medium text-gray-700">
               Imagen de Portada
             </Label>
             <div className="mt-2">
@@ -223,46 +229,44 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
                 className="hidden"
                 disabled={isCoverPending}
               />
-              
-              <div className="border-2 border-dashed border-teal-200 rounded-xl p-6 hover:border-teal-400 transition-colors">
+
+              <div className="border-2 border-dashed border-blue-300 rounded-lg p-6 hover:border-blue-400 transition-colors">
                 {coverPreview || coverImage ? (
                   <div className="relative group">
                     <img
-                      src={coverPreview || coverImage || ''}
+                      src={coverPreview || coverImage || ""}
                       alt="Imagen de portada"
                       className="w-full h-60 object-cover rounded-lg shadow-sm"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-end justify-center p-6">
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-end justify-center p-6">
                       <Button
                         type="button"
                         size="sm"
                         onClick={() => coverInputRef.current?.click()}
                         disabled={isCoverPending}
-                        className="bg-white/90 text-slate-700 hover:bg-white"
+                        className="bg-white text-gray-700 hover:bg-gray-100"
                       >
                         <Camera className="h-4 w-4 mr-2" />
-                        {isCoverPending ? 'Subiendo...' : 'Cambiar imagen'}
+                        {isCoverPending ? "Subiendo..." : "Cambiar imagen"}
                       </Button>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-10">
-                    <div className="bg-gradient-to-r from-teal-100 to-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <ImageIcon className="h-8 w-8 text-teal-600" />
+                    <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <ImageIcon className="h-8 w-8 text-blue-600" />
                     </div>
                     <div className="space-y-3">
                       <Button
                         type="button"
                         onClick={() => coverInputRef.current?.click()}
                         disabled={isCoverPending}
-                        className="bg-gradient-to-r from-teal-500 to-blue-500 text-white hover:from-teal-600 hover:to-blue-600"
+                        className="bg-blue-600 text-white hover:bg-blue-700"
                       >
                         <Upload className="h-4 w-4 mr-2" />
-                        {isCoverPending ? 'Subiendo...' : 'Subir imagen de portada'}
+                        {isCoverPending ? "Subiendo..." : "Subir imagen de portada"}
                       </Button>
-                      <p className="text-sm text-slate-500">
-                        JPG, PNG o WEBP hasta 5MB
-                      </p>
+                      <p className="text-sm text-gray-500">JPG, PNG o WEBP hasta 5MB</p>
                     </div>
                   </div>
                 )}
@@ -273,14 +277,14 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
       </div>
 
       {/* Gallery Images Section */}
-      <div className="bg-gradient-to-r from-blue-50 to-teal-50 rounded-xl border border-blue-100 p-6 shadow-sm transition-all duration-300 hover:shadow-md">
+      <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="bg-gradient-to-r from-blue-500 to-teal-500 text-white w-10 h-10 rounded-lg flex items-center justify-center">
-            <ImageIcon className="h-5 w-5" />
+          <div className="bg-gray-100 w-10 h-10 rounded-lg flex items-center justify-center">
+            <ImageIcon className="h-5 w-5 text-gray-600" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-800">Galería de Imágenes</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Galería de Imágenes</h3>
         </div>
-        <p className="text-slate-600 mb-6">
+        <p className="text-gray-600 mb-6">
           Agrega múltiples imágenes para mostrar las instalaciones, pistas y servicios de tu club.
         </p>
 
@@ -294,35 +298,35 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
               className="hidden"
               disabled={isGalleryPending}
             />
-            
+
             <Button
               type="button"
               onClick={() => galleryInputRef.current?.click()}
               disabled={isGalleryPending}
-              className="bg-gradient-to-r from-blue-500 to-teal-500 text-white hover:from-blue-600 hover:to-teal-600 shadow-sm transition-all duration-300 hover:shadow"
+              className="bg-blue-600 text-white hover:bg-blue-700"
             >
               <Upload className="h-4 w-4 mr-2" />
-              {isGalleryPending ? 'Subiendo...' : 'Agregar imagen a galería'}
+              {isGalleryPending ? "Subiendo..." : "Agregar imagen a galería"}
             </Button>
           </div>
 
           {galleryImages.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {galleryImages.map((imageUrl, index) => (
-                <div key={index} className="relative group overflow-hidden rounded-xl border border-slate-100 shadow-sm transition-all duration-300 hover:shadow-md">
+                <div key={index} className="relative group overflow-hidden rounded-lg border border-gray-200 shadow-sm">
                   <img
-                    src={imageUrl}
+                    src={imageUrl || "/placeholder.svg"}
                     alt={`Imagen de galería ${index + 1}`}
                     className="w-full h-36 object-cover transition-transform duration-300 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-3">
+                  <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center p-3">
                     <Button
                       type="button"
                       size="sm"
                       variant="destructive"
                       onClick={() => handleRemoveGalleryImage(imageUrl)}
                       disabled={isRemovePending}
-                      className="bg-red-500/90 hover:bg-red-600/90"
+                      className="bg-red-600 hover:bg-red-700"
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
                       Eliminar
@@ -332,39 +336,39 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
               ))}
             </div>
           ) : (
-            <div className="text-center py-10 border-2 border-dashed border-blue-200 rounded-xl bg-blue-50/50">
-              <div className="bg-gradient-to-r from-blue-100 to-teal-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <ImageIcon className="h-8 w-8 text-blue-600" />
+            <div className="text-center py-10 border-2 border-dashed border-gray-300 rounded-lg bg-white">
+              <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ImageIcon className="h-8 w-8 text-gray-400" />
               </div>
-              <p className="text-slate-600 font-medium">No hay imágenes en la galería</p>
-              <p className="text-sm text-slate-500 mt-1">Las imágenes que subas aparecerán aquí</p>
+              <p className="text-gray-600 font-medium">No hay imágenes en la galería</p>
+              <p className="text-sm text-gray-500 mt-1">Las imágenes que subas aparecerán aquí</p>
             </div>
           )}
         </div>
       </div>
 
-      <div className="bg-gradient-to-r from-blue-50 to-teal-50 rounded-xl border border-blue-100 p-4">
+      <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
         <div className="flex items-start gap-3">
-          <div className="bg-gradient-to-r from-blue-500 to-teal-500 text-white w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-            <Info className="h-4 w-4" />
+          <div className="bg-blue-100 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+            <Info className="h-4 w-4 text-blue-600" />
           </div>
           <div>
-            <h4 className="font-medium text-slate-800 mb-2">Consejos para mejores imágenes</h4>
-            <ul className="text-sm text-slate-600 space-y-1.5">
+            <h4 className="font-medium text-gray-900 mb-2">Consejos para mejores imágenes</h4>
+            <ul className="text-sm text-gray-700 space-y-1.5">
               <li className="flex items-center">
-                <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-600 to-teal-600 mr-2"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mr-2"></span>
                 Usa imágenes de alta resolución para mejor calidad
               </li>
               <li className="flex items-center">
-                <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-600 to-teal-600 mr-2"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mr-2"></span>
                 La imagen de portada debe representar bien tu club
               </li>
               <li className="flex items-center">
-                <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-600 to-teal-600 mr-2"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mr-2"></span>
                 Agrega fotos de las pistas, instalaciones y servicios
               </li>
               <li className="flex items-center">
-                <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-600 to-teal-600 mr-2"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mr-2"></span>
                 Las imágenes ayudan a atraer más jugadores
               </li>
             </ul>
