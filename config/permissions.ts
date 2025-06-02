@@ -23,12 +23,6 @@ interface RouteConfig {
 // Define the application's routes and their required permissions
 const routePermissions: RouteConfig[] = [
   {
-    path: "/players",
-    label: "Jugadores",
-    icon: "User",
-    roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
-  },
-  {
     path: "/home",
     label: "Inicio", 
     icon: "Home", 
@@ -119,7 +113,7 @@ export function checkRoutePermission(
   role?: Role | null // Role can be null/undefined if user is not logged in
 ): boolean {
   // Public routes accessible to everyone (even unauthenticated)
-  const publicPaths = ["/login", "/auth/callback", "/tournaments", "/home", "/ranking", "/register", "/clubes", "/coaches", "/players"];
+  const publicPaths = ["/", "/login", "/auth/callback", "/tournaments", "/home", "/ranking", "/register", "/clubes", "/coaches", "/players"];
   if (publicPaths.some(publicPath => path.startsWith(publicPath))) {
     return true;
   }

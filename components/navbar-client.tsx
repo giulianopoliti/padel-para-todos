@@ -9,6 +9,7 @@ import NavbarUserProfile from "./navbar-user-profile"
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { getIcon, IconName } from "@/components/icons"
+import CPALogo from "@/components/ui/cpa-logo"
 
 interface NavLink {
   label: string
@@ -59,10 +60,7 @@ export default function NavbarClient({ mainLinks, profileLinks, user }: NavbarCl
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link href="/home" className="flex items-center space-x-3">
-            <div className="bg-blue-500 w-10 h-10 rounded-full flex items-center justify-center">
-              <Trophy className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-medium text-white">PadelPRO</span>
+            <CPALogo />
           </Link>
 
           {/* Desktop Navigation */}

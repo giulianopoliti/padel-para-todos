@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
-import { Trophy, User, Building2, GraduationCap, ArrowLeft } from 'lucide-react'
-import { motion } from "framer-motion"
+import { User, Building2, GraduationCap, ArrowLeft, Eye, EyeOff } from "lucide-react"
+import CPALogo from "@/components/ui/cpa-logo"
 
 export default function LoginPage() {
   const { toast } = useToast()
@@ -19,15 +19,14 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
+  const [showPassword, setShowPassword] = useState(false)
   const MAX_RETRIES = 2
   const [mounted, setMounted] = useState(false)
 
-  // Only render the component on the client side
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Use a debounce to prevent hammering the server
   useEffect(() => {
     if (isSubmitting && retryCount > 0) {
       const timer = setTimeout(() => {
@@ -43,8 +42,6 @@ export default function LoginPage() {
       setIsSubmitting(true)
       formData.append("role", role)
 
-      console.log("Submitting login form with role:", role)
-
       if (retryCount >= MAX_RETRIES) {
         toast({
           title: "Demasiados intentos",
@@ -59,7 +56,6 @@ export default function LoginPage() {
       const result = await login(formData)
 
       if (result?.error) {
-        console.error("Login error from server:", result.error)
         toast({
           title: "Error de acceso",
           description: result.error,
@@ -68,7 +64,6 @@ export default function LoginPage() {
         setError(result.error)
         setRetryCount((prev) => prev + 1)
       } else if (result?.success) {
-        // Handle client-side redirection on success
         toast({
           title: "Acceso exitoso",
           description: "Redirigiendo al panel de control...",
@@ -76,8 +71,6 @@ export default function LoginPage() {
         router.push("/dashboard")
       }
     } catch (e) {
-      // This will catch network errors
-      console.error("Login network error:", e)
       const errorMessage =
         typeof e === "object" && e !== null && "message" in e
           ? `Error de conexión: ${(e as Error).message}`
@@ -95,63 +88,61 @@ export default function LoginPage() {
     }
   }
 
-  // Don't render anything on the server or during first client render
   if (!mounted) {
     return null
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-white">
-      {/* Fondo decorativo */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 relative overflow-hidden">
+      {/* Background decorative elements */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute top-0 left-0 w-full h-full bg-[url('/placeholder.svg?height=1080&width=1920')] bg-cover bg-center opacity-5"></div>
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-teal-50/80 via-white/60 to-blue-50/80"></div>
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-teal-200 rounded-full blur-3xl opacity-20"></div>
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-200 rounded-full blur-3xl opacity-20"></div>
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-slate-200 rounded-full blur-3xl opacity-30"></div>
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-slate-300 rounded-full blur-3xl opacity-20"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-slate-100 rounded-full blur-2xl opacity-40"></div>
       </div>
 
       <div className="container relative z-10 mx-auto px-4 py-8">
-        <Link
-          href="/home"
-          className="inline-flex items-center text-slate-600 hover:text-teal-600 transition-colors mb-8"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Volver al inicio
-        </Link>
-
-        <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="w-full max-w-xl"
+        <div className="flex items-center justify-between mb-8">
+          <Link
+            href="/"
+            className="inline-flex items-center text-slate-600 hover:text-slate-800 transition-colors group"
           >
-            <Card className="border border-slate-200 shadow-xl rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm">
-              <div className="h-1.5 bg-gradient-to-r from-teal-600 to-blue-600"></div>
-              <CardHeader className="pt-8 pb-4">
+            <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+            Volver al inicio
+          </Link>
+
+          <div className="opacity-60">
+            <CPALogo />
+          </div>
+        </div>
+
+        <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center">
+          <div className="w-full max-w-md">
+            <Card className="border-0 shadow-2xl rounded-3xl overflow-hidden bg-white/80 backdrop-blur-sm">
+              <div className="h-2 bg-gradient-to-r from-slate-600 to-slate-800"></div>
+
+              <CardHeader className="pt-8 pb-6 text-center">
                 <div className="flex justify-center mb-6">
-                  <div className="bg-gradient-to-r from-teal-600 to-blue-600 w-16 h-16 rounded-full flex items-center justify-center shadow-md">
-                    <Trophy className="h-8 w-8 text-white" />
+                  <div className="bg-gradient-to-r from-slate-600 to-slate-800 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg">
+                    <div className="text-white font-black text-lg">CPA</div>
                   </div>
                 </div>
-                <CardTitle className="text-3xl text-center font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
-                  Iniciar Sesión
-                </CardTitle>
-                <CardDescription className="text-center text-slate-500 text-lg mt-2">
+                <CardTitle className="text-2xl font-bold text-slate-800">Iniciar Sesión</CardTitle>
+                <CardDescription className="text-slate-600 text-base mt-2">
                   Accede como {role === "PLAYER" ? "Jugador" : role === "CLUB" ? "Club" : "Entrenador"}
                 </CardDescription>
               </CardHeader>
 
               <CardContent className="px-8">
                 {error && (
-                  <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-sm">
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
                     {error}
                   </div>
                 )}
 
-                <form action={handleLogin} className="space-y-5">
+                <form action={handleLogin} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-slate-700 text-base">
+                    <Label htmlFor="email" className="text-slate-700 font-medium">
                       Correo Electrónico
                     </Label>
                     <Input
@@ -160,32 +151,41 @@ export default function LoginPage() {
                       type="email"
                       placeholder="tu@email.com"
                       required
-                      className="border-slate-200 focus:border-teal-500 focus:ring-teal-500 rounded-xl py-6 text-base"
+                      className="border-slate-200 focus:border-slate-500 focus:ring-slate-500 rounded-xl h-12 text-base"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-slate-700 text-base">
+                    <Label htmlFor="password" className="text-slate-700 font-medium">
                       Contraseña
                     </Label>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      required
-                      className="border-slate-200 focus:border-teal-500 focus:ring-teal-500 rounded-xl py-6 text-base"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        required
+                        className="border-slate-200 focus:border-slate-500 focus:ring-slate-500 rounded-xl h-12 text-base pr-12"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex justify-end">
-                    <Link href="/forgot-password" className="text-teal-600 hover:text-teal-700">
+                    <Link href="/forgot-password" className="text-slate-600 hover:text-slate-800 text-sm font-medium">
                       ¿Olvidaste tu contraseña?
                     </Link>
                   </div>
 
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-teal-600 to-blue-600 hover:opacity-90 text-white rounded-xl py-6 text-lg font-medium shadow-md"
+                    className="w-full bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-800 hover:to-slate-950 text-white rounded-xl h-12 text-base font-medium shadow-lg"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? "Iniciando sesión..." : "Iniciar Sesión"}
@@ -195,88 +195,75 @@ export default function LoginPage() {
 
               <CardFooter className="flex flex-col space-y-6 px-8 pb-8">
                 <div>
-                  <div className="text-center text-slate-500 mb-4">Selecciona tu tipo de usuario:</div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center text-slate-500 mb-4 text-sm">Selecciona tu tipo de usuario:</div>
+                  <div className="grid grid-cols-3 gap-2">
                     <button
+                      type="button"
                       onClick={() => setRole("PLAYER")}
-                      className={`flex flex-col items-center justify-center p-4 rounded-xl transition-all ${
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all ${
                         role === "PLAYER"
-                          ? "bg-gradient-to-r from-teal-50 to-blue-50 border border-teal-200 shadow-sm"
-                          : "bg-white border border-slate-200 hover:border-teal-200"
+                          ? "bg-slate-100 border-2 border-slate-300 shadow-sm"
+                          : "bg-white border border-slate-200 hover:border-slate-300"
                       }`}
                     >
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
                           role === "PLAYER"
-                            ? "bg-gradient-to-r from-teal-600 to-blue-600 text-white"
+                            ? "bg-gradient-to-r from-slate-600 to-slate-800 text-white"
                             : "bg-slate-100 text-slate-500"
                         }`}
                       >
-                        <User className="h-6 w-6" />
+                        <User className="h-5 w-5" />
                       </div>
                       <span
-                        className={`font-medium ${
-                          role === "PLAYER"
-                            ? "bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent"
-                            : "text-slate-700"
-                        }`}
+                        className={`font-medium text-xs ${role === "PLAYER" ? "text-slate-800" : "text-slate-600"}`}
                       >
                         Jugador
                       </span>
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => setRole("CLUB")}
-                      className={`flex flex-col items-center justify-center p-4 rounded-xl transition-all ${
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all ${
                         role === "CLUB"
-                          ? "bg-gradient-to-r from-teal-50 to-blue-50 border border-teal-200 shadow-sm"
-                          : "bg-white border border-slate-200 hover:border-teal-200"
+                          ? "bg-slate-100 border-2 border-slate-300 shadow-sm"
+                          : "bg-white border border-slate-200 hover:border-slate-300"
                       }`}
                     >
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
                           role === "CLUB"
-                            ? "bg-gradient-to-r from-teal-600 to-blue-600 text-white"
+                            ? "bg-gradient-to-r from-slate-600 to-slate-800 text-white"
                             : "bg-slate-100 text-slate-500"
                         }`}
                       >
-                        <Building2 className="h-6 w-6" />
+                        <Building2 className="h-5 w-5" />
                       </div>
-                      <span
-                        className={`font-medium ${
-                          role === "CLUB"
-                            ? "bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent"
-                            : "text-slate-700"
-                        }`}
-                      >
+                      <span className={`font-medium text-xs ${role === "CLUB" ? "text-slate-800" : "text-slate-600"}`}>
                         Club
                       </span>
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => setRole("COACH")}
-                      className={`flex flex-col items-center justify-center p-4 rounded-xl transition-all ${
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all ${
                         role === "COACH"
-                          ? "bg-gradient-to-r from-teal-50 to-blue-50 border border-teal-200 shadow-sm"
-                          : "bg-white border border-slate-200 hover:border-teal-200"
+                          ? "bg-slate-100 border-2 border-slate-300 shadow-sm"
+                          : "bg-white border border-slate-200 hover:border-slate-300"
                       }`}
                     >
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
                           role === "COACH"
-                            ? "bg-gradient-to-r from-teal-600 to-blue-600 text-white"
+                            ? "bg-gradient-to-r from-slate-600 to-slate-800 text-white"
                             : "bg-slate-100 text-slate-500"
                         }`}
                       >
-                        <GraduationCap className="h-6 w-6" />
+                        <GraduationCap className="h-5 w-5" />
                       </div>
-                      <span
-                        className={`font-medium ${
-                          role === "COACH"
-                            ? "bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent"
-                            : "text-slate-700"
-                        }`}
-                      >
+                      <span className={`font-medium text-xs ${role === "COACH" ? "text-slate-800" : "text-slate-600"}`}>
                         Entrenador
                       </span>
                     </button>
@@ -284,14 +271,14 @@ export default function LoginPage() {
                 </div>
 
                 <div className="text-center pt-2">
-                  <span className="text-slate-500">¿No tienes una cuenta? </span>
-                  <Link href="/register" className="font-medium text-teal-600 hover:text-teal-700">
+                  <span className="text-slate-500 text-sm">¿No tienes una cuenta? </span>
+                  <Link href="/register" className="font-medium text-slate-700 hover:text-slate-900 text-sm">
                     Regístrate
                   </Link>
                 </div>
               </CardFooter>
             </Card>
-          </motion.div>
+          </div>
         </div>
       </div>
     </div>
