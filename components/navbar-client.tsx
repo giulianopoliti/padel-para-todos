@@ -59,7 +59,7 @@ export default function NavbarClient({ mainLinks, profileLinks, user }: NavbarCl
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link href="/home" className="flex items-center space-x-3">
+          <Link href="/" className="flex items-center space-x-3">
             <CPALogo />
           </Link>
 

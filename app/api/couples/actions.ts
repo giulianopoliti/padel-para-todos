@@ -15,12 +15,81 @@ export async function registerCoupleForTournament({
   player1Id: string; 
   player2Id: string;
   tournamentId: string; 
-}) {
+}): Promise<{ success: boolean; error?: string; message?: string }> {
   const supabase = await createClient();
   console.log(`[registerCoupleForTournament] Inscribiendo pareja en torneo ${tournamentId}`, {
     player1Id,
     player2Id
   });
+  
+  // Check if either player is already registered in this tournament (individually or in a couple)
+  const { data: existingPlayerInscriptions, error: playerCheckError } = await supabase
+    .from('inscriptions')
+    .select(`
+      id, 
+      player_id, 
+      couple_id,
+      couples (
+        id,
+        player1_id,
+        player2_id
+      )
+    `)
+    .eq('tournament_id', tournamentId)
+    .eq('is_pending', false)
+    .or(`player_id.eq.${player1Id},player_id.eq.${player2Id}`);
+
+  if (playerCheckError) {
+    console.error("[registerCoupleForTournament] Error checking existing player inscriptions:", playerCheckError);
+    return { success: false, error: "Error al verificar inscripciones existentes." };
+  }
+
+  // Check if any player is already inscribed individually
+  const individualInscription = existingPlayerInscriptions?.find(inscription => 
+    inscription.player_id === player1Id || inscription.player_id === player2Id
+  );
+
+  if (individualInscription) {
+    const playerName = individualInscription.player_id === player1Id ? "El primer jugador" : "El segundo jugador";
+    return { success: false, error: `${playerName} ya está inscrito individualmente en este torneo.` };
+  }
+
+  // Check if either player is already in a couple for this tournament
+  const { data: existingCoupleInscriptions, error: coupleCheckError } = await supabase
+    .from('inscriptions')
+    .select(`
+      id,
+      couples (
+        id,
+        player1_id,
+        player2_id
+      )
+    `)
+    .eq('tournament_id', tournamentId)
+    .eq('is_pending', false)
+    .not('couple_id', 'is', null);
+
+  if (coupleCheckError) {
+    console.error("[registerCoupleForTournament] Error checking existing couple inscriptions:", coupleCheckError);
+    return { success: false, error: "Error al verificar parejas existentes." };
+  }
+
+  // Check if either player is already in any couple for this tournament
+  const playerInCouple = existingCoupleInscriptions?.find(inscription => {
+    const couple = inscription.couples;
+    if (couple && couple.length > 0) {
+      const coupleData = couple[0];
+      return coupleData.player1_id === player1Id || 
+             coupleData.player1_id === player2Id ||
+             coupleData.player2_id === player1Id || 
+             coupleData.player2_id === player2Id;
+    }
+    return false;
+  });
+
+  if (playerInCouple) {
+    return { success: false, error: "Uno de los jugadores ya está inscrito en otra pareja para este torneo." };
+  }
   
   // Verificar que ambos jugadores existan
   const { data: player1, error: player1Error } = await supabase
@@ -31,7 +100,7 @@ export async function registerCoupleForTournament({
     
   if (player1Error) {
     console.error("[registerCoupleForTournament] Error verificando jugador 1:", player1Error);
-    throw new Error("No se pudo verificar el primer jugador");
+    return { success: false, error: "No se pudo verificar el primer jugador" };
   }
   
   const { data: player2, error: player2Error } = await supabase
@@ -42,22 +111,21 @@ export async function registerCoupleForTournament({
     
   if (player2Error) {
     console.error("[registerCoupleForTournament] Error verificando jugador 2:", player2Error);
-    throw new Error("No se pudo verificar el segundo jugador");
+    return { success: false, error: "No se pudo verificar el segundo jugador" };
   }
   
   console.log("[registerCoupleForTournament] Jugadores verificados:", { player1, player2 });
   
   // Verificar si la pareja ya existe (en cualquier orden)
-  const { data: existingCouple, error: coupleCheckError } = await supabase
+  const { data: existingCouple, error: findCoupleError } = await supabase
     .from('couples')
     .select('id')
-    .or(`player1_id.eq.${player1Id},player2_id.eq.${player1Id}`)
-    .or(`player1_id.eq.${player2Id},player2_id.eq.${player2Id}`)
+    .or(`and(player1_id.eq.${player1Id},player2_id.eq.${player2Id}),and(player1_id.eq.${player2Id},player2_id.eq.${player1Id})`)
     .maybeSingle();
     
-  if (coupleCheckError) {
-    console.error("[registerCoupleForTournament] Error verificando pareja existente:", coupleCheckError);
-    throw new Error("No se pudo verificar si la pareja ya existe");
+  if (findCoupleError) {
+    console.error("[registerCoupleForTournament] Error verificando pareja existente:", findCoupleError);
+    return { success: false, error: "No se pudo verificar si la pareja ya existe" };
   }
   
   let coupleId;
@@ -80,7 +148,7 @@ export async function registerCoupleForTournament({
       
     if (createCoupleError) {
       console.error("[registerCoupleForTournament] Error creando pareja:", createCoupleError);
-      throw new Error("No se pudo crear la pareja");
+      return { success: false, error: "No se pudo crear la pareja" };
     }
     
     coupleId = newCouple.id;
@@ -93,16 +161,17 @@ export async function registerCoupleForTournament({
     .select('id')
     .eq('tournament_id', tournamentId)
     .eq('couple_id', coupleId)
+    .eq('is_pending', false)
     .maybeSingle();
     
   if (inscriptionCheckError) {
     console.error("[registerCoupleForTournament] Error verificando inscripción existente:", inscriptionCheckError);
-    throw new Error("No se pudo verificar si la pareja ya está inscrita");
+    return { success: false, error: "No se pudo verificar si la pareja ya está inscrita" };
   }
   
   if (existingInscription) {
     console.log("[registerCoupleForTournament] La pareja ya está inscrita en este torneo");
-    throw new Error("Esta pareja ya está inscrita en el torneo");
+    return { success: false, error: "Esta pareja ya está inscrita en el torneo" };
   }
   
   // Inscribir la pareja en el torneo
@@ -118,7 +187,7 @@ export async function registerCoupleForTournament({
     
   if (inscriptionError) {
     console.error("[registerCoupleForTournament] Error inscribiendo pareja:", inscriptionError);
-    throw new Error("No se pudo inscribir la pareja en el torneo");
+    return { success: false, error: "No se pudo inscribir la pareja en el torneo" };
   }
   
   console.log("[registerCoupleForTournament] Pareja inscrita exitosamente");

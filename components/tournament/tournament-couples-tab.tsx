@@ -3,9 +3,11 @@
 import { useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Search } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { PlusCircle, Search, Trash2, Loader2 } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { useToast } from "@/components/ui/use-toast"
 import RegisterCoupleForm from "./player/register-couple-form"
+import { removeCoupleFromTournament } from "@/app/api/tournaments/actions"
 
 interface PlayerInfo {
   id: string
@@ -40,6 +42,11 @@ export default function TournamentCouplesTab({
   allPlayers = [],
 }: TournamentCouplesTabProps) {
   const [registerCoupleDialogOpen, setRegisterCoupleDialogOpen] = useState(false)
+  const [deleteCoupleDialogOpen, setDeleteCoupleDialogOpen] = useState(false)
+  const [coupleToDelete, setCoupleToDelete] = useState<CoupleInfo | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  
+  const { toast } = useToast()
 
   const isTournamentActive = tournamentStatus !== "NOT_STARTED"
   const currentCouples = coupleInscriptions.length
@@ -47,6 +54,53 @@ export default function TournamentCouplesTab({
   const handleRegisterSuccess = () => {
     setRegisterCoupleDialogOpen(false)
     window.location.reload()
+  }
+
+  const handleDeleteCoupleClick = (couple: CoupleInfo) => {
+    setCoupleToDelete(couple)
+    setDeleteCoupleDialogOpen(true)
+  }
+
+  const handleDeleteCouple = async () => {
+    if (!coupleToDelete) return
+
+    setIsDeleting(true)
+    try {
+      const result = await removeCoupleFromTournament(tournamentId, coupleToDelete.id)
+
+      if (result.success) {
+        toast({
+          title: "Pareja eliminada",
+          description: result.message,
+          variant: "default"
+        })
+        setDeleteCoupleDialogOpen(false)
+        setCoupleToDelete(null)
+        window.location.reload()
+      } else {
+        toast({
+          title: "Error al eliminar",
+          description: result.message,
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error("Error deleting couple:", error)
+      toast({
+        title: "Error inesperado",
+        description: "Ocurrió un error al eliminar la pareja.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const getPlayerDisplayName = (playerInfo: PlayerInfo | null) => {
+    if (!playerInfo) return "—"
+    const firstName = playerInfo.first_name || ""
+    const lastName = playerInfo.last_name || ""
+    return `${firstName} ${lastName}`.trim() || "—"
   }
 
   return (
@@ -82,15 +136,16 @@ export default function TournamentCouplesTab({
                   <TableHead className="font-semibold text-slate-700 text-center">Puntaje</TableHead>
                   <TableHead className="font-semibold text-slate-700">Jugador 2</TableHead>
                   <TableHead className="font-semibold text-slate-700 text-center">Puntaje</TableHead>
+                  {!isTournamentActive && (
+                    <TableHead className="font-semibold text-slate-700 text-center">Acciones</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {coupleInscriptions.map((couple) => (
                   <TableRow key={couple.id} className="hover:bg-slate-50 border-b border-gray-100">
                     <TableCell className="font-medium text-slate-900">
-                      {couple.player_1_info
-                        ? `${couple.player_1_info.first_name || ""} ${couple.player_1_info.last_name || ""}`
-                        : "—"}
+                      {getPlayerDisplayName(couple.player_1_info)}
                     </TableCell>
                     <TableCell className="text-center">
                       {couple.player_1_info?.score !== null && couple.player_1_info?.score !== undefined ? (
@@ -102,9 +157,7 @@ export default function TournamentCouplesTab({
                       )}
                     </TableCell>
                     <TableCell className="font-medium text-slate-900">
-                      {couple.player_2_info
-                        ? `${couple.player_2_info.first_name || ""} ${couple.player_2_info.last_name || ""}`
-                        : "—"}
+                      {getPlayerDisplayName(couple.player_2_info)}
                     </TableCell>
                     <TableCell className="text-center">
                       {couple.player_2_info?.score !== null && couple.player_2_info?.score !== undefined ? (
@@ -115,6 +168,18 @@ export default function TournamentCouplesTab({
                         <span className="text-slate-400">—</span>
                       )}
                     </TableCell>
+                    {!isTournamentActive && (
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteCoupleClick(couple)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -150,6 +215,78 @@ export default function TournamentCouplesTab({
             <DialogDescription>Seleccione o registre dos jugadores para formar una pareja</DialogDescription>
           </DialogHeader>
           <RegisterCoupleForm tournamentId={tournamentId} onComplete={handleRegisterSuccess} players={allPlayers} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para eliminar pareja */}
+      <Dialog open={deleteCoupleDialogOpen} onOpenChange={setDeleteCoupleDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              ¿Eliminar pareja del torneo?
+            </DialogTitle>
+            <DialogDescription>
+              Esta acción eliminará permanentemente a la pareja del torneo. No se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+
+          {coupleToDelete && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+              <h4 className="font-medium text-red-900 mb-2">Datos de la pareja a eliminar:</h4>
+              <div className="space-y-2 text-sm text-red-800">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="font-medium">Jugador 1:</p>
+                    <p>{getPlayerDisplayName(coupleToDelete.player_1_info)}</p>
+                    <p className="text-xs">
+                      Puntaje: {coupleToDelete.player_1_info?.score ?? "No especificado"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium">Jugador 2:</p>
+                    <p>{getPlayerDisplayName(coupleToDelete.player_2_info)}</p>
+                    <p className="text-xs">
+                      Puntaje: {coupleToDelete.player_2_info?.score ?? "No especificado"}
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-red-300">
+                  <p><strong>Pareja formada:</strong> {getPlayerDisplayName(coupleToDelete.player_1_info)} + {getPlayerDisplayName(coupleToDelete.player_2_info)}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteCoupleDialogOpen(false)
+                setCoupleToDelete(null)
+              }}
+              disabled={isDeleting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleDeleteCouple}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

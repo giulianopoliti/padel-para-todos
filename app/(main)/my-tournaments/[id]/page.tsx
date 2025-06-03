@@ -23,6 +23,7 @@ import TournamentDetailsTabs from "@/components/tournament/tournament-details-ta
 import { getAllPlayersDTO } from "@/app/api/players/actions"
 import { getTournamentDetailsWithInscriptions } from "@/app/api/tournaments/actions"
 import StartTournamentButton from "@/components/tournament/club/start-tournament"
+import CancelTournamentButton from "@/components/tournament/club/cancel-tournament"
 
 // Componente de carga para usar con Suspense
 function TournamentDetailsLoading() {
@@ -205,7 +206,30 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
                 </Link>
               </Button>
               <div className="flex items-center gap-3">
-                {tournament.status === "NOT_STARTED" && <StartTournamentButton tournamentId={params.id} />}
+                {tournament.status === "NOT_STARTED" && (
+                  <>
+                    <StartTournamentButton 
+                      tournamentId={params.id}
+                      tournament={tournament}
+                      couplesCount={coupleInscriptions.length}
+                      playersCount={individualInscriptions.length}
+                    />
+                    <CancelTournamentButton
+                      tournamentId={params.id}
+                      tournament={tournament}
+                      couplesCount={coupleInscriptions.length}
+                      playersCount={individualInscriptions.length}
+                    />
+                  </>
+                )}
+                {(tournament.status === "IN_PROGRESS" || tournament.status === "PAIRING") && (
+                  <CancelTournamentButton
+                    tournamentId={params.id}
+                    tournament={tournament}
+                    couplesCount={coupleInscriptions.length}
+                    playersCount={individualInscriptions.length}
+                  />
+                )}
                 <span
                   className={`px-4 py-2 rounded-xl font-medium border ${getStatusColor(
                     tournament.status,

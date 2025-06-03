@@ -219,7 +219,7 @@ export default function EditClubProfilePage() {
                   <div className="sticky bottom-0 pt-6 pb-4 -mx-4 px-4 bg-gradient-to-t from-white via-white to-transparent">
                     <Button
                       type="submit"
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                      className="w-full bg-slate-900 hover:bg-slate-800 text-white shadow-sm"
                       disabled={isPending || isFetchingData}
                     >
                       {isPending ? "Actualizando Club..." : "Guardar Cambios del Club"}

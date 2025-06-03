@@ -16,7 +16,7 @@ import SkeletonNavbar from './skeleton-navbar';
 // Define the public links that should always be visible
 const publicLinks = [
   { 
-    path: "/home", 
+    path: "/", 
     label: "Inicio", 
     icon: "Home" as const,
   },

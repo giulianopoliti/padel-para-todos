@@ -144,7 +144,7 @@ export default function CreateTournamentPage() {
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-violet-600 to-emerald-500 bg-clip-text text-transparent">
+            <CardTitle className="text-3xl font-bold text-center text-blue-600">
               Crear Nuevo Torneo
             </CardTitle>
           </CardHeader>
@@ -236,7 +236,7 @@ export default function CreateTournamentPage() {
               <CardFooter className="px-0 pt-8">
                 <Button 
                   type="submit" 
-                  className="w-full bg-gradient-to-r from-violet-600 to-emerald-500 hover:opacity-90 text-white text-lg py-3"
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white text-lg py-3 rounded-xl shadow-sm"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Creando Torneo...' : 'Crear Torneo'}

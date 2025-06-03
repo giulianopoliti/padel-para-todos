@@ -4,24 +4,24 @@ import { Home, AlertTriangle } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-slate-50 to-slate-100">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <div className="max-w-md w-full space-y-8 text-center">
-        <div className="bg-teal-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-2 border border-teal-100">
-          <AlertTriangle className="h-10 w-10 text-teal-600" />
+        <div className="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-2 border border-blue-100">
+          <AlertTriangle className="h-10 w-10 text-blue-600" />
         </div>
         
         <div className="space-y-4">
-          <h1 className="text-6xl font-light text-teal-700">404</h1>
-          <h2 className="text-2xl font-light text-slate-700">Página no encontrada</h2>
-          <p className="text-slate-500">
+          <h1 className="text-6xl font-bold text-slate-900">404</h1>
+          <h2 className="text-2xl font-bold text-slate-900">Página no encontrada</h2>
+          <p className="text-slate-600 leading-relaxed">
             Lo sentimos, la página que estás buscando no existe o ha sido movida.
           </p>
         </div>
         
         <div className="pt-8">
           <Link href="/">
-            <Button className="bg-teal-500/90 hover:bg-teal-600/90 border-none shadow-sm transition-all duration-300 hover:shadow rounded-full text-white font-normal px-6">
-              <Home className="mr-2 h-4 w-4" />
+            <Button className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-6 text-lg rounded-xl shadow-sm">
+              <Home className="mr-2 h-5 w-5" />
               Volver al inicio
             </Button>
           </Link>

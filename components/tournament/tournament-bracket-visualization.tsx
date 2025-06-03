@@ -63,7 +63,8 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
 
   const matchSpacing = 80
   const matchHeight = 130
-  const columnWidth = 420
+  const columnWidth = 380
+  const matchWidth = 320
 
   const loadTournamentData = async () => {
     try {
@@ -163,7 +164,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
             match,
             x,
             y,
-            width: 380,
+            width: matchWidth,
             height: matchHeight,
           })
         })
@@ -185,7 +186,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
               match,
               x,
               y: centerY,
-              width: 380,
+              width: matchWidth,
               height: matchHeight,
             })
 
@@ -194,12 +195,23 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
             const startParentCenterY = startParent.y + startParent.height / 2
             const endParentCenterY = endParent.y + endParent.height / 2
 
+            const connectionX = startParent.x + startParent.width + 30
+            const midPointY = (startParentCenterY + endParentCenterY) / 2
+
             if (prevRoundMatches[startParentIndex]?.status === "COMPLETED") {
               lines.push({
                 x1: startParent.x + startParent.width,
                 y1: startParentCenterY,
-                x2: startParent.x + startParent.width + 40,
+                x2: connectionX,
                 y2: startParentCenterY,
+                roundIndex: roundIndex - 1,
+              })
+              
+              lines.push({
+                x1: connectionX,
+                y1: startParentCenterY,
+                x2: connectionX,
+                y2: midPointY,
                 roundIndex: roundIndex - 1,
               })
             }
@@ -208,8 +220,16 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
               lines.push({
                 x1: endParent.x + endParent.width,
                 y1: endParentCenterY,
-                x2: endParent.x + endParent.width + 40,
+                x2: connectionX,
                 y2: endParentCenterY,
+                roundIndex: roundIndex - 1,
+              })
+              
+              lines.push({
+                x1: connectionX,
+                y1: endParentCenterY,
+                x2: connectionX,
+                y2: midPointY,
                 roundIndex: roundIndex - 1,
               })
             }
@@ -219,16 +239,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
               prevRoundMatches[endParentIndex]?.status === "COMPLETED"
             ) {
               lines.push({
-                x1: startParent.x + startParent.width + 40,
-                y1: startParentCenterY,
-                x2: startParent.x + startParent.width + 40,
-                y2: endParentCenterY,
-                roundIndex: roundIndex - 1,
-              })
-
-              const midPointY = (startParentCenterY + endParentCenterY) / 2
-              lines.push({
-                x1: startParent.x + startParent.width + 40,
+                x1: connectionX,
                 y1: midPointY,
                 x2: currentMatchPos.x,
                 y2: currentMatchCenterY,
@@ -242,7 +253,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
               match,
               x,
               y: centerY,
-              width: 380,
+              width: matchWidth,
               height: matchHeight,
             })
 
@@ -435,7 +446,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
               style={{
                 left: roundIndex * columnWidth,
                 top: 0,
-                width: 380,
+                width: matchWidth,
                 zIndex: 2,
               }}
             >

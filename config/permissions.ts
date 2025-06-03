@@ -23,7 +23,7 @@ interface RouteConfig {
 // Define the application's routes and their required permissions
 const routePermissions: RouteConfig[] = [
   {
-    path: "/home",
+    path: "/",
     label: "Inicio", 
     icon: "Home", 
     roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
@@ -113,7 +113,7 @@ export function checkRoutePermission(
   role?: Role | null // Role can be null/undefined if user is not logged in
 ): boolean {
   // Public routes accessible to everyone (even unauthenticated)
-  const publicPaths = ["/", "/login", "/auth/callback", "/tournaments", "/home", "/ranking", "/register", "/clubes", "/coaches", "/players"];
+  const publicPaths = ["/", "/login", "/auth/callback", "/tournaments", "/ranking", "/register", "/clubes", "/coaches", "/players"];
   if (publicPaths.some(publicPath => path.startsWith(publicPath))) {
     return true;
   }
@@ -146,8 +146,8 @@ export function getRedirectPath(
      // Logged in but no permission, redirect to home for now
      // Could redirect to an "/unauthorized" page in the future
     console.warn(`Redirecting user from ${path} due to lack of permissions.`);
-    return "/home"; 
+    return "/"; 
   }
   // Should not happen if called correctly, but default to home
-  return "/home"; 
+  return "/"; 
 } 
