@@ -683,25 +683,6 @@ export default function EnhancedBracketDemo() {
           )}
         </div>
 
-        {/* Navegación entre vistas */}
-        <div className="flex justify-center mt-8 space-x-4">
-          <Button
-            onClick={() => switchView(currentView === "zones" ? "bracket" : "zones")}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
-          >
-            {currentView === "zones" ? (
-              <>
-                Ver Bracket
-                <ChevronRight className="ml-2 h-5 w-5" />
-              </>
-            ) : (
-              <>
-                <ChevronLeft className="mr-2 h-5 w-5" />
-                Ver Zonas
-              </>
-            )}
-          </Button>
-        </div>
       </div>
     </section>
   )

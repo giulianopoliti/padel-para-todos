@@ -31,6 +31,17 @@ export async function getPlayersMale() {
         // Log individual player data before mapping
         console.log("Raw player data:", rawPlayer);
         
+        // Get profile image - use profile_image_url first, then default
+        let profileImageUrl = rawPlayer.profile_image_url;
+        
+        // If no profile image, use default image from avatars bucket
+        if (!profileImageUrl) {
+            const { data: { publicUrl } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl('avatars/foto predeterminada.jpg');
+            profileImageUrl = publicUrl;
+        }
+        
         return {
             id: rawPlayer.id,
             firstName: rawPlayer.first_name,    // DB: first_name -> TS: firstName
@@ -42,7 +53,8 @@ export async function getPlayersMale() {
             preferredSide: rawPlayer.preferred_side,  // DB: preferred_side -> TS: preferredSide
             createdAt: rawPlayer.created_at,    // DB: created_at -> TS: createdAt
             club_name: rawPlayer.clubes?.name || "Sin club",  // Usamos el nombre del club del join
-            gender: rawPlayer.gender || "MALE"
+            gender: rawPlayer.gender || "MALE",
+            profileImage: profileImageUrl  // Add profile image
         };
     }) || [];
 

@@ -25,6 +25,7 @@ export type Player = {
   createdAt: string
   club_name: string
   gender: "MALE" | "FEMALE"
+  profileImage?: string // Profile image URL
 }
 
 export type PlayerDTO = {
