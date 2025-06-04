@@ -24,6 +24,7 @@ import { getAllPlayersDTO } from "@/app/api/players/actions"
 import { getTournamentDetailsWithInscriptions } from "@/app/api/tournaments/actions"
 import StartTournamentButton from "@/components/tournament/club/start-tournament"
 import CancelTournamentButton from "@/components/tournament/club/cancel-tournament"
+import WinnerImageSection from "@/components/tournament/winner-image-section"
 
 // Componente de carga para usar con Suspense
 function TournamentDetailsLoading() {
@@ -366,6 +367,14 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
               maxPlayers={maxPlayers}
               allPlayers={allPlayers}
             />
+
+            {/* Winner Image Section - Show for finished tournaments */}
+            {tournament.status === "FINISHED" && (
+              <WinnerImageSection
+                tournament={tournament}
+                tournamentId={params.id}
+              />
+            )}
           </div>
         </Suspense>
       </div>

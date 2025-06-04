@@ -19,7 +19,7 @@ import {
   Award,
 } from "lucide-react"
 import Link from "next/link"
-import { getTournaments, getCategories } from "@/app/api/tournaments"
+import { getTournaments, getCategories, getWeeklyWinners } from "@/app/api/tournaments"
 import { getPlayersMale, getClubesWithServices } from "@/app/api/users"
 import type React from "react"
 import TournamentCard from "@/components/tournament-card"
@@ -56,12 +56,13 @@ interface Category {
 }
 
 export default async function HomePage() {
-  // Fetch real tournament, player and clubs data
-  const [allTournaments, categories, allPlayers, allClubs] = await Promise.all([
+  // Fetch real tournament, player, clubs and weekly winners data
+  const [allTournaments, categories, allPlayers, allClubs, weeklyWinners] = await Promise.all([
     getTournaments(),
     getCategories(),
     getPlayersMale(),
-    getClubesWithServices()
+    getClubesWithServices(),
+    getWeeklyWinners()
   ])
   
   // Filter for upcoming tournaments (NOT_STARTED status) and limit to 3
@@ -137,30 +138,6 @@ export default async function HomePage() {
       title: "Visibilidad",
       description: "Ganá presencia en la comunidad padelera nacional",
       color: "text-amber-600",
-    },
-  ]
-
-  const testimonials = [
-    {
-      name: "María González",
-      role: "Jugadora Recreativa",
-      quote: "Nunca había sido tan fácil anotarme a un torneo. Ahora juego mucho más seguido.",
-      location: "Buenos Aires",
-      rating: 5,
-    },
-    {
-      name: "Carlos Martínez",
-      role: "Jugador Competitivo",
-      quote: "Ahora puedo seguir mi progreso y competir más en serio. El ranking me motiva a mejorar.",
-      location: "Córdoba",
-      rating: 5,
-    },
-    {
-      name: "Club Elite Rosario",
-      role: "Club Organizador",
-      quote: "Triplicamos la participación en nuestros torneos desde que usamos la plataforma.",
-      location: "Rosario",
-      rating: 5,
     },
   ]
 
@@ -567,35 +544,119 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Ganadores de la Semana */}
       <section className="py-24 bg-white">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">Lo Que Dice Nuestra Comunidad</h2>
-            <p className="text-slate-600">Experiencias reales de jugadores y clubes que ya forman parte</p>
+            <Badge className="mb-6 bg-amber-100 text-amber-700 border-amber-200 px-4 py-2">
+              <Trophy className="mr-2 h-4 w-4" />
+              Ganadores de la Semana
+            </Badge>
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">¡Felicitaciones a Nuestros Campeones!</h2>
+            <p className="text-slate-600">Conocé a las parejas que se coronaron esta semana en los torneos más competitivos</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="border-slate-200 hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="h-4 w-4 text-amber-400 fill-amber-400" />
-                    ))}
+          {weeklyWinners.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {weeklyWinners.slice(0, 6).map((tournament: any, index: number) => (
+                <Card key={tournament.id} className="border-slate-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+                  <div className="relative">
+                    <img
+                      src={tournament.winnerImageUrl}
+                      alt={`Ganadores del torneo ${tournament.tournamentName}`}
+                      className="w-full h-64 object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+                    
+                    {/* Tournament Badge */}
+                    <div className="absolute top-4 left-4">
+                      <Badge className="bg-white/90 text-slate-700 backdrop-blur-sm shadow-sm border-0">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        {new Date(tournament.endDate).toLocaleDateString('es-ES', {
+                          day: 'numeric',
+                          month: 'short'
+                        })}
+                      </Badge>
+                    </div>
+
+                    {/* Champions Badge */}
+                    <div className="absolute top-4 right-4">
+                      <Badge className="bg-gradient-to-r from-amber-400 to-amber-600 text-white shadow-lg border-0">
+                        <Trophy className="h-3 w-3 mr-1 fill-white" />
+                        Campeones
+                      </Badge>
+                    </div>
+
+                    {/* Winner Names Overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                      <div className="text-center">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <Trophy className="h-5 w-5 text-amber-400" />
+                          <span className="font-bold text-lg">¡Campeones!</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="font-semibold text-amber-200">
+                            {tournament.winner.player1Name}
+                          </p>
+                          <p className="font-semibold text-amber-200">
+                            {tournament.winner.player2Name}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <p className="text-slate-700 italic mb-4 leading-relaxed">"{testimonial.quote}"</p>
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <h3 className="text-lg font-bold text-slate-900 mb-2">
+                        {tournament.tournamentName}
+                      </h3>
+                      <div className="flex items-center justify-center text-slate-500 text-sm mb-4">
+                        <Clock className="h-4 w-4 mr-1" />
+                        <span>Finalizado el {new Date(tournament.endDate).toLocaleDateString('es-ES', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric'
+                        })}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-center space-x-2">
+                        <Badge variant="outline" className="text-xs border-amber-200 text-amber-700">
+                          <Award className="h-3 w-3 mr-1" />
+                          Victoria
+                        </Badge>
+                        <Badge variant="outline" className="text-xs border-blue-200 text-blue-700">
+                          <Users className="h-3 w-3 mr-1" />
+                          Pareja
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trophy className="h-10 w-10 text-gray-400" />
+              </div>
+              <h3 className="text-xl font-medium text-gray-700 mb-2">No hay ganadores esta semana</h3>
+              <p className="text-gray-500 max-w-md mx-auto">
+                No se han completado torneos con fotos de ganadores en los últimos 7 días. ¡Vuelve pronto para ver a los nuevos campeones!
+              </p>
+            </div>
+          )}
 
-                  <div className="border-t border-slate-100 pt-4">
-                    <div className="font-semibold text-slate-900">{testimonial.name}</div>
-                    <div className="text-sm text-slate-600">{testimonial.role}</div>
-                    <div className="text-xs text-slate-500 mt-1">{testimonial.location}</div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {weeklyWinners.length > 6 && (
+            <div className="text-center mt-12">
+              <Button asChild variant="outline" className="border-amber-200 text-amber-600 hover:bg-amber-50 px-6 py-3">
+                <Link href="/ganadores">
+                  Ver Todos los Ganadores
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 

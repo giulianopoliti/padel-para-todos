@@ -2229,3 +2229,150 @@ export async function removeCoupleFromTournament(tournamentId: string, coupleId:
     return { success: false, message: "Error inesperado al eliminar la pareja." };
   }
 }
+
+/**
+ * Upload winner image for a tournament
+ */
+export async function uploadTournamentWinnerImage(tournamentId: string, file: File) {
+  const supabase = await createClient();
+  
+  try {
+    // Verify user has permission to upload (tournament owner)
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('User not authenticated:', userError?.message);
+      return { success: false, error: 'Usuario no autenticado' };
+    }
+
+    // Verify the tournament belongs to the user's club
+    const { data: tournament, error: tournamentError } = await supabase
+      .from('tournaments')
+      .select(`
+        id,
+        clubes!inner(
+          id,
+          user_id
+        )
+      `)
+      .eq('id', tournamentId)
+      .single();
+
+    if (tournamentError || !tournament) {
+      console.error('Tournament not found:', tournamentError?.message);
+      return { success: false, error: 'Torneo no encontrado' };
+    }
+
+    // Type assertion to access the nested club data
+    const tournamentWithClub = tournament as any;
+    if (tournamentWithClub.clubes.user_id !== user.id) {
+      return { success: false, error: 'No tienes permisos para subir imágenes a este torneo' };
+    }
+
+    // Generate file path: tournaments/{tournamentId}/winner.{extension}
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `${tournamentId}/winner.${fileExtension}`;
+    
+    // Upload file to storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('tournaments')
+      .upload(fileName, file, {
+        upsert: true // Replace if exists
+      });
+
+    if (uploadError) {
+      console.error('Error uploading winner image:', uploadError);
+      return { success: false, error: uploadError.message };
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('tournaments')
+      .getPublicUrl(fileName);
+
+    // Update tournament record with winner image URL
+    const { error: updateError } = await supabase
+      .from('tournaments')
+      .update({ winner_image_url: publicUrl })
+      .eq('id', tournamentId);
+
+    if (updateError) {
+      console.error('Error updating tournament winner image URL:', updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    // Revalidate relevant paths
+    revalidatePath(`/my-tournaments/${tournamentId}`);
+    revalidatePath(`/tournaments/${tournamentId}`);
+
+    return { success: true, url: publicUrl };
+  } catch (error) {
+    console.error('Unexpected error uploading winner image:', error);
+    return { success: false, error: 'Error inesperado al subir la imagen' };
+  }
+}
+
+/**
+ * Get weekly winners - tournaments finished in the last 7 days with winner details
+ */
+export async function getWeeklyWinners() {
+  const supabase = await createClient();
+  
+  try {
+    // Calculate date 7 days ago
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    
+    // Get tournaments finished in the last 7 days with winner information
+    const { data: tournaments, error } = await supabase
+      .from('tournaments')
+      .select('id, name, winner_image_url, end_date, winner_id')
+      .eq('status', 'FINISHED')
+      .not('winner_id', 'is', null)
+      .not('winner_image_url', 'is', null)
+      .gte('end_date', weekAgo.toISOString())
+      .order('end_date', { ascending: false })
+      .limit(6);
+
+    if (error || !tournaments) {
+      console.error('Error fetching weekly winners:', error);
+      return [];
+    }
+
+    // Get winner details for each tournament
+    const winnersWithDetails = [];
+    for (const tournament of tournaments) {
+      const { data: couple, error: coupleError } = await supabase
+        .from('couples')
+        .select(`
+          id,
+          player1:players!couples_player1_id_fkey(first_name, last_name),
+          player2:players!couples_player2_id_fkey(first_name, last_name)
+        `)
+        .eq('id', tournament.winner_id)
+        .single();
+
+      if (!coupleError && couple) {
+        const player1 = Array.isArray(couple.player1) ? couple.player1[0] : couple.player1;
+        const player2 = Array.isArray(couple.player2) ? couple.player2[0] : couple.player2;
+
+        winnersWithDetails.push({
+          id: tournament.id,
+          tournamentName: tournament.name,
+          winnerImageUrl: tournament.winner_image_url,
+          endDate: tournament.end_date,
+          winner: {
+            id: couple.id,
+            player1Name: `${player1?.first_name || ''} ${player1?.last_name || ''}`.trim(),
+            player2Name: `${player2?.first_name || ''} ${player2?.last_name || ''}`.trim(),
+          }
+        });
+      }
+    }
+
+    return winnersWithDetails;
+
+  } catch (error) {
+    console.error('Unexpected error fetching weekly winners:', error);
+    return [];
+  }
+}

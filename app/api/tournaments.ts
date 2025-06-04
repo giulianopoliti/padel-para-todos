@@ -56,6 +56,66 @@ export async function getCategories() {
     return data as Category[]
 }
 
+export async function getWeeklyWinners() {
+    try {
+        // Calculate date 7 days ago
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        
+        // Get tournaments finished in the last 7 days with winner information
+        const { data: tournaments, error } = await supabase
+            .from('tournaments')
+            .select('id, name, winner_image_url, end_date, winner_id')
+            .eq('status', 'FINISHED')
+            .not('winner_id', 'is', null)
+            .not('winner_image_url', 'is', null)
+            .gte('end_date', weekAgo.toISOString())
+            .order('end_date', { ascending: false })
+            .limit(6);
+
+        if (error || !tournaments) {
+            console.error('Error fetching weekly winners:', error);
+            return [];
+        }
+
+        // Get winner details for each tournament
+        const winnersWithDetails = [];
+        for (const tournament of tournaments) {
+            const { data: couple, error: coupleError } = await supabase
+                .from('couples')
+                .select(`
+                    id,
+                    player1:players!couples_player1_id_fkey(first_name, last_name),
+                    player2:players!couples_player2_id_fkey(first_name, last_name)
+                `)
+                .eq('id', tournament.winner_id)
+                .single();
+
+            if (!coupleError && couple) {
+                const player1 = Array.isArray(couple.player1) ? couple.player1[0] : couple.player1;
+                const player2 = Array.isArray(couple.player2) ? couple.player2[0] : couple.player2;
+
+                winnersWithDetails.push({
+                    id: tournament.id,
+                    tournamentName: tournament.name,
+                    winnerImageUrl: tournament.winner_image_url,
+                    endDate: tournament.end_date,
+                    winner: {
+                        id: couple.id,
+                        player1Name: `${player1?.first_name || ''} ${player1?.last_name || ''}`.trim(),
+                        player2Name: `${player2?.first_name || ''} ${player2?.last_name || ''}`.trim(),
+                    }
+                });
+            }
+        }
+
+        return winnersWithDetails;
+    } catch (error) {
+        console.error('Unexpected error fetching weekly winners:', error);
+        return [];
+    }
+}
+
 export async function getTournamentById(id: string) {
     try {
         const { data: tournamentData, error: tournamentError } = await supabase
