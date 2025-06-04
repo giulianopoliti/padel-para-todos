@@ -402,7 +402,16 @@ export async function getTournamentById(tournamentId: string) {
     return null;
   }
   const supabase = await createClient();
-  const { data: rawTournament, error } = await supabase.from('tournaments').select('*, clubes(id, name), categories(name)').eq('id', tournamentId).single();
+  const { data: rawTournament, error } = await supabase
+    .from('tournaments')
+    .select(`
+      *, 
+      clubes(id, name, address, cover_image_url), 
+      categories(name)
+    `)
+    .eq('id', tournamentId)
+    .single();
+    
   if (error) {
     console.error(`[getTournamentById] Error fetching tournament details for ID ${tournamentId}:`, error.message);
     return null;
@@ -2374,5 +2383,152 @@ export async function getWeeklyWinners() {
   } catch (error) {
     console.error('Unexpected error fetching weekly winners:', error);
     return [];
+  }
+}
+
+/**
+ * Upload pre-tournament image for a tournament
+ */
+export async function uploadTournamentPreImage(tournamentId: string, file: File) {
+  const supabase = await createClient();
+  
+  try {
+    // Verify user has permission to upload (tournament owner)
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('User not authenticated:', userError?.message);
+      return { success: false, error: 'Usuario no autenticado' };
+    }
+
+    // Verify the tournament belongs to the user's club
+    const { data: tournament, error: tournamentError } = await supabase
+      .from('tournaments')
+      .select(`
+        id,
+        clubes!inner(
+          id,
+          user_id
+        )
+      `)
+      .eq('id', tournamentId)
+      .single();
+
+    if (tournamentError || !tournament) {
+      console.error('Tournament not found:', tournamentError?.message);
+      return { success: false, error: 'Torneo no encontrado' };
+    }
+
+    // Type assertion to access the nested club data
+    const tournamentWithClub = tournament as any;
+    if (tournamentWithClub.clubes.user_id !== user.id) {
+      return { success: false, error: 'No tienes permisos para subir imágenes a este torneo' };
+    }
+
+    // Generate file path: tournaments/{tournamentId}/pre-tournament.{extension}
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `${tournamentId}/pre-tournament.${fileExtension}`;
+    
+    // Upload file to storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('tournaments')
+      .upload(fileName, file, {
+        upsert: true // Replace if exists
+      });
+
+    if (uploadError) {
+      console.error('Error uploading pre-tournament image:', uploadError);
+      return { success: false, error: uploadError.message };
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('tournaments')
+      .getPublicUrl(fileName);
+
+    // Update tournament record with pre-tournament image URL
+    const { error: updateError } = await supabase
+      .from('tournaments')
+      .update({ pre_tournament_image_url: publicUrl })
+      .eq('id', tournamentId);
+
+    if (updateError) {
+      console.error('Error updating tournament pre-tournament image URL:', updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    // Revalidate relevant paths
+    revalidatePath(`/my-tournaments/${tournamentId}`);
+    revalidatePath(`/tournaments/${tournamentId}`);
+
+    return { success: true, url: publicUrl };
+  } catch (error) {
+    console.error('Unexpected error uploading pre-tournament image:', error);
+    return { success: false, error: 'Error inesperado al subir la imagen' };
+  }
+}
+
+/**
+ * Set club cover image as pre-tournament image fallback
+ */
+export async function setClubCoverAsPreTournamentImage(tournamentId: string) {
+  const supabase = await createClient();
+  
+  try {
+    // Verify user has permission
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('User not authenticated:', userError?.message);
+      return { success: false, error: 'Usuario no autenticado' };
+    }
+
+    // Get tournament and club data
+    const { data: tournament, error: tournamentError } = await supabase
+      .from('tournaments')
+      .select(`
+        id,
+        clubes!inner(
+          id,
+          user_id,
+          cover_image_url
+        )
+      `)
+      .eq('id', tournamentId)
+      .single();
+
+    if (tournamentError || !tournament) {
+      console.error('Tournament not found:', tournamentError?.message);
+      return { success: false, error: 'Torneo no encontrado' };
+    }
+
+    // Type assertion to access the nested club data
+    const tournamentWithClub = tournament as any;
+    if (tournamentWithClub.clubes.user_id !== user.id) {
+      return { success: false, error: 'No tienes permisos para modificar este torneo' };
+    }
+
+    const clubCoverUrl = tournamentWithClub.clubes.cover_image_url;
+    if (!clubCoverUrl) {
+      return { success: false, error: 'El club no tiene imagen de portada configurada' };
+    }
+
+    // Update tournament record with club cover image as pre-tournament image
+    const { error: updateError } = await supabase
+      .from('tournaments')
+      .update({ pre_tournament_image_url: clubCoverUrl })
+      .eq('id', tournamentId);
+
+    if (updateError) {
+      console.error('Error setting club cover as pre-tournament image:', updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    // Revalidate relevant paths
+    revalidatePath(`/my-tournaments/${tournamentId}`);
+    revalidatePath(`/tournaments/${tournamentId}`);
+
+    return { success: true, url: clubCoverUrl };
+  } catch (error) {
+    console.error('Unexpected error setting club cover as pre-tournament image:', error);
+    return { success: false, error: 'Error inesperado al configurar la imagen' };
   }
 }

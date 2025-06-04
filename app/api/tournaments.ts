@@ -10,7 +10,8 @@ export async function getTournaments() {
                 club:clubes (
                     id,
                     name,
-                    address
+                    address,
+                    cover_image_url
                 )
             `);
 
@@ -24,14 +25,25 @@ export async function getTournaments() {
             return {
                 id: rawTournament.id,
                 name: rawTournament.name,
-                club: rawTournament.club,
+                club: {
+                    ...rawTournament.club,
+                    image: rawTournament.club?.cover_image_url // Map cover_image_url to image for compatibility
+                },
                 createdAt: rawTournament.created_at,
                 startDate: rawTournament.start_date,
                 endDate: rawTournament.end_date,
                 category: rawTournament.category,
                 gender: rawTournament.gender || "MALE",
                 status: rawTournament.status || "NOT_STARTED",
-                type: rawTournament.type || "AMERICAN"
+                type: rawTournament.type || "AMERICAN",
+                pre_tournament_image_url: rawTournament.pre_tournament_image_url,
+                price: rawTournament.price,
+                description: rawTournament.description,
+                address: rawTournament.address,
+                time: rawTournament.time,
+                prize: rawTournament.prize,
+                maxParticipants: rawTournament.max_participants,
+                currentParticipants: rawTournament.current_participants
             };
         }) || [];
 

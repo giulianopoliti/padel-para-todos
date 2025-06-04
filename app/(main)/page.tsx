@@ -44,6 +44,7 @@ interface Tournament {
   prize?: string
   description?: string
   price?: number | null
+  pre_tournament_image_url?: string | null
   club?: {
     id: string
     name: string
@@ -122,11 +123,11 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-blue-900 overflow-hidden pt-20 text-white">
+      <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-blue-900 overflow-hidden pt-12 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,0.1),transparent_50%)]"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(59,130,246,0.05),transparent_50%)]"></div>
 
-        <div className="relative container mx-auto px-6 py-20 lg:py-32">
+        <div className="relative container mx-auto px-6 py-12 lg:py-20">
           <div className="max-w-5xl mx-auto text-center">
             <Badge className="mb-8 bg-blue-600 text-white border-blue-700 px-4 py-2">
               <Trophy className="mr-2 h-4 w-4" />
@@ -215,12 +216,6 @@ export default async function HomePage() {
                                 Categoría {player.category}
                               </Badge>
                               <span className="text-xs text-slate-500">{player.club}</span>
-                              {index < 3 && (
-                                <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200">
-                                  <Star className="h-3 w-3 mr-1 fill-amber-500" />
-                                  Top 3
-                                </Badge>
-                              )}
                             </div>
                           </div>
                         </div>

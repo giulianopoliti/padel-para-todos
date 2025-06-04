@@ -11,6 +11,8 @@ export type Club = {
   id: string
   name: string
   address: string;
+  cover_image_url?: string | null
+  image?: string // For compatibility with components that expect image field
 }
 
 export type Player = {
@@ -47,6 +49,14 @@ export type Tournament = {
   type: "AMERICAN" | "LONG"
   startDate: string
   endDate: string
+  pre_tournament_image_url?: string | null
+  price?: number | null
+  description?: string
+  address?: string
+  time?: string
+  prize?: string
+  maxParticipants?: number
+  currentParticipants?: number
 }
 
 export type Couple = {

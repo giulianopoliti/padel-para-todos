@@ -21,6 +21,7 @@ interface Tournament {
   prize?: string
   description?: string
   price?: number | null
+  pre_tournament_image_url?: string | null
   club?: {
     id: string
     name: string
@@ -94,7 +95,11 @@ export default function TournamentCard({
     <Card className="overflow-hidden hover:shadow-md transition-all duration-300 border-gray-200 h-full flex flex-col">
       <div className="relative h-48 overflow-hidden">
         <img
-          src={tournament.club?.image || "/placeholder.svg?height=200&width=300"}
+          src={
+            tournament.pre_tournament_image_url ||
+            tournament.club?.image || 
+            "/placeholder.svg?height=200&width=300"
+          }
           alt={tournament.club?.name || tournament.name}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />

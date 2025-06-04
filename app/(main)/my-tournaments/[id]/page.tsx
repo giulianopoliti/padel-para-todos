@@ -25,6 +25,7 @@ import { getTournamentDetailsWithInscriptions } from "@/app/api/tournaments/acti
 import StartTournamentButton from "@/components/tournament/club/start-tournament"
 import CancelTournamentButton from "@/components/tournament/club/cancel-tournament"
 import WinnerImageSection from "@/components/tournament/winner-image-section"
+import PreTournamentImageSection from "@/components/tournament/pre-tournament-image-section"
 
 // Componente de carga para usar con Suspense
 function TournamentDetailsLoading() {
@@ -188,7 +189,8 @@ function formatDate(dateString: string) {
 
 // Componente principal
 export default async function TournamentDetailsPage({ params }: { params: { id: string } }) {
-  const { tournament, individualInscriptions, coupleInscriptions, allPlayers } = await getData(params.id)
+  const resolvedParams = await params;
+  const { tournament, individualInscriptions, coupleInscriptions, allPlayers } = await getData(resolvedParams.id)
 
   // Configurar el máximo de jugadores (podría venir del torneo en el futuro)
   const maxPlayers = tournament.max_participants || 32
@@ -210,13 +212,13 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
                 {tournament.status === "NOT_STARTED" && (
                   <>
                     <StartTournamentButton 
-                      tournamentId={params.id}
+                      tournamentId={resolvedParams.id}
                       tournament={tournament}
                       couplesCount={coupleInscriptions.length}
                       playersCount={individualInscriptions.length}
                     />
                     <CancelTournamentButton
-                      tournamentId={params.id}
+                      tournamentId={resolvedParams.id}
                       tournament={tournament}
                       couplesCount={coupleInscriptions.length}
                       playersCount={individualInscriptions.length}
@@ -225,7 +227,7 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
                 )}
                 {(tournament.status === "IN_PROGRESS" || tournament.status === "PAIRING") && (
                   <CancelTournamentButton
-                    tournamentId={params.id}
+                    tournamentId={resolvedParams.id}
                     tournament={tournament}
                     couplesCount={coupleInscriptions.length}
                     playersCount={individualInscriptions.length}
@@ -362,17 +364,26 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
             <TournamentDetailsTabs
               individualInscriptions={individualInscriptions}
               coupleInscriptions={coupleInscriptions}
-              tournamentId={params.id}
+              tournamentId={resolvedParams.id}
               tournamentStatus={tournament.status}
               maxPlayers={maxPlayers}
               allPlayers={allPlayers}
             />
 
+            {/* Pre-Tournament Image Section - Show for not started tournaments */}
+            {tournament.status === "NOT_STARTED" && (
+              <PreTournamentImageSection
+                tournament={tournament}
+                tournamentId={resolvedParams.id}
+                clubCoverImageUrl={tournament.clubes?.cover_image_url}
+              />
+            )}
+
             {/* Winner Image Section - Show for finished tournaments */}
             {tournament.status === "FINISHED" && (
               <WinnerImageSection
                 tournament={tournament}
-                tournamentId={params.id}
+                tournamentId={resolvedParams.id}
               />
             )}
           </div>

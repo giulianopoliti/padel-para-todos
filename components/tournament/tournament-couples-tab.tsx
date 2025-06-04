@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { PlusCircle, Search, Trash2, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
-import RegisterCoupleForm from "./player/register-couple-form"
+import CoupleRegistrationAdvanced from "./couple-registration-advanced"
 import { removeCoupleFromTournament } from "@/app/api/tournaments/actions"
 
 interface PlayerInfo {
@@ -207,14 +207,22 @@ export default function TournamentCouplesTab({
         )}
       </div>
 
-      {/* Diálogo para inscribir pareja */}
+      {/* Diálogo para inscribir pareja - Reemplazado con sistema avanzado */}
       <Dialog open={registerCoupleDialogOpen} onOpenChange={setRegisterCoupleDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[1000px] max-h-[95vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Inscribir Pareja</DialogTitle>
-            <DialogDescription>Seleccione o registre dos jugadores para formar una pareja</DialogDescription>
+            <DialogTitle>Sistema Avanzado de Inscripción de Parejas</DialogTitle>
+            <DialogDescription>
+              Registre parejas de manera flexible: combine jugadores nuevos y existentes según sus necesidades
+            </DialogDescription>
           </DialogHeader>
-          <RegisterCoupleForm tournamentId={tournamentId} onComplete={handleRegisterSuccess} players={allPlayers} />
+          <CoupleRegistrationAdvanced
+            tournamentId={tournamentId}
+            onComplete={handleRegisterSuccess}
+            players={allPlayers}
+            isClubMode={true}
+            userPlayerId={null}
+          />
         </DialogContent>
       </Dialog>
 

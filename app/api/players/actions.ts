@@ -251,7 +251,7 @@ export async function registerNewPlayer({
     // No lanzar error aquí para no interrumpir el flujo principal
   }
   
-  return { success: true, message: "Jugador inscrito con éxito" };
+  return { success: true, message: "Jugador inscrito con éxito", playerId: playerToRegister };
 } 
 
 export async function getPlayerById(playerId: string) {
@@ -288,5 +288,112 @@ export async function getAllPlayersDTO(): Promise<PlayerDTO[]> {
     });
   }
   return playersDTO;
+}
+
+/**
+ * Crear un jugador nuevo sin inscribirlo automáticamente al torneo
+ * Esta función es útil cuando se está creando un jugador para formar una pareja
+ */
+export async function createPlayerForCouple({ 
+  tournamentId, 
+  playerData 
+}: { 
+  tournamentId: string; 
+  playerData: { first_name: string; last_name: string; gender: string; dni: string };
+}) {
+  const supabase = await createClient();
+  console.log(`[createPlayerForCouple] Creando jugador para pareja en torneo ${tournamentId}`, {
+    playerData
+  });
+  
+  // Verificar si ya existe un jugador con el mismo DNI
+  const { data: existingPlayerWithDNI, error: dniCheckError } = await supabase
+    .from('players')
+    .select('id, first_name, last_name')
+    .eq('dni', playerData.dni)
+    .maybeSingle();
+  
+  if (dniCheckError) {
+    console.error("[createPlayerForCouple] Error al verificar DNI:", dniCheckError);
+    throw new Error("Error al verificar DNI existente");
+  } 
+  
+  if (existingPlayerWithDNI) {
+    console.log("[createPlayerForCouple] Ya existe un jugador con este DNI:", existingPlayerWithDNI);
+    // Si existe, devolver ese jugador
+    return { success: true, playerId: existingPlayerWithDNI.id, message: "Jugador existente encontrado" };
+  }
+  
+  // Obtener información del torneo para saber la categoría
+  const { data: tournamentData, error: tournamentError } = await supabase
+    .from('tournaments')
+    .select(`
+      *,
+      club:club_id (
+        id, 
+        name
+      )
+    `)
+    .eq('id', tournamentId)
+    .single();
+  
+  if (tournamentError) {
+    console.error("[createPlayerForCouple] Error fetching tournament:", tournamentError);
+    throw new Error("No se pudo obtener información del torneo");
+  }
+  
+  console.log("[createPlayerForCouple] Datos del torneo:", tournamentData);
+  
+  // Determinar el nombre de la categoría
+  const categoryName = tournamentData.category_id || tournamentData.category_name || tournamentData.category || '';
+  console.log("[createPlayerForCouple] Nombre de categoría determinado:", categoryName);
+  
+  // Obtener el score más bajo para la categoría
+  const { data: categoryData, error: categoryError } = await supabase
+    .from('categories')
+    .select('lower_range')
+    .eq('name', categoryName)
+    .single();
+    
+  if (categoryError) {
+    console.error("[createPlayerForCouple] Error fetching category:", categoryError);
+    throw new Error("No se pudo obtener información de la categoría");
+  }
+  
+  console.log("[createPlayerForCouple] Datos de la categoría:", categoryData);
+  
+  // Crear el nuevo jugador con el score mínimo de la categoría
+  const newPlayerData = {
+    first_name: playerData.first_name,
+    last_name: playerData.last_name,
+    gender: playerData.gender,
+    dni: playerData.dni,
+    score: categoryData.lower_range || 0,
+    category_name: categoryName,
+    created_at: new Date().toISOString()
+  };
+  
+  // Solo agregar club_id si existe en la estructura del torneo
+  if (tournamentData.club_id) {
+    // @ts-ignore - Ignorar error de tipo ya que estamos verificando existencia
+    newPlayerData.club_id = tournamentData.club_id;
+  }
+  
+  console.log("[createPlayerForCouple] Datos para crear jugador:", newPlayerData);
+  
+  const { data: newPlayer, error: newPlayerError } = await supabase
+    .from('players')
+    .insert(newPlayerData)
+    .select('id')
+    .single();
+    
+  if (newPlayerError) {
+    console.error("[createPlayerForCouple] Error creating new player:", newPlayerError);
+    throw new Error("No se pudo crear el nuevo jugador");
+  }
+  
+  console.log("[createPlayerForCouple] Nuevo jugador creado con ID:", newPlayer.id);
+  
+  return { success: true, playerId: newPlayer.id, message: "Jugador creado exitosamente" };
 }
 
