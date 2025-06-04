@@ -17,6 +17,8 @@ import {
   MapPin,
   Clock,
   Award,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import Link from "next/link"
 import { getTournaments, getCategories, getWeeklyWinners } from "@/app/api/tournaments"
@@ -24,6 +26,7 @@ import { getPlayersMale, getClubesWithServices } from "@/app/api/users"
 import type React from "react"
 import TournamentCard from "@/components/tournament-card"
 import PlayerAvatar from "@/components/player-avatar"
+import WeeklyWinnersCarousel from "@/components/weekly-winners-carousel"
 
 // Types
 interface Tournament {
@@ -62,13 +65,11 @@ export default async function HomePage() {
     getCategories(),
     getPlayersMale(),
     getClubesWithServices(),
-    getWeeklyWinners()
+    getWeeklyWinners(),
   ])
-  
+
   // Filter for upcoming tournaments (NOT_STARTED status) and limit to 3
-  const upcomingTournaments = allTournaments
-    .filter((tournament) => tournament.status === "NOT_STARTED")
-    .slice(0, 3)
+  const upcomingTournaments = allTournaments.filter((tournament) => tournament.status === "NOT_STARTED").slice(0, 3)
 
   // Get top 5 players by score
   const topPlayers = allPlayers
@@ -81,13 +82,11 @@ export default async function HomePage() {
       category: player.category,
       club: player.club_name || "Sin Club",
       trend: Math.floor(Math.random() * 10) - 2, // Random trend for demo
-      position: index + 1
+      position: index + 1,
     }))
 
   // Get top 3 clubs by rating
-  const topClubs = allClubs
-    .sort((a, b) => (b.rating || 0) - (a.rating || 0))
-    .slice(0, 3)
+  const topClubs = allClubs.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 3)
 
   const playerFeatures = [
     {
@@ -120,96 +119,43 @@ export default async function HomePage() {
     },
   ]
 
-  const clubFeatures = [
-    {
-      icon: Users,
-      title: "Más Jugadores",
-      description: "Publicá tus torneos y llegá a toda la comunidad",
-      color: "text-blue-600",
-    },
-    {
-      icon: Target,
-      title: "Gestión Simple",
-      description: "Manejo automático de inscriptos, categorías y fixtures",
-      color: "text-emerald-600",
-    },
-    {
-      icon: Eye,
-      title: "Visibilidad",
-      description: "Ganá presencia en la comunidad padelera nacional",
-      color: "text-amber-600",
-    },
-  ]
-
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-slate-50 via-white to-blue-50/30 overflow-hidden pt-20">
+      <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-blue-900 overflow-hidden pt-20 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,0.1),transparent_50%)]"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(59,130,246,0.05),transparent_50%)]"></div>
 
         <div className="relative container mx-auto px-6 py-20 lg:py-32">
           <div className="max-w-5xl mx-auto text-center">
-            <Badge className="mb-8 bg-blue-100 text-blue-700 border-blue-200 px-4 py-2">
+            <Badge className="mb-8 bg-blue-600 text-white border-blue-700 px-4 py-2">
               <Trophy className="mr-2 h-4 w-4" />
               El futuro del pádel competitivo
             </Badge>
 
-            <h1 className="text-4xl lg:text-7xl font-black mb-8 tracking-tight text-slate-900">
-              El ecosistema donde el pádel
-              <span className="block text-blue-600">compite, crece y se conecta</span>
+            <h1 className="text-4xl lg:text-7xl font-black mb-8 tracking-tight text-white">
+              La plataforma definitiva
+              <span className="block text-blue-400">para el pádel competitivo</span>
             </h1>
 
-            <p className="text-xl text-slate-600 mb-12 leading-relaxed max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 mb-12 leading-relaxed max-w-3xl mx-auto">
               Ranking nacional en tiempo real, inscripciones online y gestión profesional de torneos. Todo lo que
               necesitás para llevar tu pádel al siguiente nivel.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg">
                 <Link href="/tournaments">
                   <Calendar className="mr-2 h-5 w-5" />
                   Ver Torneos Disponibles
                 </Link>
               </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-slate-300 text-slate-700 hover:bg-slate-50 px-8 py-6 text-lg"
-              >
-                <Link href="/register">Registrate Gratis</Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"
-              >
+              <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg">
                 <Link href="/register?role=club">
                   <Building2 className="mr-2 h-5 w-5" />
                   Registrar Mi Club
                 </Link>
               </Button>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-slate-900 mb-1">1,250+</div>
-                <div className="text-sm text-slate-500">Jugadores Activos</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-slate-900 mb-1">150+</div>
-                <div className="text-sm text-slate-500">Torneos Realizados</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-slate-900 mb-1">45+</div>
-                <div className="text-sm text-slate-500">Clubes Afiliados</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-slate-900 mb-1">8,500+</div>
-                <div className="text-sm text-slate-500">Partidos Jugados</div>
-              </div>
             </div>
           </div>
         </div>
@@ -235,14 +181,12 @@ export default async function HomePage() {
 
                 <div className="divide-y divide-slate-100">
                   {topPlayers.map((player, index) => (
-                    <Link 
-                      key={player.id} 
-                      href={`/ranking/${player.id}`}
-                      className="block"
-                    >
-                      <div className={`p-4 flex items-center justify-between hover:bg-slate-50 transition-all duration-300 cursor-pointer ${
-                        index < 3 ? 'hover:shadow-md' : ''
-                      }`}>
+                    <Link key={player.id} href={`/ranking/${player.id}`} className="block">
+                      <div
+                        className={`p-4 flex items-center justify-between hover:bg-slate-50 transition-all duration-300 cursor-pointer ${
+                          index < 3 ? "hover:shadow-md" : ""
+                        }`}
+                      >
                         <div className="flex items-center space-x-4">
                           <div
                             className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-sm ${
@@ -255,20 +199,15 @@ export default async function HomePage() {
                                     : "bg-slate-300"
                             }`}
                           >
-                            {index < 3 ? (
-                              <Trophy className="h-4 w-4" />
-                            ) : (
-                              index + 1
-                            )}
+                            {index < 3 ? <Trophy className="h-4 w-4" /> : index + 1}
                           </div>
-                          
-                          {/* Player Avatar */}
+
                           <PlayerAvatar
-                            src={allPlayers.find(p => p.id === player.id)?.profileImage}
+                            src={allPlayers.find((p) => p.id === player.id)?.profileImage}
                             alt={player.name}
-                            className={`w-10 h-10 ${index < 3 ? 'ring-2 ring-blue-200' : ''}`}
+                            className={`w-10 h-10 ${index < 3 ? "ring-2 ring-blue-200" : ""}`}
                           />
-                          
+
                           <div>
                             <div className="font-semibold text-slate-900">{player.name}</div>
                             <div className="flex items-center space-x-2">
@@ -291,9 +230,12 @@ export default async function HomePage() {
                             <div className="font-bold text-slate-900">{player.points}</div>
                             <div className="text-xs text-slate-500">puntos</div>
                           </div>
-                          <Badge className={`${player.trend >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'} border-0`}>
-                            <TrendingUp className={`h-3 w-3 mr-1 ${player.trend < 0 ? 'rotate-180' : ''}`} />
-                            {player.trend >= 0 ? '+' : ''}{player.trend}
+                          <Badge
+                            className={`${player.trend >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"} border-0`}
+                          >
+                            <TrendingUp className={`h-3 w-3 mr-1 ${player.trend < 0 ? "rotate-180" : ""}`} />
+                            {player.trend >= 0 ? "+" : ""}
+                            {player.trend}
                           </Badge>
                         </div>
                       </div>
@@ -316,21 +258,19 @@ export default async function HomePage() {
       </section>
 
       {/* Para Jugadores */}
-      <section className="py-24 bg-slate-50">
+      <section className="py-24 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <Badge className="mb-6 bg-blue-100 text-blue-700 border-blue-200 px-4 py-2">🎾 Para Jugadores</Badge>
             <h2 className="text-4xl font-bold text-slate-900 mb-4">Tu Carrera Deportiva, Profesionalizada</h2>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-              Seguí tu progreso, competí y conectá
-            </p>
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto">Seguí tu progreso, competí y conectá</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {playerFeatures.map((feature, index) => (
               <Card
                 key={index}
-                className="border-slate-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                className="border-slate-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-white"
               >
                 <CardContent className="p-6 text-center">
                   <div
@@ -376,14 +316,15 @@ export default async function HomePage() {
                     <img
                       src={
                         club.coverImage ||
-                        "https://vulusxqgknaejdxnhiex.supabase.co/storage/v1/object/public/imagenes/prueba/cancha%20prueba.jpg?height=250&width=400"
+                        "https://vulusxqgknaejdxnhiex.supabase.co/storage/v1/object/public/imagenes/prueba/cancha%20prueba.jpg?height=250&width=400" ||
+                        "/placeholder.svg" ||
+                        "/placeholder.svg"
                       }
                       alt={club.name || "Club de pádel"}
                       className="w-full h-48 object-cover transition-transform duration-500 hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
 
-                    {/* Rating Badge */}
                     <div className="absolute top-3 left-3">
                       <Badge className="bg-white/90 text-slate-700 backdrop-blur-sm shadow-sm border-0">
                         <Star className="h-3 w-3 mr-1 fill-amber-400 text-amber-400" />
@@ -391,7 +332,6 @@ export default async function HomePage() {
                       </Badge>
                     </div>
 
-                    {/* Premium Badge */}
                     <div className="absolute top-3 right-3">
                       <Badge className="bg-gradient-to-r from-slate-600 to-slate-800 text-white shadow-sm border-0">
                         <Award className="h-3 w-3 mr-1" />
@@ -410,7 +350,6 @@ export default async function HomePage() {
                       <span className="font-medium truncate">{club.address || "Dirección no disponible"}</span>
                     </div>
 
-                    {/* Stats Grid */}
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       <div className="flex items-center text-slate-600 text-sm bg-slate-50 rounded-lg p-3 border border-slate-100">
                         <Users className="h-4 w-4 mr-2 text-slate-500" />
@@ -449,9 +388,7 @@ export default async function HomePage() {
                   <Building2 className="h-8 w-8 text-gray-400" />
                 </div>
                 <h3 className="text-xl font-medium text-gray-700 mb-2">No hay clubes registrados</h3>
-                <p className="text-gray-500 max-w-md mx-auto">
-                  Próximamente tendremos los mejores clubes de pádel.
-                </p>
+                <p className="text-gray-500 max-w-md mx-auto">Próximamente tendremos los mejores clubes de pádel.</p>
               </div>
             )}
           </div>
@@ -467,44 +404,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Para Clubes */}
-      <section className="py-24 bg-slate-900 text-white">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <Badge className="mb-6 bg-blue-600 text-white border-blue-500 px-4 py-2">🏟️ Para Clubes</Badge>
-            <h2 className="text-4xl font-bold mb-4">Potenciá Tu Club</h2>
-            <p className="text-xl text-slate-300 max-w-3xl mx-auto">
-              Llegá a más jugadores, simplificá la gestión y ganá visibilidad en la comunidad padelera
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-12">
-            {clubFeatures.map((feature, index) => (
-              <Card key={index} className="bg-slate-800 border-slate-700 hover:bg-slate-750 transition-colors">
-                <CardContent className="p-6 text-center">
-                  <div className="w-16 h-16 bg-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <feature.icon className={`h-8 w-8 ${feature.color}`} />
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">{feature.title}</h3>
-                  <p className="text-slate-300 text-sm leading-relaxed">{feature.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="text-center">
-            <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4">
-              <Link href="/register?role=club">
-                <Building2 className="mr-2 h-5 w-5" />
-                Registrar Mi Club
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
       {/* Torneos Disponibles */}
-      <section className="py-24 bg-slate-50">
+      <section className="py-24 bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-slate-900 mb-4">Torneos Disponibles</h2>
@@ -514,11 +415,7 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {upcomingTournaments.length > 0 ? (
               upcomingTournaments.map((tournament) => (
-                <TournamentCard
-                  key={tournament.id}
-                  tournament={tournament}
-                  categories={categories}
-                />
+                <TournamentCard key={tournament.id} tournament={tournament} categories={categories} />
               ))
             ) : (
               <div className="col-span-3 text-center py-12">
@@ -534,7 +431,7 @@ export default async function HomePage() {
           </div>
 
           <div className="text-center mt-12">
-            <Button asChild variant="outline" className="border-blue-200 text-blue-600 hover:bg-blue-50 px-6 py-3">
+            <Button asChild variant="outline" className="border-gray-400 text-gray-700 hover:bg-gray-200 px-6 py-3">
               <Link href="/tournaments">
                 Ver Todos los Torneos
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -548,93 +445,18 @@ export default async function HomePage() {
       <section className="py-24 bg-white">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <Badge className="mb-6 bg-amber-100 text-amber-700 border-amber-200 px-4 py-2">
+            <Badge className="mb-6 bg-gradient-to-r from-yellow-100 to-amber-100 text-amber-700 border-amber-200 px-4 py-2">
               <Trophy className="mr-2 h-4 w-4" />
               Ganadores de la Semana
             </Badge>
             <h2 className="text-3xl font-bold text-slate-900 mb-4">¡Felicitaciones a Nuestros Campeones!</h2>
-            <p className="text-slate-600">Conocé a las parejas que se coronaron esta semana en los torneos más competitivos</p>
+            <p className="text-slate-600">
+              Conocé a las parejas que se coronaron esta semana en los torneos más competitivos
+            </p>
           </div>
 
           {weeklyWinners.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {weeklyWinners.slice(0, 6).map((tournament: any, index: number) => (
-                <Card key={tournament.id} className="border-slate-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-                  <div className="relative">
-                    <img
-                      src={tournament.winnerImageUrl}
-                      alt={`Ganadores del torneo ${tournament.tournamentName}`}
-                      className="w-full h-64 object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
-                    
-                    {/* Tournament Badge */}
-                    <div className="absolute top-4 left-4">
-                      <Badge className="bg-white/90 text-slate-700 backdrop-blur-sm shadow-sm border-0">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {new Date(tournament.endDate).toLocaleDateString('es-ES', {
-                          day: 'numeric',
-                          month: 'short'
-                        })}
-                      </Badge>
-                    </div>
-
-                    {/* Champions Badge */}
-                    <div className="absolute top-4 right-4">
-                      <Badge className="bg-gradient-to-r from-amber-400 to-amber-600 text-white shadow-lg border-0">
-                        <Trophy className="h-3 w-3 mr-1 fill-white" />
-                        Campeones
-                      </Badge>
-                    </div>
-
-                    {/* Winner Names Overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                      <div className="text-center">
-                        <div className="flex items-center justify-center gap-2 mb-2">
-                          <Trophy className="h-5 w-5 text-amber-400" />
-                          <span className="font-bold text-lg">¡Campeones!</span>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="font-semibold text-amber-200">
-                            {tournament.winner.player1Name}
-                          </p>
-                          <p className="font-semibold text-amber-200">
-                            {tournament.winner.player2Name}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <CardContent className="p-6">
-                    <div className="text-center">
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">
-                        {tournament.tournamentName}
-                      </h3>
-                      <div className="flex items-center justify-center text-slate-500 text-sm mb-4">
-                        <Clock className="h-4 w-4 mr-1" />
-                        <span>Finalizado el {new Date(tournament.endDate).toLocaleDateString('es-ES', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric'
-                        })}</span>
-                      </div>
-                      
-                      <div className="flex items-center justify-center space-x-2">
-                        <Badge variant="outline" className="text-xs border-amber-200 text-amber-700">
-                          <Award className="h-3 w-3 mr-1" />
-                          Victoria
-                        </Badge>
-                        <Badge variant="outline" className="text-xs border-blue-200 text-blue-700">
-                          <Users className="h-3 w-3 mr-1" />
-                          Pareja
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <WeeklyWinnersCarousel weeklyWinners={weeklyWinners} />
           ) : (
             <div className="text-center py-12">
               <div className="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -642,7 +464,8 @@ export default async function HomePage() {
               </div>
               <h3 className="text-xl font-medium text-gray-700 mb-2">No hay ganadores esta semana</h3>
               <p className="text-gray-500 max-w-md mx-auto">
-                No se han completado torneos con fotos de ganadores en los últimos 7 días. ¡Vuelve pronto para ver a los nuevos campeones!
+                No se han completado torneos con fotos de ganadores en los últimos 7 días. ¡Vuelve pronto para ver a los
+                nuevos campeones!
               </p>
             </div>
           )}
@@ -676,18 +499,13 @@ export default async function HomePage() {
                   Registrarme como Jugador
                 </Link>
               </Button>
-              <Button
-                asChild
-                size="lg"
-                className="bg-blue-800 hover:bg-blue-900 text-white px-8 py-6 text-lg"
-              >
+              <Button asChild size="lg" className="bg-blue-800 hover:bg-blue-900 text-white px-8 py-6 text-lg">
                 <Link href="/register?role=club">
                   <Building2 className="mr-2 h-5 w-5" />
                   Registrarme como Club
                 </Link>
               </Button>
             </div>
-
           </div>
         </div>
       </section>

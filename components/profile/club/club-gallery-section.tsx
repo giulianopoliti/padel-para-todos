@@ -1,11 +1,11 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useTransition } from "react"
+import { useState, useRef, useTransition, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Camera, Upload, Trash2, ImageIcon, Info } from "lucide-react"
+import { Camera, Upload, Trash2, ImageIcon, Info, Save } from "lucide-react"
 import {
   uploadClubCoverAction,
   uploadClubGalleryAction,
@@ -18,9 +18,11 @@ interface ClubGallerySectionProps {
     coverImage?: string | null
     galleryImages?: string[]
   }
+  onSaveChanges?: () => void
+  isSaving?: boolean
 }
 
-export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
+export function ClubGallerySection({ defaultValues, onSaveChanges, isSaving }: ClubGallerySectionProps) {
   const { toast } = useToast()
   const coverInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
@@ -28,6 +30,26 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
   const [coverImage, setCoverImage] = useState(defaultValues?.coverImage || null)
   const [galleryImages, setGalleryImages] = useState<string[]>(defaultValues?.galleryImages || [])
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
+
+  // Update cover image when defaultValues change
+  useEffect(() => {
+    if (defaultValues?.coverImage) {
+      // Only add cache busting if the base URL is different from current
+      const baseUrl = defaultValues.coverImage.split('?')[0]
+      const currentBaseUrl = coverImage?.split('?')[0]
+      
+      if (baseUrl !== currentBaseUrl) {
+        setCoverImage(`${baseUrl}?t=${Date.now()}`)
+      }
+    } else {
+      setCoverImage(null)
+    }
+  }, [defaultValues?.coverImage])
+
+  // Update gallery images when defaultValues change
+  useEffect(() => {
+    setGalleryImages(defaultValues?.galleryImages || [])
+  }, [defaultValues?.galleryImages])
 
   // Use transitions for handling actions
   const [isPending, startTransition] = useTransition()
@@ -51,7 +73,7 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
       if (file.size > 5 * 1024 * 1024) {
         toast({
           title: "Archivo muy grande",
-          description: "La imagen debe ser menor a 5MB.",
+          description: `La imagen debe ser menor a 5MB. Tamaño actual: ${(file.size / (1024 * 1024)).toFixed(1)}MB`,
           variant: "destructive",
         })
         return
@@ -74,7 +96,9 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
           const result = await uploadClubCoverAction(formData)
 
           if (result.success && result.url) {
-            setCoverImage(result.url)
+            // Add cache busting parameter to force browser reload
+            const imageUrlWithCacheBusting = `${result.url}?t=${Date.now()}`
+            setCoverImage(imageUrlWithCacheBusting)
             setCoverPreview(null)
             toast({
               title: "¡Imagen de portada actualizada!",
@@ -118,7 +142,7 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
       if (file.size > 5 * 1024 * 1024) {
         toast({
           title: "Archivo muy grande",
-          description: "La imagen debe ser menor a 5MB.",
+          description: `La imagen debe ser menor a 5MB. Tamaño actual: ${(file.size / (1024 * 1024)).toFixed(1)}MB`,
           variant: "destructive",
         })
         return
@@ -375,6 +399,27 @@ export function ClubGallerySection({ defaultValues }: ClubGallerySectionProps) {
           </div>
         </div>
       </div>
+
+      {onSaveChanges && (
+        <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-gray-100 w-8 h-8 rounded-lg flex items-center justify-center">
+                <Save className="h-4 w-4 text-gray-600" />
+              </div>
+              <h4 className="font-medium text-gray-900">Guardar Cambios</h4>
+            </div>
+            <Button
+              type="button"
+              onClick={onSaveChanges}
+              disabled={isSaving}
+              className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm"
+            >
+              {isSaving ? "Guardando..." : "Guardar Cambios"}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

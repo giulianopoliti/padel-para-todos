@@ -620,6 +620,14 @@ export async function uploadClubCoverAction(formData: FormData): Promise<{ succe
 
     if (result.success) {
       console.log('✅ Cover upload successful')
+      
+      // Invalidate cache for pages that show club data
+      const { revalidatePath } = await import("next/cache");
+      revalidatePath('/'); // Home page
+      revalidatePath('/clubes'); // Clubs page
+      revalidatePath('/edit-profile'); // Edit profile page
+      console.log('🔄 Cache invalidated for pages: /, /clubes, /edit-profile')
+      
       return { success: true, message: "Imagen de portada subida exitosamente.", url: result.url };
     } else {
       console.log('❌ Cover upload failed:', result.error)
@@ -692,6 +700,14 @@ export async function uploadClubGalleryAction(formData: FormData): Promise<{ suc
 
     if (result.success) {
       console.log('✅ Gallery upload successful')
+      
+      // Invalidate cache for pages that show club data
+      const { revalidatePath } = await import("next/cache");
+      revalidatePath('/'); // Home page
+      revalidatePath('/clubes'); // Clubs page
+      revalidatePath('/edit-profile'); // Edit profile page
+      console.log('🔄 Cache invalidated for pages: /, /clubes, /edit-profile')
+      
       return { 
         success: true, 
         message: "Imagen agregada a la galería exitosamente.", 
@@ -755,10 +771,18 @@ export async function removeClubGalleryAction(formData: FormData): Promise<{ suc
     console.log('📥 Remove result:', result)
 
     if (result.success) {
-      console.log('✅ Image removal successful')
+      console.log('✅ Gallery image removed successfully')
+      
+      // Invalidate cache for pages that show club data
+      const { revalidatePath } = await import("next/cache");
+      revalidatePath('/'); // Home page
+      revalidatePath('/clubes'); // Clubs page
+      revalidatePath('/edit-profile'); // Edit profile page
+      console.log('🔄 Cache invalidated for pages: /, /clubes, /edit-profile')
+      
       return { 
         success: true, 
-        message: "Imagen eliminada de la galería exitosamente.",
+        message: "Imagen eliminada de la galería exitosamente.", 
         galleryImages: result.galleryImages
       };
     } else {
