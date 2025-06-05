@@ -21,6 +21,7 @@ import {
   ChevronRight,
 } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { getTournaments, getCategories, getWeeklyWinners } from "@/app/api/tournaments"
 import { getPlayersMale, getClubesWithServices } from "@/app/api/users"
 import type React from "react"
@@ -129,10 +130,17 @@ export default async function HomePage() {
 
         <div className="relative container mx-auto px-6 py-12 lg:py-20">
           <div className="max-w-5xl mx-auto text-center">
-            <Badge className="mb-8 bg-blue-600 text-white border-blue-700 px-4 py-2">
-              <Trophy className="mr-2 h-4 w-4" />
-              El futuro del pádel competitivo
-            </Badge>
+            {/* Logo Figma */}
+            <div className="mb-12 flex justify-center">
+              <Image
+                src="/logo figma.svg"
+                alt="Circuito de Pádel Amateur - Logo Principal"
+                width={400}
+                height={150}
+                className="h-32 w-auto drop-shadow-2xl"
+                priority
+              />
+            </div>
 
             <h1 className="text-4xl lg:text-7xl font-black mb-8 tracking-tight text-white">
               La plataforma definitiva
