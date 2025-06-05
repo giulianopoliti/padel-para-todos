@@ -37,7 +37,7 @@ interface ConnectorLine {
 }
 
 export default function EnhancedBracketDemo() {
-  const [currentView, setCurrentView] = useState<"zones" | "bracket">("zones")
+  const [currentView, setCurrentView] = useState<"zones" | "bracket">("bracket")
   const [animationStep, setAnimationStep] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
   const [matchPositions, setMatchPositions] = useState<MatchPosition[]>([])
@@ -431,16 +431,6 @@ export default function EnhancedBracketDemo() {
         <div className="flex justify-center mb-8">
           <div className="bg-white rounded-lg p-1 shadow-sm border border-slate-200 flex">
             <Button
-              onClick={() => switchView("zones")}
-              variant={currentView === "zones" ? "default" : "ghost"}
-              className={`px-6 py-3 transition-all duration-300 ${
-                currentView === "zones" ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-800"
-              }`}
-            >
-              <Users className="mr-2 h-5 w-5" />
-              Zonas Clasificatorias
-            </Button>
-            <Button
               onClick={() => switchView("bracket")}
               variant={currentView === "bracket" ? "default" : "ghost"}
               className={`px-6 py-3 transition-all duration-300 ${
@@ -449,6 +439,16 @@ export default function EnhancedBracketDemo() {
             >
               <Target className="mr-2 h-5 w-5" />
               Bracket Eliminatorio
+            </Button>
+            <Button
+              onClick={() => switchView("zones")}
+              variant={currentView === "zones" ? "default" : "ghost"}
+              className={`px-6 py-3 transition-all duration-300 ${
+                currentView === "zones" ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-800"
+              }`}
+            >
+              <Users className="mr-2 h-5 w-5" />
+              Zonas Clasificatorias
             </Button>
           </div>
         </div>

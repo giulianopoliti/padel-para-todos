@@ -28,6 +28,7 @@ import type React from "react"
 import TournamentCard from "@/components/tournament-card"
 import PlayerAvatar from "@/components/player-avatar"
 import WeeklyWinnersCarousel from "@/components/weekly-winners-carousel"
+import EnhancedBracketDemo from "@/components/home/enhance-bracket-demo"
 
 // Types
 interface Tournament {
@@ -124,20 +125,20 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-blue-900 overflow-hidden pt-12 text-white">
+      <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-blue-900 overflow-hidden pt-6 text-white h-dvh">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,0.1),transparent_50%)]"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(59,130,246,0.05),transparent_50%)]"></div>
 
-        <div className="relative container mx-auto px-6 py-12 lg:py-20">
+        <div className="relative container mx-auto px-6 py-12 lg:py-20 h-full flex items-center">
           <div className="max-w-5xl mx-auto text-center">
             {/* Logo Figma */}
             <div className="mb-12 flex justify-center">
               <Image
                 src="/logo figma.svg"
                 alt="Circuito de Pádel Amateur - Logo Principal"
-                width={400}
-                height={150}
-                className="h-32 w-auto drop-shadow-2xl"
+                width={450}
+                height={170}
+                className="h-36 w-auto drop-shadow-2xl"
                 priority
               />
             </div>
@@ -406,6 +407,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Sistema de Gestión Profesional - Bracket Demo */}
+      <EnhancedBracketDemo />
 
       {/* Torneos Disponibles */}
       <section className="py-24 bg-gradient-to-br from-gray-50 to-gray-100">
