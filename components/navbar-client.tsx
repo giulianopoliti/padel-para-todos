@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Trophy, Menu, X, BarChart3, Calendar, MapPin, User, Bell, Search, Home } from "lucide-react"
+import { Trophy, Menu, X, BarChart3, Calendar, MapPin, User, Home } from "lucide-react"
 import type { User as AuthUser } from "@supabase/supabase-js"
 import NavbarUserProfile from "./navbar-user-profile"
 import { useState } from "react"
@@ -86,21 +86,6 @@ export default function NavbarClient({ mainLinks, profileLinks, user }: NavbarCl
 
           {/* Desktop Actions */}
           <div className="hidden lg:flex items-center space-x-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-gray-300 hover:text-white hover:bg-gray-800 rounded-full"
-            >
-              <Search className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-gray-300 hover:text-white hover:bg-gray-800 rounded-full"
-            >
-              <Bell className="h-5 w-5" />
-            </Button>
-            
             {user ? (
               <NavbarUserProfile profileLinks={profileLinks} />
             ) : (
