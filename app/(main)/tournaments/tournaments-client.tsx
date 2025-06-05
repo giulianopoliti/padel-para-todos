@@ -136,21 +136,21 @@ export default function TournamentsClient({
                 className="flex-1 py-3 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
               >
                 <Calendar className="mr-2 h-5 w-5" />
-                Próximos Torneos
+                Próximos
               </TabsTrigger>
               <TabsTrigger
                 value="active"
                 className="flex-1 py-3 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
               >
                 <Trophy className="mr-2 h-5 w-5" />
-                Torneos Activos
+                Activos
               </TabsTrigger>
               <TabsTrigger
                 value="past"
                 className="flex-1 py-3 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
               >
                 <Archive className="mr-2 h-5 w-5" />
-                Torneos Pasados
+                Pasados
               </TabsTrigger>
             </TabsList>
 

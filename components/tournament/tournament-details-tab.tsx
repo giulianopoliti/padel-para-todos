@@ -47,63 +47,72 @@ export default function TournamentDetailsTabs({
   allPlayers = [],
   pendingInscriptions = [],
 }: TournamentDetailsTabProps) {
-  const [activeTab, setActiveTab] = useState("players")
   const isTournamentActive = tournamentStatus !== "NOT_STARTED"
+  const [activeTab, setActiveTab] = useState(isTournamentActive ? "couples" : "players")
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full bg-slate-50 border-b border-gray-200 rounded-t-xl p-2">
-          <TabsTrigger
-            value="players"
-            className="flex-1 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm rounded-lg"
-          >
-            <UserPlus className="mr-2 h-4 w-4" />
-            Jugadores
-          </TabsTrigger>
+        <TabsList className="w-full bg-slate-50 border-b border-gray-200 rounded-t-xl p-2 flex-wrap sm:flex-nowrap gap-1">
+          {!isTournamentActive && (
+            <TabsTrigger
+              value="players"
+              className="flex-1 min-w-0 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm rounded-lg text-xs sm:text-sm"
+            >
+              <UserPlus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Jugadores</span>
+              <span className="sm:hidden">Jugad.</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger
             value="couples"
-            className="flex-1 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm rounded-lg"
+            className="flex-1 min-w-0 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm rounded-lg text-xs sm:text-sm"
           >
-            <Users className="mr-2 h-4 w-4" />
-            Parejas
+            <Users className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Parejas</span>
+            <span className="sm:hidden">Parejas</span>
           </TabsTrigger>
           {isTournamentActive && (
             <>
               <TabsTrigger
                 value="zones"
-                className="flex-1 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm rounded-lg"
+                className="flex-1 min-w-0 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm rounded-lg text-xs sm:text-sm"
               >
-                <ListChecks className="mr-2 h-4 w-4" />
-                Zonas
+                <ListChecks className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Zonas</span>
+                <span className="sm:hidden">Zonas</span>
               </TabsTrigger>
               <TabsTrigger
                 value="matches"
-                className="flex-1 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm rounded-lg"
+                className="flex-1 min-w-0 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm rounded-lg text-xs sm:text-sm"
               >
-                <Trophy className="mr-2 h-4 w-4" />
-                Partidos
+                <Trophy className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Partidos</span>
+                <span className="sm:hidden">Partidos</span>
               </TabsTrigger>
               <TabsTrigger
                 value="brackets"
-                className="flex-1 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm rounded-lg"
+                className="flex-1 min-w-0 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm rounded-lg text-xs sm:text-sm"
               >
-                <GitFork className="mr-2 h-4 w-4" />
-                Llaves
+                <GitFork className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Llaves</span>
+                <span className="sm:hidden">Llaves</span>
               </TabsTrigger>
             </>
           )}
         </TabsList>
 
-        <TabsContent value="players" className="p-0">
-          <TournamentPlayersTab
-            individualInscriptions={individualInscriptions}
-            tournamentId={tournamentId}
-            tournamentStatus={tournamentStatus}
-            maxPlayers={maxPlayers}
-            allPlayers={allPlayers}
-          />
-        </TabsContent>
+        {!isTournamentActive && (
+          <TabsContent value="players" className="p-0">
+            <TournamentPlayersTab
+              individualInscriptions={individualInscriptions}
+              tournamentId={tournamentId}
+              tournamentStatus={tournamentStatus}
+              maxPlayers={maxPlayers}
+              allPlayers={allPlayers}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="couples" className="p-0">
           <TournamentCouplesTab
