@@ -201,6 +201,85 @@ async function _calculateAndApplyScoreChanges(
   console.log(`[ScoreUpdate] Scores updated. Winner: ${winningCoupleId}, Loser: ${losingCoupleId}. Transferred total: ${totalPointsToTransfer}`);
 }
 
+/**
+ * Helper function to check and categorize a player if they haven't been categorized yet
+ * This function assigns the minimum score for the category and marks the player as categorized
+ */
+async function checkAndCategorizePlayer(playerId: string, categoryName: string, supabase: any) {
+  console.log(`[checkAndCategorizePlayer] Checking categorization for player ${playerId} in category ${categoryName}`);
+  
+  try {
+    // Get current player info
+    const { data: playerData, error: playerError } = await supabase
+      .from('players')
+      .select('id, is_categorized, score, category_name')
+      .eq('id', playerId)
+      .single();
+
+    if (playerError) {
+      console.error(`[checkAndCategorizePlayer] Error fetching player ${playerId}:`, playerError);
+      return { success: false, message: "Error al obtener información del jugador" };
+    }
+
+    if (!playerData) {
+      console.error(`[checkAndCategorizePlayer] Player ${playerId} not found`);
+      return { success: false, message: "Jugador no encontrado" };
+    }
+
+    // If player is already categorized, no action needed
+    if (playerData.is_categorized) {
+      console.log(`[checkAndCategorizePlayer] Player ${playerId} is already categorized with score ${playerData.score}`);
+      return { success: true, message: "Jugador ya categorizado", alreadyCategorized: true };
+    }
+
+    // Get category information
+    const { data: categoryData, error: categoryError } = await supabase
+      .from('categories')
+      .select('name, lower_range')
+      .eq('name', categoryName)
+      .single();
+
+    if (categoryError) {
+      console.error(`[checkAndCategorizePlayer] Error fetching category ${categoryName}:`, categoryError);
+      return { success: false, message: "Error al obtener información de la categoría" };
+    }
+
+    if (!categoryData) {
+      console.error(`[checkAndCategorizePlayer] Category ${categoryName} not found`);
+      return { success: false, message: "Categoría no encontrada" };
+    }
+
+    // Update player with minimum score for the category and mark as categorized
+    const newScore = categoryData.lower_range || 0;
+    const { error: updateError } = await supabase
+      .from('players')
+      .update({
+        score: newScore,
+        category_name: categoryName,
+        is_categorized: true
+      })
+      .eq('id', playerId);
+
+    if (updateError) {
+      console.error(`[checkAndCategorizePlayer] Error updating player ${playerId}:`, updateError);
+      return { success: false, message: "Error al actualizar el jugador" };
+    }
+
+    console.log(`[checkAndCategorizePlayer] Player ${playerId} successfully categorized with score ${newScore} in category ${categoryName}`);
+    return { 
+      success: true, 
+      message: "Jugador categorizado exitosamente", 
+      newScore, 
+      categoryName,
+      wasCategorized: true 
+    };
+
+  } catch (error) {
+    console.error(`[checkAndCategorizePlayer] Unexpected error:`, error);
+    return { success: false, message: "Error inesperado al categorizar jugador" };
+  }
+}
+
 function generateMatchesForZoneLogic(zone: { id: string; couples: GeneratedCouple[] }, tournamentId: string): GenericMatchInsertData[] {
   const matchesToInsert: GenericMatchInsertData[] = [];
   const couplesInZone = zone.couples;
@@ -510,6 +589,45 @@ export async function registerNewPlayerForTournament(tournamentId: string, first
 export async function registerCoupleForTournament(tournamentId: string, player1Id: string, player2Id: string): Promise<{ success: boolean; error?: string; inscription?: any }> {
   console.log(`[registerCoupleForTournament] Iniciando registro de pareja en torneo ${tournamentId}`, { player1Id, player2Id });
   const supabase = await createClient();
+  
+  // First, get tournament info to determine category
+  const { data: tournamentData, error: tournamentError } = await supabase
+    .from('tournaments')
+    .select('category_name')
+    .eq('id', tournamentId)
+    .single();
+    
+  if (tournamentError) {
+    console.error("[registerCoupleForTournament] Error fetching tournament:", tournamentError);
+    return { success: false, error: "Error al obtener información del torneo" };
+  }
+  
+  // Determine category name
+  const categoryName = tournamentData.category_name || '';
+  
+  // Check and categorize both players if needed
+  if (categoryName) {
+    // Categorize player 1
+    const categorization1 = await checkAndCategorizePlayer(player1Id, categoryName, supabase);
+    if (!categorization1.success) {
+      console.error("[registerCoupleForTournament] Error categorizing player 1:", categorization1.message);
+      return { success: false, error: categorization1.message };
+    }
+    
+    // Categorize player 2
+    const categorization2 = await checkAndCategorizePlayer(player2Id, categoryName, supabase);
+    if (!categorization2.success) {
+      console.error("[registerCoupleForTournament] Error categorizing player 2:", categorization2.message);
+      return { success: false, error: categorization2.message };
+    }
+    
+    if (categorization1.wasCategorized) {
+      console.log(`[registerCoupleForTournament] Player 1 ${player1Id} was categorized with score ${categorization1.newScore}`);
+    }
+    if (categorization2.wasCategorized) {
+      console.log(`[registerCoupleForTournament] Player 2 ${player2Id} was categorized with score ${categorization2.newScore}`);
+    }
+  }
 
   // Check if either player is already registered in this tournament (individually or in a couple)
   const { data: existingPlayerInscriptions, error: playerCheckError } = await supabase
@@ -786,6 +904,36 @@ export async function getTournamentDetailsWithInscriptions(tournamentId: string)
 
 export async function registerPlayerForTournament(tournamentId: string, playerId: string) {
   const supabase = await createClient();
+  
+  // First, get tournament info to determine category
+  const { data: tournamentData, error: tournamentError } = await supabase
+    .from('tournaments')
+    .select('category_name')
+    .eq('id', tournamentId)
+    .single();
+    
+  if (tournamentError) {
+    console.error("[registerPlayerForTournament] Error fetching tournament:", tournamentError);
+    return { success: false, message: "Error al obtener información del torneo" };
+  }
+  
+  // Determine category name
+  const categoryName = tournamentData.category_name || '';
+  
+  // Check and categorize player if needed
+  if (categoryName) {
+    const categorizationResult = await checkAndCategorizePlayer(playerId, categoryName, supabase);
+    
+    if (!categorizationResult.success) {
+      console.error("[registerPlayerForTournament] Error categorizing player:", categorizationResult.message);
+      return { success: false, message: categorizationResult.message };
+    }
+    
+    if (categorizationResult.wasCategorized) {
+      console.log(`[registerPlayerForTournament] Player ${playerId} was categorized with score ${categorizationResult.newScore} for category ${categorizationResult.categoryName}`);
+    }
+  }
+  
   const { data: existing, error: checkError } = await supabase
     .from('inscriptions')
     .select('id, is_pending') // Select is_pending

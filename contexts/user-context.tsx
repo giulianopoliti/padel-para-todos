@@ -57,7 +57,13 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         if (dbError || !basicUserData) {
             console.error("[UserContext] Error fetching basic user details:", dbError?.message);
             setUserDetails(null); 
-            setError(dbError?.code === 'PGRST116' ? "Perfil de usuario no encontrado." : "Error fetching user details.");
+            
+            // Check if this is a temporary user that was blocked due to DNI conflict
+            if (dbError?.code === 'PGRST116') {
+                setError("Tu registro fue bloqueado por un conflicto de datos. Contacta al administrador por WhatsApp para resolverlo.");
+            } else {
+                setError("Error fetching user details.");
+            }
             return;
         }
 
@@ -67,11 +73,20 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         if (basicUserData.role === 'PLAYER') {
             const { data: playerData, error: playerError } = await supabase
                 .from('players')
-                .select('id')
+                .select('id, status')
                 .eq('user_id', basicUserData.id)
                 .single();
-            if (playerError) console.error("[UserContext] Error fetching player ID:", playerError.message);
-            else if (playerData) finalUserDetails.player_id = playerData.id;
+            if (playerError) {
+                console.error("[UserContext] Error fetching player ID:", playerError.message);
+            } else if (playerData) {
+                finalUserDetails.player_id = playerData.id;
+                
+                // Check if player is blocked due to DNI conflict
+                if (playerData.status === 'inactive') {
+                    setError("Tu cuenta fue bloqueada por un conflicto de datos. Contacta al administrador por WhatsApp +5491169405063 para resolverlo.");
+                    console.log("[UserContext] Player account is blocked due to DNI conflict");
+                }
+            }
         } else if (basicUserData.role === 'CLUB') {
              const { data: clubData, error: clubError } = await supabase
                 .from('clubes')

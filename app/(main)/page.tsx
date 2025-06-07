@@ -134,7 +134,7 @@ export default async function HomePage() {
             {/* Logo Figma */}
             <div className="mb-12 flex justify-center">
               <Image
-                src="/logo figma.svg"
+                src="/Logo home.svg"
                 alt="Circuito de Pádel Amateur - Logo Principal"
                 width={450}
                 height={170}

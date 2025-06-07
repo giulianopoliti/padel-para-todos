@@ -5,7 +5,7 @@ export const CPALogo: React.FC = () => {
   return (
     <div className="flex items-center">
       <Image
-        src="/Logo Navbar.svg"
+        src="/LOGO NAVBAR.SVG"
         alt="Circuito de Pádel Amateur"
         width={240}
         height={64}

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { register } from "./actions"
+import { register, confirmPlayerLinking, rejectPlayerLinking } from "./actions"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -12,8 +12,9 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { ArrowLeft, User, Building2, GraduationCap, Eye, EyeOff } from "lucide-react"
+import { ArrowLeft, User, Building2, GraduationCap, Eye, EyeOff, UserCheck, Trophy, AlertTriangle } from "lucide-react"
 import CPALogo from "@/components/ui/cpa-logo"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 type Role = "PLAYER" | "CLUB" | "COACH" | ""
 
@@ -23,6 +24,8 @@ export default function RegisterPage() {
   const { toast } = useToast()
   const router = useRouter()
   const [selectedRole, setSelectedRole] = useState<Role>("")
+  const [confirmationData, setConfirmationData] = useState<any>(null)
+  const [originalFormData, setOriginalFormData] = useState<FormData | null>(null)
 
   const [formData, setFormData] = useState({
     email: "",
@@ -48,6 +51,159 @@ export default function RegisterPage() {
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }))
     }
+  }
+
+  const handleConfirmLinking = async () => {
+    if (!confirmationData || !confirmationData.existingPlayer || !confirmationData.tempUserId) return
+    
+    setIsSubmitting(true)
+    try {
+      const result = await confirmPlayerLinking(confirmationData.existingPlayer.id, confirmationData.tempUserId)
+      
+      if (result?.error) {
+        toast({
+          title: "Error al Vincular",
+          description: result.error,
+          variant: "destructive",
+        })
+      } else if (result?.success) {
+        toast({
+          title: "¡Cuenta Vinculada!",
+          description: `${result.message} Puntaje actual: ${result.playerData?.score || 0} puntos.`,
+          duration: 5000,
+        })
+        if (result.redirectUrl) {
+          setTimeout(() => {
+            router.push(result.redirectUrl || "/")
+          }, 3000)
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Error Inesperado",
+        description: "Ha ocurrido un error al vincular la cuenta.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleRejectLinking = async () => {
+    if (!originalFormData || !confirmationData?.tempUserId) return
+    
+    setIsSubmitting(true)
+    try {
+      const result = await rejectPlayerLinking(
+        originalFormData, 
+        confirmationData.tempUserId,
+        confirmationData.existingPlayer?.id // Pass existing player ID for conflict tracking
+      )
+      
+      // Clear confirmation data first
+      setConfirmationData(null)
+      
+      if (result?.error) {
+        // Show error message with WhatsApp report option
+        toast({
+          title: "❌ Registro Bloqueado",
+          description: (
+            <div className="space-y-3">
+              <p className="text-sm">{result.error}</p>
+              <p className="text-xs text-gray-600">
+                Este conflicto necesita ser resuelto manualmente por el administrador.
+              </p>
+              {result.showConflictReport && result.conflictData && (
+                <button
+                  onClick={() => handleReportConflict(result.conflictData!)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                >
+                  📱 Contactar por WhatsApp
+                </button>
+              )}
+            </div>
+          ),
+          variant: "destructive",
+          duration: 10000, // Show for longer
+        })
+      } else if (result?.success) {
+        // This shouldn't happen with the new flow, but keeping for safety
+        toast({
+          title: "Perfil Creado",
+          description: result.message || "Nuevo perfil de jugador creado exitosamente.",
+        })
+        
+        if (result.redirectUrl) {
+          setTimeout(() => {
+            router.push(result.redirectUrl || "/")
+          }, 2000)
+        }
+      }
+    } catch (error) {
+      // Clear confirmation data on error too
+      setConfirmationData(null)
+      
+      toast({
+        title: "Error Inesperado",
+        description: (
+          <div className="space-y-3">
+            <p className="text-sm">Ha ocurrido un error al procesar el rechazo.</p>
+            <button
+              onClick={() => handleReportConflict({
+                dni: originalFormData?.get('dni') as string || '',
+                existingPlayerId: confirmationData?.existingPlayer?.id || '',
+                newPlayerId: 'error'
+              })}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+            >
+              📱 Contactar por WhatsApp
+            </button>
+          </div>
+        ),
+        variant: "destructive",
+        duration: 8000,
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleReportConflict = (conflictData: { dni: string | null; existingPlayerId: string; newPlayerId: string }) => {
+    const isBlocked = conflictData.newPlayerId === 'blocked' || conflictData.newPlayerId === 'error';
+    
+    const message = `🚨 *CONFLICTO DNI - REGISTRO BLOQUEADO*
+
+📋 *Detalles del conflicto:*
+• DNI: ${conflictData.dni}
+• ID del perfil existente: ${conflictData.existingPlayerId}
+• Estado: ${isBlocked ? 'Registro bloqueado por el usuario' : 'Conflicto reportado'}
+
+⚠️ *Descripción del problema:* 
+El usuario intentó registrarse con un DNI que ya existe en el sistema, pero indica que el perfil encontrado NO le corresponde.
+
+🔍 *Posibles causas:*
+- Error en los datos del perfil existente
+- DNI ingresado incorrectamente en registros anteriores
+- Documento duplicado por error de carga
+- Necesita verificación manual de identidad
+
+👤 *Acción del usuario:* RECHAZÓ la vinculación con el perfil existente
+
+⏰ *Fecha y hora:* ${new Date().toLocaleString('es-AR')}
+
+🔧 *Acción requerida:*
+Revisar manualmente los datos del perfil ID ${conflictData.existingPlayerId} y resolver el conflicto. El usuario no puede completar su registro hasta que se solucione este problema.
+
+📧 *Email del usuario:* ${formData.email || 'No disponible'}`
+
+    const whatsappUrl = `https://wa.me/+5491169405063?text=${encodeURIComponent(message)}`
+    window.open(whatsappUrl, '_blank')
+    
+    toast({
+      title: "✅ Reporte Enviado",
+      description: "Se abrió WhatsApp con el reporte detallado. El administrador revisará el conflicto lo antes posible.",
+      duration: 4000,
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -92,15 +248,38 @@ export default function RegisterPage() {
           variant: "destructive",
         })
       } else if (result?.success) {
-        toast({
-          title: "Registro Exitoso",
-          description: result.message || "¡Bienvenido!",
-        })
-
-        if (result.redirectUrl) {
-          setTimeout(() => {
-            router.push(result.redirectUrl)
-          }, 1500)
+        // Check if this requires confirmation
+        if (result.requiresConfirmation && result.existingPlayer) {
+          setConfirmationData(result)
+          setOriginalFormData(dataToSubmit)
+          toast({
+            title: "Jugador Encontrado",
+            description: result.message,
+            duration: 3000,
+          })
+        } else if (result.matched && result.playerData) {
+          // Direct match (shouldn't happen with new flow, but keeping for safety)
+          toast({
+            title: "¡Cuenta Vinculada!",
+            description: `${result.message} Puntaje actual: ${result.playerData.score} puntos.`,
+            duration: 5000,
+          })
+          if (result.redirectUrl) {
+            setTimeout(() => {
+              router.push(result.redirectUrl || "/")
+            }, 3000)
+          }
+        } else {
+          // Normal registration
+          toast({
+            title: "Registro Exitoso",
+            description: result.message || "¡Bienvenido!",
+          })
+          if (result.redirectUrl) {
+            setTimeout(() => {
+              router.push(result.redirectUrl || "/")
+            }, 1500)
+          }
         }
       }
     } catch (error) {
@@ -141,6 +320,85 @@ export default function RegisterPage() {
         <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center">
           <Card className="w-full max-w-lg border-0 shadow-2xl rounded-3xl overflow-hidden bg-white/80 backdrop-blur-sm">
             <div className="h-2 bg-gradient-to-r from-slate-600 to-slate-800"></div>
+
+            {/* Player Confirmation Modal */}
+            {confirmationData && confirmationData.existingPlayer && (
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <Card className="w-full max-w-md bg-white shadow-2xl rounded-2xl">
+                  <CardHeader className="text-center pb-4">
+                    <div className="flex justify-center mb-4">
+                      <div className="bg-orange-100 w-16 h-16 rounded-2xl flex items-center justify-center">
+                        <UserCheck className="text-orange-600 w-8 h-8" />
+                      </div>
+                    </div>
+                    <CardTitle className="text-xl font-bold text-slate-800">
+                      ¿Es este tu perfil?
+                    </CardTitle>
+                    <CardDescription className="text-slate-600">
+                      Encontramos un jugador registrado con tu DNI
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        Verifica que los datos coincidan con tu información antes de confirmar
+                      </AlertDescription>
+                    </Alert>
+
+                    <div className="bg-slate-50 p-4 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">Nombre:</span>
+                        <span className="font-semibold text-slate-800">{confirmationData.existingPlayer.name}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">DNI:</span>
+                        <span className="font-semibold text-slate-800">{confirmationData.existingPlayer.dni}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">Puntaje:</span>
+                        <div className="flex items-center">
+                          <Trophy className="h-4 w-4 text-yellow-500 mr-1" />
+                          <span className="font-semibold text-slate-800">{confirmationData.existingPlayer.score} puntos</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">Categoría:</span>
+                        <span className="font-semibold text-slate-800">{confirmationData.existingPlayer.category}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-4">
+                      <Button
+                        onClick={handleRejectLinking}
+                        disabled={isSubmitting}
+                        variant="outline"
+                        className="border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+                      >
+                        {isSubmitting ? "Procesando..." : "❌ No es mi perfil"}
+                      </Button>
+                      <Button
+                        onClick={handleConfirmLinking}
+                        disabled={isSubmitting}
+                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+                      >
+                        {isSubmitting ? "Vinculando..." : "✅ Sí, es mi perfil"}
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2 pt-4">
+                      <p className="text-xs text-slate-500 text-center">
+                        ✅ Al confirmar: Tu cuenta se vinculará con este perfil y conservarás tu historial de torneos.
+                      </p>
+                      <p className="text-xs text-red-500 text-center">
+                        ❌ Al rechazar: El registro se bloqueará hasta resolver el conflicto con el administrador.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             <CardHeader className="text-center pt-8 pb-6">
               <div className="flex justify-center mb-6">
