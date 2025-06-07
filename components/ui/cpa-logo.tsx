@@ -1,11 +1,12 @@
 import React from 'react';
 import Image from 'next/image';
+import { LOGOS } from '@/lib/supabase-storage';
 
 export const CPALogo: React.FC = () => {
   return (
     <div className="flex items-center">
       <Image
-        src="/LOGO NAVBAR.SVG"
+        src={LOGOS.navbar}
         alt="Circuito de Pádel Amateur"
         width={240}
         height={64}

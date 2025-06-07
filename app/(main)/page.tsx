@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { LOGOS } from "@/lib/supabase-storage"
 import { getTournaments, getCategories, getWeeklyWinners } from "@/app/api/tournaments"
 import { getPlayersMale, getClubesWithServices } from "@/app/api/users"
 import type React from "react"
@@ -134,7 +135,7 @@ export default async function HomePage() {
             {/* Logo Figma */}
             <div className="mb-12 flex justify-center">
               <Image
-                src="/Logo home.svg"
+                src={LOGOS.home}
                 alt="Circuito de Pádel Amateur - Logo Principal"
                 width={450}
                 height={170}
