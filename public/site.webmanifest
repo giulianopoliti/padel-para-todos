@@ -1,0 +1,1 @@
+{"name":"Sistema de Torneos de Pádel","short_name":"Padel Torneos","icons":[{"src": "/android-chrome-192x192.png","sizes": "192x192","type": "image/png"},{"src": "/android-chrome-512x512.png","sizes": "512x512","type": "image/png"}],"theme_color":"#22c55e","background_color":"#f8fafc","display":"standalone","start_url":"/","orientation":"portrait"}
