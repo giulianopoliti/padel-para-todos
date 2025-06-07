@@ -129,8 +129,30 @@ async function _fetchPlayerScore(playerId: string, supabase: any): Promise<numbe
 async function _calculateAndApplyScoreChanges(
   winningCoupleId: string,
   losingCoupleId: string | null,
-  supabase: any
+  supabase: any,
+  tournamentId?: string
 ) {
+  // IMPORTANTE: Solo asignar puntos si el torneo está TERMINADO
+  if (tournamentId) {
+    const { data: tournament, error: tournamentError } = await supabase
+      .from('tournaments')
+      .select('status')
+      .eq('id', tournamentId)
+      .single();
+      
+    if (tournamentError) {
+      console.error(`[ScoreUpdate] Error checking tournament status for ${tournamentId}:`, tournamentError?.message);
+      return;
+    }
+    
+    if (tournament && tournament.status !== 'FINISHED') {
+      console.log(`[ScoreUpdate] Tournament ${tournamentId} is not finished (status: ${tournament.status}). Points will NOT be awarded yet.`);
+      return; // NO ASIGNAR PUNTOS SI EL TORNEO NO ESTÁ TERMINADO
+    }
+  }
+
+  console.log(`[ScoreUpdate] Tournament is FINISHED or no tournament ID provided. Proceeding with score assignment.`);
+
   const { data: winnerCouple, error: wcError } = await supabase
     .from('couples')
     .select('player1_id, player2_id')
@@ -199,6 +221,44 @@ async function _calculateAndApplyScoreChanges(
       console.warn(`[ScoreUpdate] No valid player IDs found for winning couple ${winningCoupleId}. Points not distributed.`);
   }
   console.log(`[ScoreUpdate] Scores updated. Winner: ${winningCoupleId}, Loser: ${losingCoupleId}. Transferred total: ${totalPointsToTransfer}`);
+}
+
+// Función para calcular y asignar TODOS los puntos cuando el torneo termine
+async function _calculateAllTournamentPoints(tournamentId: string, supabase: any) {
+  console.log(`[_calculateAllTournamentPoints] Calculating ALL points for tournament ${tournamentId}`);
+  
+  // Obtener todos los matches completados del torneo
+  const { data: matches, error: matchesError } = await supabase
+    .from('matches')
+    .select('id, winner_id, couple1_id, couple2_id, tournament_id')
+    .eq('tournament_id', tournamentId)
+    .eq('status', 'COMPLETED')
+    .not('winner_id', 'is', null);
+    
+  if (matchesError) {
+    console.error(`[_calculateAllTournamentPoints] Error fetching matches:`, matchesError?.message);
+    return;
+  }
+  
+  if (!matches || matches.length === 0) {
+    console.log(`[_calculateAllTournamentPoints] No completed matches found for tournament ${tournamentId}`);
+    return;
+  }
+  
+  console.log(`[_calculateAllTournamentPoints] Found ${matches.length} completed matches to process`);
+  
+  // Procesar cada match y asignar puntos (forzando la asignación)
+  for (const match of matches) {
+    const winningCoupleId = match.winner_id;
+    const losingCoupleId = match.couple1_id === winningCoupleId ? match.couple2_id : match.couple1_id;
+    
+    console.log(`[_calculateAllTournamentPoints] Processing match ${match.id}: Winner ${winningCoupleId}, Loser ${losingCoupleId}`);
+    
+    // Llamar a la función de cálculo SIN pasar tournamentId para que no verifique el estado
+    await _calculateAndApplyScoreChanges(winningCoupleId, losingCoupleId, supabase);
+  }
+  
+  console.log(`[_calculateAllTournamentPoints] Finished processing all ${matches.length} matches for tournament ${tournamentId}`);
 }
 
 /**
@@ -432,11 +492,17 @@ export async function startMatches(tournamentId: string) {
 export async function completeTournament(tournamentId: string) {
   const supabase = await createClient();
   console.log(`[completeTournament] Finalizando torneo ${tournamentId}`);
-  const { data, error } = await supabase.from('tournaments').update({ status: 'COMPLETED' }).eq('id', tournamentId).select().single();
+  const { data, error } = await supabase.from('tournaments').update({ status: 'FINISHED' }).eq('id', tournamentId).select().single();
   if (error) {
     console.error("[completeTournament] Error al finalizar torneo:", error);
     throw new Error("No se pudo finalizar el torneo");
   }
+  
+  // Calcular y asignar todos los puntos ahora que el torneo está terminado
+  console.log(`[completeTournament] Tournament ${tournamentId} marked as FINISHED, calculating all points...`);
+  await _calculateAllTournamentPoints(tournamentId, supabase);
+  console.log(`[completeTournament] Points calculation completed for tournament: ${tournamentId}`);
+  
   // Ensure the returned tournament data is plain
   const plainTournament = data ? {
     ...data,
@@ -1110,7 +1176,7 @@ export async function updateMatchResult({ matchId, result_couple1, result_couple
         else if (couple2_id === actualWinnerCoupleId) { winningCoupleId_param = couple2_id; losingCoupleId_param = couple1_id; }
         
         if (winningCoupleId_param) {
-          await _calculateAndApplyScoreChanges(winningCoupleId_param, losingCoupleId_param, supabase);
+          await _calculateAndApplyScoreChanges(winningCoupleId_param, losingCoupleId_param, supabase, tournamentIdForReval || undefined);
         }
       } else { 
           console.warn(`[updateMatchResult] Match ${matchId} completed without a winner_id in DB. Applying fixed points for participation.`);
@@ -1163,6 +1229,11 @@ export async function updateMatchResult({ matchId, result_couple1, result_couple
           console.error('[updateMatchResult] Error updating tournament status to FINISHED:', tournamentUpdateError);
         } else {
           console.log('[updateMatchResult] Tournament status updated to FINISHED and winner_id set for tournament_id:', updatedMatch.tournament_id);
+          
+          // Calcular y asignar todos los puntos ahora que el torneo está terminado
+          console.log('[updateMatchResult] Tournament finished, calculating all points...');
+          await _calculateAllTournamentPoints(updatedMatch.tournament_id, supabase);
+          console.log('[updateMatchResult] Points calculation completed for tournament:', updatedMatch.tournament_id);
         }
       }
     }
@@ -1439,6 +1510,12 @@ export async function createKnockoutStageMatchesAction(tournamentId: string) {
          console.log(`[createKnockoutStageMatchesAction] Only one seeded couple (${rankedCouples[0].couple_id}), they are the tournament winner.`);
          // Update tournament status to FINISHED and set winner_id
          await supabase.from('tournaments').update({ status: 'FINISHED', winner_id: rankedCouples[0].couple_id }).eq('id', tournamentId);
+         
+         // Calcular y asignar todos los puntos ahora que el torneo está terminado
+         console.log(`[createKnockoutStageMatchesAction] Tournament ${tournamentId} finished with single winner, calculating all points...`);
+         await _calculateAllTournamentPoints(tournamentId, supabase);
+         console.log(`[createKnockoutStageMatchesAction] Points calculation completed for tournament: ${tournamentId}`);
+         
          return { success: true, message: `El torneo ha finalizado. Ganador: ${rankedCouples[0].couple?.player1_details?.first_name}/${rankedCouples[0].couple?.player2_details?.first_name}.`, matches: [] };
       }
       console.log("[createKnockoutStageMatchesAction] No matches generated, though there were ranked couples. Check pairing logic for byes.");
@@ -1589,7 +1666,7 @@ export async function advanceToNextStageAction(tournamentId: string) {
           if (result.success && result.match) {
             createdNextRMatches.push(result.match);
             if (matchData.status === 'COMPLETED' && matchData.winner_id) { // BYE match, apply score changes
-              await _calculateAndApplyScoreChanges(matchData.winner_id, null, supabase);
+              await _calculateAndApplyScoreChanges(matchData.winner_id, null, supabase, tournamentId);
             }
           } else { 
             return { success: false, error: `Error creando partidos para ${nextRound}: ${result.error}` }; 

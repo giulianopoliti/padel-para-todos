@@ -47,12 +47,16 @@ export async function updateSession(request: NextRequest) {
         .from("users") // Make sure 'users' is your user table name
         .select("role") // Make sure 'role' is the column name for the user's role
         .eq("id", user.id)
-        .single()
+        .maybeSingle()
 
       if (userError) {
         console.error("[Middleware] Error fetching user role:", userError.message)
       } else if (userData) {
         userRole = userData.role as Role // Cast to Role type
+      } else {
+        console.log("[Middleware] User exists in auth but not in users table - treating as unauthenticated")
+        // User exists in auth but not in users table - redirect to login
+        userRole = null
       }
     } catch (dbError) {
       console.error("[Middleware] Database error fetching role:", dbError)

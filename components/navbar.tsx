@@ -60,7 +60,8 @@ export default function Navbar() {
   // user = Supabase Auth User | null
   // userDetails = Your DB User Info | null (contains role)
   // loading = context loading state
-  const { user, userDetails, loading } = useUser();
+  // error = context error state
+  const { user, userDetails, loading, error } = useUser();
 
   // Determine the role based on userDetails, default to null if no details
   // We need userDetails to determine the links.
@@ -88,13 +89,15 @@ export default function Navbar() {
     dbDetailsLoaded: !!userDetails,
     userRole: userDetails?.role,
     loading, // Context loading state
+    error, // Context error state
     mainLinksGenerated: mainLinks.length,
     profileLinksGenerated: profileLinks.length
   });
   
   // Determine if we should show the skeleton
-  // Show if context is loading OR if we have an auth user but haven't loaded their DB details yet
-  const showSkeleton = loading || (user && !userDetails);
+  // Show skeleton only when actually loading, not when there's an error
+  // If there's an error, we should show the navbar with public links
+  const showSkeleton = loading && !error;
   
   return (
     <Suspense fallback={<SkeletonNavbar />}>

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { register, confirmPlayerLinking, rejectPlayerLinking } from "./actions"
+import { register, confirmPlayerLinking, rejectPlayerLinking, checkDNIConflictBeforeRegistration, registerAndLinkToExistingPlayer } from "./actions"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -54,21 +54,25 @@ export default function RegisterPage() {
   }
 
   const handleConfirmLinking = async () => {
-    if (!confirmationData || !confirmationData.existingPlayer || !confirmationData.tempUserId) return
+    if (!confirmationData || !confirmationData.existingPlayer || !originalFormData) return
     
     setIsSubmitting(true)
     try {
-      const result = await confirmPlayerLinking(confirmationData.existingPlayer.id, confirmationData.tempUserId)
+      // Use the new function that creates user and links in one step
+      const result = await registerAndLinkToExistingPlayer(originalFormData, confirmationData.existingPlayer.id)
+      
+      // Clear confirmation data
+      setConfirmationData(null)
       
       if (result?.error) {
         toast({
-          title: "Error al Vincular",
+          title: "Error al Crear Cuenta",
           description: result.error,
           variant: "destructive",
         })
       } else if (result?.success) {
         toast({
-          title: "¡Cuenta Vinculada!",
+          title: "¡Cuenta Creada y Vinculada!",
           description: `${result.message} Puntaje actual: ${result.playerData?.score || 0} puntos.`,
           duration: 5000,
         })
@@ -81,7 +85,7 @@ export default function RegisterPage() {
     } catch (error) {
       toast({
         title: "Error Inesperado",
-        description: "Ha ocurrido un error al vincular la cuenta.",
+        description: "Ha ocurrido un error al crear y vincular la cuenta.",
         variant: "destructive",
       })
     } finally {
@@ -90,59 +94,47 @@ export default function RegisterPage() {
   }
 
   const handleRejectLinking = async () => {
-    if (!originalFormData || !confirmationData?.tempUserId) return
+    if (!originalFormData || !confirmationData?.existingPlayer) return
     
     setIsSubmitting(true)
+    
+    // Clear confirmation data immediately
+    const conflictData = {
+      dni: originalFormData.get('dni') as string || '',
+      existingPlayerId: confirmationData.existingPlayer.id,
+      newPlayerId: 'blocked'
+    }
+    setConfirmationData(null)
+    
     try {
-      const result = await rejectPlayerLinking(
-        originalFormData, 
-        confirmationData.tempUserId,
-        confirmationData.existingPlayer?.id // Pass existing player ID for conflict tracking
-      )
+      // Register conflict in database for admin review
+      const { checkDNIConflictBeforeRegistration } = await import('./actions')
       
-      // Clear confirmation data first
-      setConfirmationData(null)
+      // This will log the conflict with status 'blocked_before_registration'
+      await checkDNIConflictBeforeRegistration(originalFormData)
       
-      if (result?.error) {
-        // Show error message with WhatsApp report option
-        toast({
-          title: "❌ Registro Bloqueado",
-          description: (
-            <div className="space-y-3">
-              <p className="text-sm">{result.error}</p>
-              <p className="text-xs text-gray-600">
-                Este conflicto necesita ser resuelto manualmente por el administrador.
-              </p>
-              {result.showConflictReport && result.conflictData && (
-                <button
-                  onClick={() => handleReportConflict(result.conflictData!)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
-                >
-                  📱 Contactar por WhatsApp
-                </button>
-              )}
-            </div>
-          ),
-          variant: "destructive",
-          duration: 10000, // Show for longer
-        })
-      } else if (result?.success) {
-        // This shouldn't happen with the new flow, but keeping for safety
-        toast({
-          title: "Perfil Creado",
-          description: result.message || "Nuevo perfil de jugador creado exitosamente.",
-        })
-        
-        if (result.redirectUrl) {
-          setTimeout(() => {
-            router.push(result.redirectUrl || "/")
-          }, 2000)
-        }
-      }
+      // Show error message with WhatsApp report option
+      toast({
+        title: "❌ Registro Bloqueado",
+        description: (
+          <div className="space-y-3">
+            <p className="text-sm">Registro bloqueado por conflicto de datos. Contacta al administrador para resolver este problema.</p>
+            <p className="text-xs text-gray-600">
+              Este conflicto necesita ser resuelto manualmente por el administrador.
+            </p>
+            <button
+              onClick={() => handleReportConflict(conflictData)}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+            >
+              📱 Contactar por WhatsApp
+            </button>
+          </div>
+        ),
+        variant: "destructive",
+        duration: 15000, // Show for longer
+      })
+      
     } catch (error) {
-      // Clear confirmation data on error too
-      setConfirmationData(null)
-      
       toast({
         title: "Error Inesperado",
         description: (
@@ -194,7 +186,8 @@ El usuario intentó registrarse con un DNI que ya existe en el sistema, pero ind
 🔧 *Acción requerida:*
 Revisar manualmente los datos del perfil ID ${conflictData.existingPlayerId} y resolver el conflicto. El usuario no puede completar su registro hasta que se solucione este problema.
 
-📧 *Email del usuario:* ${formData.email || 'No disponible'}`
+📧 *Email del usuario:* ${formData.email || 'No disponible'}
+📱 *Teléfono del usuario:* ${formData.phone || 'No proporcionado'}`
 
     const whatsappUrl = `https://wa.me/+5491169405063?text=${encodeURIComponent(message)}`
     window.open(whatsappUrl, '_blank')
@@ -239,6 +232,54 @@ Revisar manualmente los datos del perfil ID ${conflictData.existingPlayerId} y r
     }
 
     try {
+      // First, check for DNI conflicts BEFORE creating auth user
+      if (selectedRole === "PLAYER") {
+        const conflictCheckResult = await checkDNIConflictBeforeRegistration(dataToSubmit)
+        
+        if (!conflictCheckResult.success) {
+          if (conflictCheckResult.requiresConfirmation && conflictCheckResult.existingPlayer) {
+            // Show confirmation modal
+            setConfirmationData(conflictCheckResult)
+            setOriginalFormData(dataToSubmit)
+            toast({
+              title: "Jugador Encontrado",
+              description: "Se encontró un jugador con tu DNI. Verifica si es tu perfil.",
+              duration: 3000,
+            })
+            setIsSubmitting(false)
+            return
+          } else if (conflictCheckResult.showConflictReport) {
+            // Blocked due to name mismatch
+            toast({
+              title: "❌ Registro Bloqueado",
+              description: conflictCheckResult.error,
+              variant: "destructive",
+              duration: 6000,
+            })
+            
+            // Show WhatsApp report button
+            if (conflictCheckResult.conflictData) {
+              setTimeout(() => {
+                handleReportConflict(conflictCheckResult.conflictData!)
+              }, 1000)
+            }
+            
+            setIsSubmitting(false)
+            return
+          } else {
+            // Other error
+            toast({
+              title: "Error",
+              description: conflictCheckResult.error,
+              variant: "destructive",
+            })
+            setIsSubmitting(false)
+            return
+          }
+        }
+      }
+      
+      // No conflicts, proceed with normal registration
       const result = await register(dataToSubmit)
 
       if (result?.error) {

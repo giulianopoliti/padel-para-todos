@@ -186,8 +186,7 @@ export async function rejectPlayerLinking(formData: FormData, tempUserId: string
       date_of_birth: dateOfBirth === '' ? null : dateOfBirth,
       user_id: tempUserId,
       score: 0,
-      is_categorized: false,
-      status: 'inactive', // Mark as inactive to indicate it's blocked
+      is_categorized: false, // Mark as inactive to indicate it's blocked
     }).select('id').single();
     
     if (playerError) {
@@ -231,6 +230,205 @@ export async function rejectPlayerLinking(formData: FormData, tempUserId: string
     
   } catch (error: any) {
     console.error(`[rejectPlayerLinking] Unexpected error:`, error);
+    return { success: false, error: `Error inesperado: ${error.message}` };
+  }
+}
+
+/**
+ * Function to check for DNI conflicts BEFORE creating auth user
+ * This prevents creating orphaned auth users
+ */
+export async function checkDNIConflictBeforeRegistration(formData: FormData): Promise<RegisterResult> {
+  const supabase = await createClient();
+  
+  console.log(`[checkDNIConflictBeforeRegistration] Checking for DNI conflicts before registration`);
+  
+  try {
+    const dni = formData.get('dni') as string | null;
+    const role = formData.get('role') as string;
+    
+    // Only check for PLAYER role
+    if (role !== 'PLAYER' || !dni || dni.trim() === '') {
+      return { success: true }; // No conflict check needed
+    }
+    
+    // Check if DNI already exists
+    const existingPlayerResult = await checkPlayerByDNI(dni, supabase);
+    
+    if (!existingPlayerResult.success) {
+      return { success: false, error: `Error al verificar DNI: ${existingPlayerResult.error}` };
+    }
+    
+    if (!existingPlayerResult.player) {
+      return { success: true }; // No conflict, proceed with registration
+    }
+    
+    // DNI conflict found - validate if it could be the same person
+    const validation = validatePlayerLinking(existingPlayerResult.player, formData);
+    
+    if (!validation.isValid) {
+      console.log(`[checkDNIConflictBeforeRegistration] DNI exists but names don't match - blocking registration`);
+      
+      // Register conflict for admin review WITHOUT creating any users
+      const { error: conflictError } = await supabase.from('dni_conflicts').insert({
+        dni: dni,
+        existing_player_id: existingPlayerResult.player.id,
+        new_player_id: null, // No new player created
+        new_user_id: null, // No new user created
+        status: 'pending',
+        phone: formData.get('phone') as string || null, // Capture user's phone number
+        admin_notes: JSON.stringify({
+          conflict_type: 'blocked_before_registration',
+          attempted_name: `${formData.get('firstName')} ${formData.get('lastName')}`,
+          existing_name: `${existingPlayerResult.player.first_name} ${existingPlayerResult.player.last_name}`,
+          email: formData.get('email'),
+          phone: formData.get('phone') as string || 'No proporcionado',
+          blocked_reason: 'Names do not match existing player - registration blocked before user creation'
+        })
+      });
+      
+      if (conflictError) {
+        console.error(`[checkDNIConflictBeforeRegistration] Error registering conflict:`, conflictError);
+      }
+      
+      return {
+        success: false,
+        error: 'Este DNI ya está registrado con un nombre diferente. Contacta al administrador para resolver este conflicto.',
+        showConflictReport: true,
+        conflictData: {
+          dni: dni,
+          existingPlayerId: existingPlayerResult.player.id,
+          newPlayerId: 'blocked' // Indicates it was blocked before creation
+        }
+      };
+    }
+    
+    // Names match - offer confirmation
+    return {
+      success: false, // Don't proceed with normal registration
+      requiresConfirmation: true,
+      existingPlayer: {
+        id: existingPlayerResult.player.id,
+        name: `${existingPlayerResult.player.first_name} ${existingPlayerResult.player.last_name}`,
+        score: existingPlayerResult.player.score || 0,
+        category: existingPlayerResult.player.category_name || 'Sin categorizar',
+        dni: existingPlayerResult.player.dni,
+        isExistingPlayer: true
+      }
+    };
+    
+  } catch (error: any) {
+    console.error(`[checkDNIConflictBeforeRegistration] Unexpected error:`, error);
+    return { success: false, error: `Error verificando conflictos: ${error.message}` };
+  }
+}
+
+/**
+ * Function to register user and link to existing player in one step
+ * This avoids creating temporary users
+ */
+export async function registerAndLinkToExistingPlayer(formData: FormData, playerId: string): Promise<RegisterResult> {
+  const supabase = await createClient();
+  
+  console.log(`[registerAndLinkToExistingPlayer] Creating user and linking to player ${playerId}`);
+  
+  try {
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    
+    // Basic validation
+    if (!email || !password) {
+      return { success: false, error: 'Email y contraseña son requeridos.' };
+    }
+    if (password.length < 6) {
+      return { success: false, error: 'La contraseña debe tener al menos 6 caracteres.' };
+    }
+    
+    // Double-check that the player doesn't already have a user linked
+    const { data: playerCheck, error: checkError } = await supabase
+      .from('players')
+      .select('id, first_name, last_name, user_id, score, category_name')
+      .eq('id', playerId)
+      .single();
+      
+    if (checkError) {
+      console.error(`[registerAndLinkToExistingPlayer] Error checking player:`, checkError);
+      return { success: false, error: 'Error al verificar el jugador.' };
+    }
+    
+    if (playerCheck.user_id) {
+      console.error(`[registerAndLinkToExistingPlayer] Player already has user linked:`, playerCheck.user_id);
+      return { success: false, error: 'Este jugador ya tiene una cuenta vinculada.' };
+    }
+    
+    // 1. Create auth user
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (signUpError) {
+      console.error('[registerAndLinkToExistingPlayer] Supabase auth signUp error:', signUpError);
+      return { success: false, error: `Error de autenticación: ${signUpError.message}` };
+    }
+
+    const authUser = authData.user;
+    if (!authUser) {
+      return { success: false, error: 'Error al crear usuario de autenticación.' };
+    }
+    
+    console.log(`[registerAndLinkToExistingPlayer] Auth user created: ${authUser.id}`);
+    
+    // 2. Create user record in our database
+    const { error: userInsertError } = await supabase.from('users').insert({
+      id: authUser.id,
+      email: authUser.email!,
+      role: 'PLAYER',
+    });
+
+    if (userInsertError) {
+      console.error('[registerAndLinkToExistingPlayer] Error inserting user into users table:', userInsertError);
+      // Clean up auth user if database insert fails
+      await supabase.auth.admin.deleteUser(authUser.id);
+      return { success: false, error: `Error al crear perfil de usuario: ${userInsertError.message}` };
+    }
+    
+    // 3. Link to existing player
+    const { error: linkError } = await supabase
+      .from('players')
+      .update({ user_id: authUser.id })
+      .eq('id', playerId);
+    
+    if (linkError) {
+      console.error(`[registerAndLinkToExistingPlayer] Error linking user to player:`, linkError);
+      // Clean up user and auth records
+      await supabase.from('users').delete().eq('id', authUser.id);
+      await supabase.auth.admin.deleteUser(authUser.id);
+      return { success: false, error: `Error al vincular cuenta: ${linkError.message}` };
+    }
+    
+    console.log(`[registerAndLinkToExistingPlayer] Successfully linked user ${authUser.id} to player ${playerId}`);
+    
+    // 4. Sign out the user (they need to log in manually)
+    await supabase.auth.signOut();
+    
+    revalidatePath('/', 'layout');
+    
+    return {
+      success: true,
+      matched: true,
+      message: `¡Cuenta creada y vinculada exitosamente! Tu perfil de jugador existente ha sido conectado con tu nueva cuenta.`,
+      playerData: {
+        name: `${playerCheck.first_name} ${playerCheck.last_name}`,
+        score: playerCheck.score || 0,
+        category: playerCheck.category_name || 'Sin categorizar',
+        isExistingPlayer: true
+      },
+      redirectUrl: '/login',
+    };
+    
+  } catch (error: any) {
+    console.error(`[registerAndLinkToExistingPlayer] Unexpected error:`, error);
     return { success: false, error: `Error inesperado: ${error.message}` };
   }
 }

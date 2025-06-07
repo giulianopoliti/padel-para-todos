@@ -52,18 +52,21 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
             .from("users") 
             .select("id, email, role")
             .eq("id", userId)
-            .single();
+            .maybeSingle(); // Use maybeSingle instead of single to handle "no rows" case
 
-        if (dbError || !basicUserData) {
-            console.error("[UserContext] Error fetching basic user details:", dbError?.message);
+        if (dbError) {
+            console.error("[UserContext] Database error fetching user details:", dbError?.message);
             setUserDetails(null); 
-            
-            // Check if this is a temporary user that was blocked due to DNI conflict
-            if (dbError?.code === 'PGRST116') {
-                setError("Tu registro fue bloqueado por un conflicto de datos. Contacta al administrador por WhatsApp para resolverlo.");
-            } else {
-                setError("Error fetching user details.");
-            }
+            setError("Error fetching user details.");
+            return;
+        }
+
+        if (!basicUserData) {
+            // User exists in auth but not in our users table
+            // This can happen when registration was incomplete or rejected
+            console.log("[UserContext] Auth user found but no corresponding database record");
+            setUserDetails(null);
+            setError("Tu registro está incompleto o fue bloqueado. Contacta al administrador por WhatsApp +5491169405063 para resolverlo.");
             return;
         }
 
