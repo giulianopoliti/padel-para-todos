@@ -3,7 +3,6 @@
 import { useUser } from "@/contexts/user-context"; // Updated context hook
 import { Suspense } from "react";
 import { getLinksForRole } from "@/config/permissions"; // Import link generator
-import dynamic from 'next/dynamic';
 import type { User as AuthUser } from "@supabase/supabase-js";
 
 // Type for roles used in this component, ensure consistency with permissions.ts
@@ -49,11 +48,7 @@ interface NavbarClientProps {
   user: AuthUser | null; // Expecting Supabase Auth User
 }
 
-// Use dynamic import with proper typing
-const DynamicNavbarClient = dynamic<NavbarClientProps>(() => import('./navbar-client'), { 
-  ssr: false,
-  loading: () => <SkeletonNavbar /> // Show skeleton while loading client component
-});
+// Use direct import instead of dynamic import to avoid server rendering issues
 
 export default function Navbar() {
   // Use the updated user context hook
@@ -83,16 +78,7 @@ export default function Navbar() {
     ? allAuthLinks.filter(link => profileLinkPaths.includes(link.path))
     : [];
 
-  console.log("[Navbar] State:", { 
-    isAuth: !!user, // Check if Supabase auth user exists
-    userId: user?.id,
-    dbDetailsLoaded: !!userDetails,
-    userRole: userDetails?.role,
-    loading, // Context loading state
-    error, // Context error state
-    mainLinksGenerated: mainLinks.length,
-    profileLinksGenerated: profileLinks.length
-  });
+
   
   // Determine if we should show the skeleton
   // Show skeleton only when actually loading, not when there's an error
@@ -104,7 +90,7 @@ export default function Navbar() {
       {showSkeleton ? (
         <SkeletonNavbar />
       ) : (
-        <DynamicNavbarClient mainLinks={mainLinks} profileLinks={profileLinks} user={user} /> 
+        <NavbarClient mainLinks={mainLinks} profileLinks={profileLinks} user={user} /> 
       )}
     </Suspense>
   );

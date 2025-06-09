@@ -145,26 +145,26 @@ export default async function HomePage() {
             </div>
 
             <h1 className="text-4xl lg:text-7xl font-black mb-8 tracking-tight text-white">
-              La plataforma definitiva
-              <span className="block text-blue-400">para el pádel competitivo</span>
+              Competi, sumá puntos, 
+              <span className="block text-blue-400">subí de categoría</span>
             </h1>
 
             <p className="text-xl text-gray-300 mb-12 leading-relaxed max-w-3xl mx-auto">
-              Ranking nacional en tiempo real, inscripciones online y gestión profesional de torneos. Todo lo que
-              necesitás para llevar tu pádel al siguiente nivel.
+            El Circuito de Pádel Amateur organiza el juego. <br />
+            Clasificaciones reales, torneos por nivel, y un sistema de puntos que te motiva a mejorar.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg">
-                <Link href="/tournaments">
+                <Link href="/ranking">
                   <Calendar className="mr-2 h-5 w-5" />
-                  Ver Torneos Disponibles
+                  Ver Ranking de jugadores
                 </Link>
               </Button>
               <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg">
                 <Link href="/register?role=club">
                   <Building2 className="mr-2 h-5 w-5" />
-                  Registrar Mi Club
+                  Organizá un torneo como club
                 </Link>
               </Button>
             </div>
@@ -177,7 +177,8 @@ export default async function HomePage() {
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-slate-900 mb-4">Ranking Nacional en Tiempo Real</h2>
-            <p className="text-slate-600">Seguí a los mejores y tu progreso en la tabla de posiciones</p>
+            <p className="text-slate-600">Registrate, participá de torneos y empezá a sumar puntos para subir de categoría.
+            Competí con jugadores de tu nivel y seguí tu progreso en el ranking.</p>
           </div>
 
           <div className="max-w-4xl mx-auto">
@@ -223,7 +224,10 @@ export default async function HomePage() {
                             <div className="font-semibold text-slate-900">{player.name}</div>
                             <div className="flex items-center space-x-2">
                               <Badge variant="outline" className="text-xs">
-                                Categoría {player.category}
+                                {player.category && player.category !== "Sin categoría" 
+                                  ? `${player.category}` 
+                                  : "Sin categoría"
+                                }
                               </Badge>
                               <span className="text-xs text-slate-500">{player.club}</span>
                             </div>
@@ -306,8 +310,8 @@ export default async function HomePage() {
       <section className="py-24 bg-white">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">Clubes Destacados</h2>
-            <p className="text-slate-600">Más que instalaciones, son el corazón de la comunidad del pádel</p>
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Clubes que ya son parte del circuito</h2>
+            <p className="text-slate-600">Estos clubes no solo organizan torneos: construyen comunidad y promueven el pádel amateur.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">

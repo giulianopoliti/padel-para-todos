@@ -15,6 +15,7 @@ import {
   MessageSquare,
   CheckCircle,
   Trophy,
+  Instagram,
 } from "lucide-react"
 import { getClubDetails } from "@/app/api/users"
 import { notFound } from "next/navigation"
@@ -33,38 +34,11 @@ const ClubGallery = ({ images }: { images: string[] }) => (
   </div>
 )
 
-const ClubInstructors = ({ instructors }: { instructors: any[] }) => (
-  <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 mb-8">
-    <h2 className="text-2xl font-bold text-slate-800 mb-6">Nuestros Instructores</h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {instructors.map((instructor) => (
-        <div key={instructor.id} className="bg-slate-50 rounded-xl p-6 border border-slate-100">
-          <div className="flex items-center mb-4">
-            <div className="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-800 rounded-xl flex items-center justify-center mr-4">
-              <User className="h-8 w-8 text-white" />
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-800">{instructor.name}</h3>
-              <p className="text-slate-600">{instructor.role}</p>
-            </div>
-          </div>
-          <p className="text-slate-600 mb-2">
-            <strong>Experiencia:</strong> {instructor.experience}
-          </p>
-          <p className="text-slate-600 mb-2">
-            <strong>Especialidades:</strong> {instructor.specialties.join(", ")}
-          </p>
-          <p className="text-slate-600">
-            <strong>Disponibilidad:</strong> {instructor.availability}
-          </p>
-        </div>
-      ))}
-    </div>
-  </div>
-)
+
 
 export default async function ClubDetailPage({ params }: { params: { id: string } }) {
-  const club = await getClubDetails(params.id)
+  const { id } = await params
+  const club = await getClubDetails(id)
 
   if (!club) {
     notFound()
@@ -79,26 +53,7 @@ export default async function ClubDetailPage({ params }: { params: { id: string 
 
   const galleryImages = club.galleryImages && club.galleryImages.length > 0 ? club.galleryImages : defaultImages
 
-  const defaultInstructors = [
-    {
-      id: "1",
-      name: "Carlos Rodríguez",
-      image: "/placeholder.svg?height=200&width=200",
-      role: "Director Técnico",
-      experience: "15 años",
-      specialties: ["Técnica avanzada", "Táctica de competición"],
-      availability: "Lunes a Viernes",
-    },
-    {
-      id: "2",
-      name: "Laura Martínez",
-      image: "/placeholder.svg?height=200&width=200",
-      role: "Entrenadora",
-      experience: "8 años",
-      specialties: ["Iniciación", "Clases grupales"],
-      availability: "Lunes a Sábado",
-    },
-  ]
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
@@ -139,7 +94,7 @@ export default async function ClubDetailPage({ params }: { params: { id: string 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="md:col-span-2">
                 <h2 className="text-2xl font-bold text-slate-800 mb-4">Sobre el club</h2>
-                <p className="text-slate-600 mb-8 leading-relaxed">{club.description}</p>
+                <p className="text-slate-600 mb-8 leading-relaxed">{club.description || "Descripción del club por completar"}</p>
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -168,13 +123,22 @@ export default async function ClubDetailPage({ params }: { params: { id: string 
                     </div>
                     <p className="text-lg font-bold text-slate-800">{club.phone}</p>
                   </div>
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <div className="flex items-center text-slate-600 mb-2">
-                      <Globe className="h-5 w-5 mr-2" />
-                      <span className="font-semibold">Web</span>
+                  {club.instagram && (
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <div className="flex items-center text-slate-600 mb-2">
+                        <Instagram className="h-5 w-5 mr-2" />
+                        <span className="font-semibold">Instagram</span>
+                      </div>
+                      <a
+                        href={`https://instagram.com/${club.instagram}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-lg font-bold text-slate-800 hover:text-blue-600 transition-colors"
+                      >
+                        @{club.instagram}
+                      </a>
                     </div>
-                    <p className="text-lg font-bold text-slate-800">{club.website}</p>
-                  </div>
+                  )}
                 </div>
 
                 {/* Services */}
@@ -219,22 +183,22 @@ export default async function ClubDetailPage({ params }: { params: { id: string 
                       <Mail className="h-5 w-5 mr-3 text-slate-500" />
                       <span className="text-slate-600 font-medium">{club.email}</span>
                     </div>
-                    <div className="flex items-center">
-                      <Globe className="h-5 w-5 mr-3 text-slate-500" />
-                      <a
-                        href={`https://${club.website}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-slate-600 hover:text-slate-800 font-medium hover:underline transition-colors"
-                      >
-                        {club.website}
-                      </a>
-                    </div>
+                    {club.website && (
+                      <div className="flex items-center">
+                        <Globe className="h-5 w-5 mr-3 text-slate-500" />
+                        <a
+                          href={`https://${club.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-slate-600 hover:text-slate-800 font-medium hover:underline transition-colors"
+                        >
+                          {club.website}
+                        </a>
+                      </div>
+                    )}
                     {club.instagram && (
                       <div className="flex items-center">
-                        <div className="h-5 w-5 mr-3 text-slate-500 flex items-center justify-center">
-                          <span className="text-sm font-bold">IG</span>
-                        </div>
+                        <Instagram className="h-5 w-5 mr-3 text-slate-500" />
                         <a
                           href={`https://instagram.com/${club.instagram}`}
                           target="_blank"
@@ -298,8 +262,7 @@ export default async function ClubDetailPage({ params }: { params: { id: string 
           </div>
         </div>
 
-        {/* Instructors Section */}
-        <ClubInstructors instructors={defaultInstructors} />
+
 
         {/* Reviews Section */}
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 mb-8">

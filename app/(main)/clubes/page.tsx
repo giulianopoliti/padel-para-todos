@@ -1,17 +1,118 @@
+"use client"
+
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Star, ChevronRight, Users, Clock, Search, Filter, Award, Building2 } from "lucide-react"
-import { getClubesWithServices, getUserRole } from "@/app/api/users"
+import { useEffect, useState } from "react"
 
-export default async function ClubesPage() {
-  const clubes = await getClubesWithServices()
+interface Club {
+  id: string
+  name: string
+  address: string
+  coverImage: string
+  rating: number
+  reviewCount: number
+  courts: number
+  opens_at: string
+  closes_at: string
+  services: { name: string }[]
+}
 
-  let userRole = null
-  try {
-    userRole = await getUserRole()
-  } catch (error) {
-    console.log("User not authenticated, showing public view")
-    userRole = null
+export default function ClubesPage() {
+  const [clubes, setClubes] = useState<Club[]>([])
+  const [filteredClubes, setFilteredClubes] = useState<Club[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedCity, setSelectedCity] = useState("")
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // Función para obtener clubes
+  const fetchClubes = async () => {
+    try {
+      const response = await fetch('/api/clubes')
+      const data = await response.json()
+      setClubes(data)
+      setFilteredClubes(data)
+    } catch (error) {
+      console.error('Error fetching clubes:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Función para obtener el rol del usuario
+  const fetchUserRole = async () => {
+    try {
+      const response = await fetch('/api/user-role')
+      if (response.ok) {
+        const data = await response.json()
+        setUserRole(data.role)
+      }
+    } catch (error) {
+      // User not authenticated, showing public view
+    }
+  }
+
+  // Función para filtrar clubes
+  const handleFilterClubes = () => {
+    let filtered = [...clubes]
+
+    // Filtrar por término de búsqueda
+    if (searchTerm.trim() !== "") {
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(club => 
+        club.name?.toLowerCase().includes(searchLower) ||
+        club.address?.toLowerCase().includes(searchLower)
+      )
+    }
+
+    // Filtrar por ciudad
+    if (selectedCity !== "") {
+      filtered = filtered.filter(club => 
+        club.address?.toLowerCase().includes(selectedCity.toLowerCase())
+      )
+    }
+
+    setFilteredClubes(filtered)
+  }
+
+  // Manejar cambio en búsqueda
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value)
+  }
+
+  // Manejar cambio en filtro de ciudad
+  const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedCity(e.target.value)
+  }
+
+  // Limpiar filtros
+  const handleClearFilters = () => {
+    setSearchTerm("")
+    setSelectedCity("")
+    setFilteredClubes(clubes)
+  }
+
+  useEffect(() => {
+    fetchClubes()
+    fetchUserRole()
+  }, [])
+
+  useEffect(() => {
+    handleFilterClubes()
+  }, [searchTerm, selectedCity, clubes])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-gradient-to-r from-slate-600 to-slate-800 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Building2 className="h-8 w-8 text-white" />
+          </div>
+          <p className="text-slate-600 text-lg">Cargando clubes...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -38,42 +139,81 @@ export default async function ClubesPage() {
               <input
                 type="text"
                 placeholder="Buscar por nombre o ubicación..."
-                className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent text-slate-700 font-medium"
-                readOnly
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent text-slate-700 font-medium transition-all duration-200"
               />
             </div>
             <div className="w-full md:w-64">
               <div className="relative">
                 <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
                 <select
-                  className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent appearance-none bg-white text-slate-700 font-medium"
-                  disabled
+                  value={selectedCity}
+                  onChange={handleCityChange}
+                  className="w-full pl-12 pr-10 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent appearance-none bg-white text-slate-700 font-medium cursor-pointer transition-all duration-200"
                 >
                   <option value="">Todas las ciudades</option>
                   <option value="Buenos Aires">Buenos Aires</option>
                   <option value="Córdoba">Córdoba</option>
                   <option value="Rosario">Rosario</option>
                   <option value="Mendoza">Mendoza</option>
+                  <option value="La Plata">La Plata</option>
+                  <option value="Mar del Plata">Mar del Plata</option>
                 </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <ChevronRight className="h-4 w-4 text-slate-400 rotate-90" />
+                </div>
               </div>
             </div>
           </div>
+          
+          {/* Filter results info and clear button */}
+          {(searchTerm || selectedCity) && (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-sm text-slate-600">
+                Mostrando {filteredClubes.length} de {clubes.length} clubes
+                {searchTerm && <span className="ml-1">para "{searchTerm}"</span>}
+                {selectedCity && <span className="ml-1">en {selectedCity}</span>}
+              </div>
+              <button
+                onClick={handleClearFilters}
+                className="text-sm text-slate-500 hover:text-slate-700 font-medium transition-colors duration-200"
+              >
+                Limpiar filtros
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Clubs Grid */}
-        {clubes.length === 0 ? (
+        {filteredClubes.length === 0 ? (
           <div className="text-center py-20">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-12 max-w-2xl mx-auto">
               <div className="bg-slate-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <Building2 className="h-8 w-8 text-slate-400" />
               </div>
-              <h3 className="text-2xl font-bold text-slate-800 mb-4">No hay clubes registrados</h3>
-              <p className="text-slate-600 text-lg">Próximamente tendremos los mejores clubes de pádel.</p>
+              <h3 className="text-2xl font-bold text-slate-800 mb-4">
+                {clubes.length === 0 ? "No hay clubes registrados" : "No se encontraron clubes"}
+              </h3>
+              <p className="text-slate-600 text-lg">
+                {clubes.length === 0 
+                  ? "Próximamente tendremos los mejores clubes de pádel." 
+                  : "Intenta ajustar tus filtros de búsqueda."
+                }
+              </p>
+              {(searchTerm || selectedCity) && (
+                <button
+                  onClick={handleClearFilters}
+                  className="mt-4 bg-slate-600 hover:bg-slate-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200"
+                >
+                  Ver todos los clubes
+                </button>
+              )}
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-8xl mx-auto">
-            {clubes.map((club) => (
+            {filteredClubes.map((club) => (
               <div key={club.id} className="h-full group">
                 <Link href={`/clubes/${club.id}`} className="block h-full">
                   <div className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-lg transition-all duration-300 h-full flex flex-col group-hover:shadow-xl group-hover:border-slate-300 group-hover:-translate-y-1">

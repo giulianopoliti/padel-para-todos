@@ -18,7 +18,7 @@ interface RegisteredPlayersProps {
 }
 
 export default function RegisteredPlayers({ singlePlayers, isLoading = false }: RegisteredPlayersProps) {
-  console.log("RegisteredPlayers render with", { singlePlayers, count: singlePlayers?.length });
+
   
   return (
     <Card className="border-slate-100 shadow-sm hover:border-teal-100 transition-all duration-300">

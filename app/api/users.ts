@@ -22,20 +22,23 @@ export async function getPlayersMale() {
         console.error("Error fetching players:", error);
         return [];
     }
-    
-    // Log raw data from database
-    console.log("Raw data from database:", data);
-
     // Map the raw data to our Player type
     const players = data?.map((rawPlayer): Player => {
-        // Log individual player data before mapping
-        console.log("Raw player data:", rawPlayer);
         
         // Get profile image - use profile_image_url first, then default
         let profileImageUrl = rawPlayer.profile_image_url;
         
-        // If no profile image, use default image from avatars bucket
-        if (!profileImageUrl) {
+        // If we have a profile image, make sure it's a full URL
+        if (profileImageUrl) {
+            // If it's not a full URL (doesn't start with http), get the public URL from Supabase
+            if (!profileImageUrl.startsWith('http')) {
+                const { data: { publicUrl } } = supabase.storage
+                    .from('avatars')
+                    .getPublicUrl(profileImageUrl);
+                profileImageUrl = publicUrl;
+            }
+        } else {
+            // If no profile image, use default image from avatars bucket
             const { data: { publicUrl } } = supabase.storage
                 .from('avatars')
                 .getPublicUrl('avatars/foto predeterminada.jpg');
@@ -47,7 +50,7 @@ export async function getPlayersMale() {
             firstName: rawPlayer.first_name,    // DB: first_name -> TS: firstName
             lastName: rawPlayer.last_name,      // DB: last_name -> TS: lastName
             score: rawPlayer.score,
-            category: rawPlayer.category,
+            category: rawPlayer.category_name || rawPlayer.category || "Sin categoría",  // DB: category_name -> TS: category
             preferredHand: rawPlayer.preferred_hand,  // DB: preferred_hand -> TS: preferredHand
             racket: rawPlayer.racket,
             preferredSide: rawPlayer.preferred_side,  // DB: preferred_side -> TS: preferredSide
@@ -57,10 +60,6 @@ export async function getPlayersMale() {
             profileImage: profileImageUrl  // Add profile image
         };
     }) || [];
-
-    // Log mapped players
-    console.log("Mapped players:", players);
-    console.log("Number of players:", players.length);
     
     return players;
 }
@@ -136,10 +135,19 @@ export const getUser = async (): Promise<User | null> => {
         data: { user },
         error,
       } = await supabase.auth.getUser();
-      if (error) throw error;
+      
+      // Don't log AuthSessionMissingError as it's expected for non-authenticated users
+      if (error && error.message !== 'Auth session missing!') {
+        console.error("Error fetching user:", error);
+      }
+      
+      if (error) return null;
       return user;
-    } catch (error) {
-      console.error("Error fetching user:", error);
+    } catch (error: any) {
+      // Don't log AuthSessionMissingError as it's expected for non-authenticated users
+      if (error?.message !== 'Auth session missing!') {
+        console.error("Error fetching user:", error);
+      }
       return null;
     }
   };
@@ -150,7 +158,6 @@ export const getUser = async (): Promise<User | null> => {
       const supabase = await createClient();
       const user = await getUser();
       if (!user) {
-        console.log("No user ID available, user might be logged out");
         return null;
       }
       const { data, error } = await supabase
@@ -198,7 +205,6 @@ export const getUser = async (): Promise<User | null> => {
   
     if (error) {
       if (error.code === 'PGRST116') {
-        console.log(`Club with ID ${clubId} not found.`);
         return null;
       }
       console.error("Error fetching club by ID:", error);
@@ -220,8 +226,6 @@ export const getUser = async (): Promise<User | null> => {
       console.error("Error fetching clubes:", error);
       return [];
     }
-
-    console.log("Clubes:", data);
 
     return data;
   }
@@ -347,16 +351,15 @@ export const getUser = async (): Promise<User | null> => {
   export async function getClubDetails(clubId: string) {
     const supabase = await createClient();
     
-    // Get club basic info including images
+    // Get club basic info including images and contact info
     const { data: club, error: clubError } = await supabase
       .from("clubes")
-      .select("*, cover_image_url, gallery_images")
+      .select("*, cover_image_url, gallery_images, phone, email, website, description")
       .eq("id", clubId)
       .single();
 
     if (clubError) {
       if (clubError.code === 'PGRST116') {
-        console.log(`Club with ID ${clubId} not found.`);
         return null;
       }
       console.error("Error fetching club details:", clubError);
@@ -446,11 +449,11 @@ export const getUser = async (): Promise<User | null> => {
       // Image data
       coverImage: club.cover_image_url,
       galleryImages: (club.gallery_images as string[]) || [],
-      // Default values
-      phone: "+54 11 1234-5678", // Default, should be a DB field
-      email: "info@club.com", // Default, should be a DB field  
-      website: "www.club.com", // Default, should be a DB field
-      description: "Descripción del club por completar", // Default, should be a DB field
+      // Contact information - use real data from DB
+      phone: club.phone || null,
+      email: club.email || null,
+      website: club.website || null,
+      description: club.description || "Descripción del club por completar",
     };
   }
 
@@ -720,7 +723,6 @@ export const getUser = async (): Promise<User | null> => {
    */
   export async function getPlayerProfile(playerId: string) {
     try {
-      console.log("🔍 getPlayerProfile called with playerId:", playerId);
       
       // Get player basic info including club
       const { data: player, error: playerError } = await supabase
@@ -742,12 +744,8 @@ export const getUser = async (): Promise<User | null> => {
       }
 
       if (!player) {
-        console.log("❌ No player found with ID:", playerId);
         return null;
       }
-
-      console.log("✅ Player found:", player.first_name, player.last_name);
-      console.log("🖼️ Player profile_image_url from DB:", player.profile_image_url);
 
       // Calculate age from date_of_birth
       const age = player.date_of_birth 
@@ -756,18 +754,22 @@ export const getUser = async (): Promise<User | null> => {
 
       // Get profile image - use profile_image_url first, then default
       let profileImageUrl = player.profile_image_url;
-      console.log("🖼️ Initial profileImageUrl:", profileImageUrl);
       
-      // If no profile image, use default image from avatars bucket
-      if (!profileImageUrl) {
-        console.log("🖼️ No profile image found, using default image...");
+      // If we have a profile image, make sure it's a full URL
+      if (profileImageUrl) {
+        // If it's not a full URL (doesn't start with http), get the public URL from Supabase
+        if (!profileImageUrl.startsWith('http')) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(profileImageUrl);
+          profileImageUrl = publicUrl;
+        }
+      } else {
+        // If no profile image, use default image from avatars bucket
         const { data: { publicUrl } } = supabase.storage
           .from('avatars')
           .getPublicUrl('avatars/foto predeterminada.jpg');
         profileImageUrl = publicUrl;
-        console.log("🖼️ Default image URL:", profileImageUrl);
-      } else {
-        console.log("🖼️ Using existing profile image:", profileImageUrl);
       }
 
       // Get player statistics
@@ -818,7 +820,6 @@ export const getUser = async (): Promise<User | null> => {
         score: player.score,
       };
 
-      console.log("🎯 Final result profileImage:", result.profileImage);
       return result;
 
     } catch (error) {

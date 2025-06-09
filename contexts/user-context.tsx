@@ -44,7 +44,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       setUserDetails(null); // Clear details if no userId
       return;
     }
-    console.log(`[UserContext] Fetching DB user details for auth ID: ${userId}`);
+    
     setError(null); // Clear previous error
 
     try {
@@ -55,7 +55,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
             .maybeSingle(); // Use maybeSingle instead of single to handle "no rows" case
 
         if (dbError) {
-            console.error("[UserContext] Database error fetching user details:", dbError?.message);
             setUserDetails(null); 
             setError("Error fetching user details.");
             return;
@@ -64,13 +63,13 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         if (!basicUserData) {
             // User exists in auth but not in our users table
             // This can happen when registration was incomplete or rejected
-            console.log("[UserContext] Auth user found but no corresponding database record");
+    
             setUserDetails(null);
             setError("Tu registro está incompleto o fue bloqueado. Contacta al administrador por WhatsApp +5491169405063 para resolverlo.");
             return;
         }
 
-        console.log("[UserContext] Basic user details fetched:", basicUserData);
+        
         let finalUserDetails: DetailedUserDetails = { ...basicUserData };
 
         if (basicUserData.role === 'PLAYER') {
@@ -79,15 +78,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
                 .select('id, status')
                 .eq('user_id', basicUserData.id)
                 .single();
-            if (playerError) {
-                console.error("[UserContext] Error fetching player ID:", playerError.message);
-            } else if (playerData) {
+            if (!playerError && playerData) {
                 finalUserDetails.player_id = playerData.id;
                 
                 // Check if player is blocked due to DNI conflict
                 if (playerData.status === 'inactive') {
                     setError("Tu cuenta fue bloqueada por un conflicto de datos. Contacta al administrador por WhatsApp +5491169405063 para resolverlo.");
-                    console.log("[UserContext] Player account is blocked due to DNI conflict");
                 }
             }
         } else if (basicUserData.role === 'CLUB') {
@@ -96,21 +92,17 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
                 .select('id')
                 .eq('user_id', basicUserData.id) 
                 .single();
-            if (clubError) console.error("[UserContext] Error fetching club ID:", clubError.message);
-            else if (clubData) finalUserDetails.club_id = clubData.id;
+            if (!clubError && clubData) finalUserDetails.club_id = clubData.id;
         } else if (basicUserData.role === 'COACH') {
              const { data: coachData, error: coachError } = await supabase
                 .from('coaches')
                 .select('id')
                 .eq('user_id', basicUserData.id) 
                 .single();
-            if (coachError) console.error("[UserContext] Error fetching coach ID:", coachError.message);
-            else if (coachData) finalUserDetails.coach_id = coachData.id;
+            if (!coachError && coachData) finalUserDetails.coach_id = coachData.id;
         }
         setUserDetails(finalUserDetails);
-        console.log("[UserContext] Final user details (with role ID):", finalUserDetails);
     } catch (err: any) {
-        console.error("[UserContext] Unexpected error fetching user details:", err);
         setUserDetails(null);
         setError(`Unexpected error: ${err.message}`);
     }
@@ -119,13 +111,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   // Logout function using server action
   const logout = useCallback(async () => {
     setError(null);
-    console.log("[UserContext] Attempting logout...");
     try {
       const result = await serverSignout(); 
       if (result.success) {
         setUser(null);
         setUserDetails(null);
-        console.log("[UserContext] Logout successful via server action.");
         // Let the component handle navigation instead of auto-redirecting
         // router.push("/login"); 
         router.refresh(); 
@@ -133,7 +123,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error(result.error || "Server action signout failed");
       }
     } catch (err: any) {
-      console.error("[UserContext] Logout error:", err);
       setError(err.message || "Failed to logout.");
     } 
   }, [router]);
@@ -141,19 +130,21 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   // Effect to handle auth state changes
   useEffect(() => {
     let isMounted = true;
-    console.log("[UserContext] Initializing auth state listener and initial load.");
+    
 
     async function initialLoad() {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) {
+        
+        // Don't treat missing session as an error - it's normal for non-authenticated users
+        if (sessionError && sessionError.message !== 'Auth session missing!') {
           throw sessionError;
         }
 
         if (isMounted) {
           const currentUser = session?.user ?? null;
           setUser(currentUser);
-          console.log("[UserContext] Initial session checked:", currentUser ? `User ID: ${currentUser.id}` : "No session");
+  
           if (currentUser) {
             await fetchUserDetailsInternal(currentUser.id);
           } else {
@@ -162,15 +153,17 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         }
       } catch (err: any) {
         if (isMounted) {
-          console.error("[UserContext] Error during initial load:", err);
-          setError("Failed during initial load: " + err.message);
+          // Don't treat AuthSessionMissingError as an error - it's expected for non-authenticated users
+          if (err?.message !== 'Auth session missing!') {
+            setError("Failed during initial load: " + err.message);
+          }
           setUser(null); // Clear user on error
           setUserDetails(null); // Clear details on error
         }
       } finally {
         if (isMounted) {
           setLoading(false); // This is the single point where initial loading is set to false
-          console.log("[UserContext] Initial load complete. Loading set to false.");
+  
         }
       }
     }
@@ -180,7 +173,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
-        console.log(`[UserContext] Auth event: ${event}`, session ? `Session User: ${session.user.id}` : "No session");
+
 
         const currentUser = session?.user ?? null;
         setUser(currentUser);
@@ -202,7 +195,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       isMounted = false;
       subscription?.unsubscribe();
-      console.log("[UserContext] Auth listener unsubscribed.");
+      
     };
   }, [router]); // Added router to dependency array for logout's router.push
 

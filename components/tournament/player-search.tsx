@@ -38,11 +38,9 @@ export default function PlayerSearch({
   const handleSearch = async () => {
     if (!searchTerm.trim() || disabled) return;
     
-    console.log("Iniciando búsqueda de jugador:", searchTerm);
     setIsSearching(true);
     try {
       const results = await searchPlayer(searchTerm);
-      console.log("Resultados de búsqueda:", results);
       setSearchResults(results);
       
       // Mostrar mensaje si no hay resultados

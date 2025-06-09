@@ -40,15 +40,57 @@ export default function EnhancedBracketDemo() {
   const [currentView, setCurrentView] = useState<"zones" | "bracket">("bracket")
   const [animationStep, setAnimationStep] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
   const [matchPositions, setMatchPositions] = useState<MatchPosition[]>([])
   const [connectorLines, setConnectorLines] = useState<ConnectorLine[]>([])
+  const [isMobile, setIsMobile] = useState(false)
   const bracketRef = useRef<HTMLDivElement>(null)
+  const sectionRef = useRef<HTMLDivElement>(null)
 
-  // Optimized dimensions for homepage display
-  const matchSpacing = 40
-  const matchHeight = 104
-  const columnWidth = 260
-  const matchWidth = 220
+  // Detect mobile size
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+
+    // Check on mount
+    checkIsMobile()
+
+    // Add resize listener
+    window.addEventListener('resize', checkIsMobile)
+    return () => window.removeEventListener('resize', checkIsMobile)
+  }, [])
+
+  // Calculate responsive dimensions based on isMobile state
+  const dimensions = {
+    matchSpacing: isMobile ? 25 : 40,
+    matchHeight: isMobile ? 80 : 104,
+    columnWidth: isMobile ? 180 : 260,
+    matchWidth: isMobile ? 160 : 220
+  }
+
+  // Intersection Observer para detectar cuando el componente es visible
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting)
+      },
+      {
+        threshold: 0.3, // Se activa cuando el 30% del componente es visible
+        rootMargin: '0px 0px -10% 0px' // Un poco antes de que llegue al centro
+      }
+    )
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current)
+    }
+
+    return () => {
+      if (sectionRef.current) {
+        observer.unobserve(sectionRef.current)
+      }
+    }
+  }, [])
 
   // Mock data para las zonas
   const zones = [
@@ -225,6 +267,7 @@ export default function EnhancedBracketDemo() {
   ]
 
   const calculatePositionsAndLines = () => {
+    const { matchSpacing, matchHeight, columnWidth, matchWidth } = dimensions
     const roundOrder = ["4TOS", "SEMIFINAL", "FINAL"]
 
     const matchesByRound: Record<string, Match[]> = {}
@@ -369,8 +412,9 @@ export default function EnhancedBracketDemo() {
     setConnectorLines(lines)
   }
 
+  // Ejecutar animación cuando es visible y está en bracket view
   useEffect(() => {
-    if (currentView === "bracket") {
+    if (isVisible && currentView === "bracket") {
       calculatePositionsAndLines()
       setAnimationStep(0)
       setIsAnimating(true)
@@ -389,7 +433,7 @@ export default function EnhancedBracketDemo() {
 
       return () => clearInterval(timer)
     }
-  }, [currentView])
+  }, [isVisible, currentView])
 
   const switchView = (view: "zones" | "bracket") => {
     setCurrentView(view)
@@ -412,16 +456,16 @@ export default function EnhancedBracketDemo() {
   })
 
   const activeRoundsForLayout = roundOrder.filter((round) => matchesByRound[round] && matchesByRound[round].length > 0)
-  const totalWidthForLayout = activeRoundsForLayout.length * columnWidth
+  const totalWidthForLayout = activeRoundsForLayout.length * dimensions.columnWidth
   const maxMatchesInRound = Math.max(...activeRoundsForLayout.map((round) => matchesByRound[round].length))
-  const calculatedTotalHeightForLayout = Math.max(350, 40 + maxMatchesInRound * (matchHeight + matchSpacing) + 40)
+  const calculatedTotalHeightForLayout = Math.max(350, 40 + maxMatchesInRound * (dimensions.matchHeight + dimensions.matchSpacing) + 40)
 
   return (
-    <section className="py-20 bg-slate-50">
-      <div className="container mx-auto px-6">
+    <section ref={sectionRef} className="py-20 bg-slate-50">
+      <div className="container mx-auto px-4 sm:px-6">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-slate-900 mb-4">Sistema de Gestión Profesional</h2>
-          <p className="text-slate-600 max-w-3xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">Sistema de Gestión Profesional</h2>
+          <p className="text-slate-600 max-w-3xl mx-auto text-sm sm:text-base">
             Desde zonas clasificatorias hasta brackets eliminatorios. Gestión automática, resultados en tiempo real y
             visualización perfecta.
           </p>
@@ -429,25 +473,25 @@ export default function EnhancedBracketDemo() {
 
         {/* Control de navegación */}
         <div className="flex justify-center mb-8">
-          <div className="bg-white rounded-lg p-1 shadow-sm border border-slate-200 flex">
+          <div className="bg-white rounded-lg p-1 shadow-sm border border-slate-200 flex flex-col sm:flex-row w-full sm:w-auto">
             <Button
               onClick={() => switchView("bracket")}
               variant={currentView === "bracket" ? "default" : "ghost"}
-              className={`px-6 py-3 transition-all duration-300 ${
+              className={`px-4 sm:px-6 py-3 transition-all duration-300 text-sm sm:text-base ${
                 currentView === "bracket" ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-800"
               }`}
             >
-              <Target className="mr-2 h-5 w-5" />
+              <Target className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
               Bracket Eliminatorio
             </Button>
             <Button
               onClick={() => switchView("zones")}
               variant={currentView === "zones" ? "default" : "ghost"}
-              className={`px-6 py-3 transition-all duration-300 ${
+              className={`px-4 sm:px-6 py-3 transition-all duration-300 text-sm sm:text-base ${
                 currentView === "zones" ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-800"
               }`}
             >
-              <Users className="mr-2 h-5 w-5" />
+              <Users className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
               Zonas Clasificatorias
             </Button>
           </div>
@@ -456,14 +500,14 @@ export default function EnhancedBracketDemo() {
         <div className="max-w-6xl mx-auto">
           {/* Vista de Zonas */}
           {currentView === "zones" && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
               {zones.map((zone, index) => (
                 <Card
                   key={zone.id}
                   className="overflow-hidden border shadow-sm transition-all duration-300 hover:shadow-md border-slate-200 bg-white"
                 >
                   <CardHeader className="py-3 bg-blue-600">
-                    <CardTitle className="text-lg font-bold text-white flex items-center justify-center">
+                    <CardTitle className="text-base sm:text-lg font-bold text-white flex items-center justify-center">
                       <Trophy className="mr-2 h-4 w-4" />
                       {zone.name}
                     </CardTitle>
@@ -520,9 +564,9 @@ export default function EnhancedBracketDemo() {
 
           {/* Vista del Bracket */}
           {currentView === "bracket" && (
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
+            <div className="bg-white rounded-lg p-3 sm:p-6 shadow-sm border border-slate-200">
               <div className="text-center mb-6">
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Bracket Eliminatorio</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">Bracket Eliminatorio</h3>
                 <p className="text-slate-600 text-sm">Seguí el progreso del torneo en tiempo real</p>
                 {isAnimating && (
                   <Badge className="mt-2 bg-blue-100 text-blue-700 border-blue-200">
@@ -532,11 +576,11 @@ export default function EnhancedBracketDemo() {
                 )}
               </div>
 
-              <div className="flex justify-center">
+              <div className="flex justify-center overflow-x-auto">
                 <div
                   ref={bracketRef}
-                  className="tournament-bracket bg-slate-50 rounded-lg border border-slate-200 p-4"
-                  style={{ width: totalWidthForLayout + 40, height: calculatedTotalHeightForLayout }}
+                  className="tournament-bracket bg-slate-50 rounded-lg border border-slate-200 p-2 sm:p-4 min-w-fit"
+                  style={{ width: Math.max(totalWidthForLayout + 40, 320), height: calculatedTotalHeightForLayout }}
                 >
                   <div
                     className="relative"
@@ -556,7 +600,7 @@ export default function EnhancedBracketDemo() {
                             x2={line.x2}
                             y2={line.y2}
                             stroke="#64748b"
-                            strokeWidth="2"
+                            strokeWidth={isMobile ? "1.5" : "2"}
                             fill="none"
                             className={`transition-opacity duration-1000 ${
                               animationStep > line.roundIndex ? "opacity-100" : "opacity-0"
@@ -572,13 +616,13 @@ export default function EnhancedBracketDemo() {
                         key={`header-${round}`}
                         className="absolute text-center"
                         style={{
-                          left: roundIndex * columnWidth,
+                          left: roundIndex * dimensions.columnWidth,
                           top: 0,
-                          width: matchWidth,
+                          width: dimensions.matchWidth,
                           zIndex: 2,
                         }}
                       >
-                        <div className="bg-slate-900 text-white rounded-lg py-2 px-3 shadow-sm">
+                        <div className="bg-slate-900 text-white rounded-lg py-1.5 sm:py-2 px-2 sm:px-3 shadow-sm">
                           <h3 className="text-xs font-semibold">{roundTranslation[round] || round}</h3>
                         </div>
                       </div>
@@ -612,20 +656,20 @@ export default function EnhancedBracketDemo() {
                           >
                             {/* Pareja 1 */}
                             <div
-                              className={`px-3 py-1.5 ${
+                              className={`px-2 sm:px-3 py-1 sm:py-1.5 ${
                                 isCompleted && match.winner_id === "couple1"
                                   ? "bg-emerald-50 border-l-4 border-emerald-500"
                                   : "bg-white"
                               }`}
                             >
-                              <div className="flex justify-between items-center min-h-6">
-                                <div className="font-medium text-slate-900 text-xs truncate max-w-[120px]">
+                              <div className="flex justify-between items-center min-h-5 sm:min-h-6">
+                                <div className="font-medium text-slate-900 text-xs truncate max-w-[80px] sm:max-w-[120px]">
                                   {match.couple1_player1_name && match.couple1_player2_name
                                     ? `${match.couple1_player1_name} / ${match.couple1_player2_name}`
                                     : "Por determinar"}
                                 </div>
                                 {isCompleted && (
-                                  <div className="bg-slate-900 text-white text-xs font-bold px-1.5 py-0.5 rounded shadow-sm">
+                                  <div className="bg-slate-900 text-white text-xs font-bold px-1 sm:px-1.5 py-0.5 rounded shadow-sm">
                                     {match.result_couple1}
                                   </div>
                                 )}
@@ -637,20 +681,20 @@ export default function EnhancedBracketDemo() {
 
                             {/* Pareja 2 */}
                             <div
-                              className={`px-3 py-1.5 ${
+                              className={`px-2 sm:px-3 py-1 sm:py-1.5 ${
                                 isCompleted && match.winner_id === "couple2"
                                   ? "bg-emerald-50 border-l-4 border-emerald-500"
                                   : "bg-white"
                               }`}
                             >
-                              <div className="flex justify-between items-center min-h-6">
-                                <div className="font-medium text-slate-900 text-xs truncate max-w-[120px]">
+                              <div className="flex justify-between items-center min-h-5 sm:min-h-6">
+                                <div className="font-medium text-slate-900 text-xs truncate max-w-[80px] sm:max-w-[120px]">
                                   {match.couple2_player1_name && match.couple2_player2_name
                                     ? `${match.couple2_player1_name} / ${match.couple2_player2_name}`
                                     : "Por determinar"}
                                 </div>
                                 {isCompleted && (
-                                  <div className="bg-slate-900 text-white text-xs font-bold px-1.5 py-0.5 rounded shadow-sm">
+                                  <div className="bg-slate-900 text-white text-xs font-bold px-1 sm:px-1.5 py-0.5 rounded shadow-sm">
                                     {match.result_couple2}
                                   </div>
                                 )}
@@ -658,8 +702,8 @@ export default function EnhancedBracketDemo() {
                             </div>
 
                             {/* Footer */}
-                            <div className="px-3 py-1 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
-                              <div className="flex items-center gap-2">
+                            <div className="px-2 sm:px-3 py-1 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
+                              <div className="flex items-center gap-1 sm:gap-2">
                                 {isCompleted ? (
                                   <CheckCircle className="h-3 w-3 text-emerald-600" />
                                 ) : (
@@ -668,7 +712,7 @@ export default function EnhancedBracketDemo() {
                                 <span
                                   className={`text-xs font-medium ${isCompleted ? "text-emerald-700" : "text-amber-600"}`}
                                 >
-                                  {isCompleted ? "Completado" : "Pendiente"}
+                                  {isCompleted ? (isMobile ? "✓" : "Completado") : (isMobile ? "⏳" : "Pendiente")}
                                 </span>
                               </div>
                             </div>

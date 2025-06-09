@@ -10,7 +10,8 @@ export const CPALogo: React.FC = () => {
         alt="Circuito de Pádel Amateur"
         width={240}
         height={64}
-        className="h-16 w-auto"
+        className="h-16"
+        style={{ width: 'auto', height: '64px' }}
         priority
       />
     </div>
