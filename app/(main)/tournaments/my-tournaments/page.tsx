@@ -102,7 +102,7 @@ export default async function MyTournamentsPage() {
                       asChild
                       className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl shadow-sm"
                     >
-                      <Link href="/my-tournaments/create" className="flex items-center gap-2">
+                      <Link href="/tournaments/my-tournaments/create" className="flex items-center gap-2">
                         <Plus className="h-5 w-5" />
                         Crear Nuevo Torneo
                       </Link>
@@ -126,4 +126,4 @@ export default async function MyTournamentsPage() {
       </div>
     </div>
   )
-}
+} 

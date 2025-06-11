@@ -1,17 +1,34 @@
 import React from 'react';
-// We might not need all these icons directly here if TournamentsClient handles them,
-// but keeping them for now to match the player page structure.
-import { ClipboardList, Search, Trophy, ChevronRight, UserCircle } from 'lucide-react';
-import TournamentsClient from './tournaments-client'; // Adjusted path
+import { getUserRole } from '@/app/api/users';
 import { getTournaments, getCategories } from '@/app/api/tournaments';
+import TournamentsClient from './tournaments-client';
+import ClubTournamentsPage from './@club/page';
 
-// This page will now be an async server component to fetch data
+// This page will handle the parallel routes logic
 export default async function TournamentsPage() {
-  const tournaments = await getTournaments();
-  const categories = await getCategories();
+  const [tournaments, categories, userRole] = await Promise.all([
+    getTournaments(),
+    getCategories(),
+    getUserRole()
+  ]);
+
+  // Apply the same logic that was in the layout
+  if (userRole === 'CLUB') {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="container mx-auto px-6 py-12 max-w-6xl">
+          <ClubTournamentsPage />
+        </div>
+      </div>
+    );
+  }
   
-  // Render the same client component used by players
+  // For other roles (PLAYER, COACH, or default), show the regular tournaments page
   return (
-    <TournamentsClient initialTournaments={tournaments} initialCategories={categories} />
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto px-6 py-12 max-w-6xl">
+        <TournamentsClient initialTournaments={tournaments} initialCategories={categories} />
+      </div>
+    </div>
   );
 } 

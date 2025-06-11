@@ -203,7 +203,7 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <Button asChild variant="outline" className="border-gray-300 w-fit">
-                <Link href="/my-tournaments" className="flex items-center gap-2">
+                <Link href="/tournaments/my-tournaments" className="flex items-center gap-2">
                   <ArrowLeft className="h-4 w-4" />
                   Volver a Mis Torneos
                 </Link>
@@ -391,4 +391,4 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
       </div>
     </div>
   )
-}
+} 

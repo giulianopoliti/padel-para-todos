@@ -121,7 +121,7 @@ export default function CreateTournamentPage() {
             // Redirect to the new tournament's page or a relevant listing page
             // For now, let's redirect to my-tournaments after a short delay
             setTimeout(() => {
-                router.push('/my-tournaments'); 
+                router.push('/tournaments/my-tournaments'); 
             }, 2000);
         } else {
             setError(result.error || 'Error desconocido al crear el torneo.');
@@ -248,4 +248,4 @@ export default function CreateTournamentPage() {
       </div>
     </div>
   );
-}
+} 
