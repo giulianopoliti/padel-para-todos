@@ -508,40 +508,32 @@ export default async function HomePage() {
       </section>
 
       {/* Próximamente: Entrenadores */}
-      <section className="py-16 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
+      <section className="py-16 bg-slate-900 text-white">
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center bg-purple-500 rounded-full px-4 py-2 mb-6">
-              <Lightbulb className="h-5 w-5 mr-2" />
-              <span className="text-sm font-medium">Próximamente</span>
+            <div className="inline-flex items-center bg-gradient-to-r from-amber-500 to-orange-500 rounded-full px-6 py-3 mb-8 shadow-lg">
+              <Lightbulb className="h-5 w-5 mr-3 text-white" />
+              <span className="text-sm font-semibold text-white tracking-wide">EN CONSTRUCCIÓN</span>
             </div>
             
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Sección de Entrenadores</h2>
-            <p className="text-xl text-purple-100 mb-8 leading-relaxed">
-              Estamos trabajando en una nueva sección donde vas a poder encontrar entrenadores especializados, 
-              clases grupales e individuales, y entrenamientos personalizados para mejorar tu juego.
+            <h2 className="text-3xl lg:text-4xl font-bold mb-6 text-white">
+              Sección de Entrenadores
+            </h2>
+            <p className="text-xl text-slate-300 mb-8 leading-relaxed">
+              Estamos trabajando en una nueva sección para entrenadores. 
+              Si sos entrenador y querés dar tu opinión sobre qué te gustaría hacer con la app, 
+              dejanos tus datos y nos contactamos.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
                 asChild 
                 size="lg" 
-                className="bg-white text-purple-600 hover:bg-purple-50 px-6 py-3"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-lg px-8 py-4 text-lg font-semibold rounded-xl transition-all duration-300"
               >
-                <Link href="/register?role=coach">
-                  <User className="mr-2 h-5 w-5" />
-                  Soy Entrenador - Registrarme
-                </Link>
-              </Button>
-              <Button 
-                asChild 
-                size="lg" 
-                variant="outline" 
-                className="border-white text-white hover:bg-white hover:text-purple-600 px-6 py-3"
-              >
-                <Link href="/register">
-                  <Bell className="mr-2 h-5 w-5" />
-                  Notificarme cuando esté listo
+                <Link href="/coaches">
+                  <User className="mr-3 h-6 w-6" />
+                  Soy Entrenador - Dar Feedback
                 </Link>
               </Button>
             </div>
