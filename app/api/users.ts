@@ -245,6 +245,80 @@ export const getUser = async (): Promise<User | null> => {
     return data;
   }
 
+  /**
+   * Get players of a specific club with detailed information for ranking display
+   */
+  export async function getClubPlayersForRanking(clubId: string) {
+    const supabase = await createClient();
+    
+    const { data, error } = await supabase
+      .from("players")
+      .select(`
+        id,
+        first_name,
+        last_name,
+        score,
+        category_name,
+        preferred_hand,
+        preferred_side,
+        racket,
+        gender,
+        profile_image_url,
+        created_at,
+        clubes (
+          id,
+          name
+        )
+      `)
+      .eq("club_id", clubId)
+      .order("score", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching club players for ranking:", error);
+      return [];
+    }
+
+    // Transform the data to match the ranking UI format
+    const players = data?.map((rawPlayer, index) => {
+      // Handle profile image URL
+      let profileImageUrl = rawPlayer.profile_image_url;
+      
+      if (profileImageUrl && !profileImageUrl.startsWith('http')) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(profileImageUrl);
+        profileImageUrl = publicUrl;
+      } else if (!profileImageUrl) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl('avatars/foto predeterminada.jpg');
+        profileImageUrl = publicUrl;
+      }
+
+      return {
+        id: rawPlayer.id,
+        firstName: rawPlayer.first_name,
+        lastName: rawPlayer.last_name,
+        score: rawPlayer.score || 0,
+        category: rawPlayer.category_name || "Sin categoría",
+        preferredHand: rawPlayer.preferred_hand,
+        preferredSide: rawPlayer.preferred_side,
+        racket: rawPlayer.racket,
+        gender: rawPlayer.gender || "MALE",
+        profileImage: profileImageUrl,
+        createdAt: rawPlayer.created_at,
+        position: (index + 1),
+        club_name: (rawPlayer.clubes as any)?.name || "Sin club",
+        // Add some demo data for better UI
+        trend: Math.floor(Math.random() * 5) - 2, // Random trend between -2 and 2
+        winRate: Math.floor(Math.random() * 30) + 70, // Win rate between 70% and 100%
+        matchesPlayed: Math.floor(Math.random() * 50) + 10, // Matches between 10 and 60
+      };
+    }) || [];
+
+    return players;
+  }
+
   // =================== CLUB FUNCTIONS ===================
   
   /**
@@ -414,7 +488,12 @@ export const getUser = async (): Promise<User | null> => {
         name,
         start_date,
         end_date,
-        category_name
+        category_name,
+        pre_tournament_image_url,
+        max_participants,
+        description,
+        price,
+        status
       `)
       .eq("club_id", clubId)
       .gte("start_date", new Date().toISOString())
@@ -423,6 +502,28 @@ export const getUser = async (): Promise<User | null> => {
 
     if (tournamentsError) {
       console.error(`Error fetching tournaments for club ${clubId}:`, tournamentsError);
+    }
+
+    // Get current participants count for each tournament
+    let tournamentsWithParticipants = [];
+    if (tournaments && tournaments.length > 0) {
+      for (const tournament of tournaments) {
+        const { data: inscriptions, error: inscriptionsError } = await supabase
+          .from("inscriptions")
+          .select("id")
+          .eq("tournament_id", tournament.id);
+
+        if (inscriptionsError) {
+          console.error(`Error fetching inscriptions for tournament ${tournament.id}:`, inscriptionsError);
+        }
+
+        const currentParticipants = inscriptions ? inscriptions.length : 0;
+
+        tournamentsWithParticipants.push({
+          ...tournament,
+          currentParticipants
+        });
+      }
     }
 
     return {
@@ -438,14 +539,21 @@ export const getUser = async (): Promise<User | null> => {
           : "Usuario anónimo",
         date: new Date().toISOString() // Placeholder since no date in reviews table
       })) || [],
-      upcomingTournaments: tournaments?.map(tournament => ({
+      upcomingTournaments: tournamentsWithParticipants.map(tournament => ({
         id: tournament.id,
         name: tournament.name || `Torneo ${tournament.category_name}`,
         date: tournament.start_date 
           ? `${new Date(tournament.start_date).toLocaleDateString()} - ${new Date(tournament.end_date).toLocaleDateString()}`
           : "Fecha por confirmar",
-        category: tournament.category_name || "Sin categoría"
-      })) || [],
+        category: tournament.category_name || "Sin categoría",
+        image: tournament.pre_tournament_image_url,
+        description: tournament.description,
+        price: tournament.price,
+        status: tournament.status,
+        maxParticipants: tournament.max_participants,
+        currentParticipants: tournament.currentParticipants || 0,
+        registrations: `${tournament.currentParticipants || 0}/${tournament.max_participants || 0}`
+      })),
       // Image data
       coverImage: club.cover_image_url,
       galleryImages: (club.gallery_images as string[]) || [],
@@ -1016,5 +1124,36 @@ export const getUser = async (): Promise<User | null> => {
     } catch (error) {
       console.error("Error in getPlayerRanking:", error);
       return { current: 0, variation: 0, isPositive: true };
+    }
+  }
+
+  /**
+   * Get the current user's club ID
+   */
+  export async function getCurrentUserClubId() {
+    try {
+      const user = await getUser()
+      const role = await getUserRole()
+      
+      if (!user || role !== 'CLUB') {
+        return null
+      }
+
+      const supabase = await createClient()
+      
+      const { data: club, error } = await supabase
+        .from('clubes')
+        .select('id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (error || !club) {
+        return null
+      }
+
+      return club.id
+    } catch (error) {
+      console.error('Error getting current user club ID:', error)
+      return null
     }
   }

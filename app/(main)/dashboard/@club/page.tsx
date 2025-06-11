@@ -2,8 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Plus, Settings, Users, Trophy } from "lucide-react"
+import { getCurrentUserClubId } from "@/app/api/users"
 
-export default function ClubDashboard() {
+export default async function ClubDashboard() {
+  // Obtener el ID del club
+  const clubId = await getCurrentUserClubId()
+
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold text-padel-green-700 mb-6">Dashboard de Club</h1>
@@ -55,7 +59,10 @@ export default function ClubDashboard() {
               asChild
               className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl shadow-sm w-full"
             >
-              <Link href="/club/players" className="flex items-center justify-center gap-2">
+              <Link 
+                href={clubId ? `/clubes/${clubId}/players` : "/club/players"} 
+                className="flex items-center justify-center gap-2"
+              >
                 <Users className="h-5 w-5" />
                 Ver mis Jugadores
               </Link>

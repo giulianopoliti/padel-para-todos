@@ -1,5 +1,5 @@
 import {
-  Home, Trophy, Users, Layers, MapPin, Settings, BarChart, User as UserIcon, LogOut, CheckCircle, Calendar, Plus, ListChecks, ChevronRight, Search, ClipboardList, LogIn, UserPlus, Clock
+  Home, Trophy, Users, Layers, MapPin, Settings, BarChart, User as UserIcon, LogOut, CheckCircle, Calendar, Plus, ListChecks, ChevronRight, Search, ClipboardList, LogIn, UserPlus, Clock, LayoutDashboard
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -22,7 +22,8 @@ export type IconName =
   | 'ClipboardList'
   | 'LogIn'
   | 'UserPlus'
-  | 'Clock';
+  | 'Clock'
+  | 'LayoutDashboard'; // For Dashboard
 
 const iconMap: Record<IconName, LucideIcon> = {
   Home,
@@ -43,7 +44,8 @@ const iconMap: Record<IconName, LucideIcon> = {
   ClipboardList,
   LogIn,
   UserPlus,
-  Clock
+  Clock,
+  LayoutDashboard
 };
 
 export function getIcon(name?: IconName): LucideIcon | null {

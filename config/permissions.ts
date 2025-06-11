@@ -2,7 +2,7 @@
 type Role = "PLAYER" | "CLUB" | "COACH" | "ADMIN"; // Assuming ADMIN might be needed later
 
 // Define icon names used in the navbar/sidebar
-type IconName =
+export type IconName =
   | 'Home' 
   | 'Trophy' 
   | 'Users' 
@@ -10,7 +10,8 @@ type IconName =
   | 'MapPin' // For Club
   | 'Settings'
   | 'BarChart' // For Ranking
-  | 'User'; // For Profile
+  | 'User' // For Profile
+  | 'LayoutDashboard'; // Added for Dashboard
 
 // Structure for defining route permissions and navigation links
 interface RouteConfig {
@@ -69,6 +70,12 @@ const routePermissions: RouteConfig[] = [
     path: "/edit-profile",
     label: "Editar perfil",
     icon: "User",
+    roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
+  },
+  {
+    path: "/dashboard",
+    label: "Dashboard",
+    icon: "LayoutDashboard",
     roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
   },
 ];
