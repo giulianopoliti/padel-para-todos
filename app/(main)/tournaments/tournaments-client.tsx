@@ -10,7 +10,9 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Trophy, Calendar, Search, Filter, ArrowRight, MapPin, Archive, Users, Clock, Award } from "lucide-react"
+import { Trophy, Calendar, Search, Filter, ArrowRight, MapPin, Archive, Users, Clock, Award, Plus, Settings } from "lucide-react"
+import { useUser } from "@/contexts/user-context"
+import Link from "next/link"
 
 // Tipos
 interface Tournament {
@@ -49,6 +51,7 @@ export default function TournamentsClient({
   initialCategories?: Category[]
 }) {
   const router = useRouter()
+  const { user } = useUser()
   const [tournaments] = useState<Tournament[]>(initialTournaments || [])
   const [filteredTournaments, setFilteredTournaments] = useState<Tournament[]>(initialTournaments || [])
   const [searchTerm, setSearchTerm] = useState("")
@@ -92,6 +95,37 @@ export default function TournamentsClient({
             Descubre todos los torneos disponibles, filtra por categoría y encuentra el torneo perfecto para ti.
           </p>
         </div>
+
+        {/* Sección especial para Clubes */}
+        {user?.role === "CLUB" && (
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-6 mb-8">
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+              <div className="text-center lg:text-left">
+                <h2 className="text-2xl font-bold text-blue-900 mb-2">
+                  Panel de Gestión de Clubes
+                </h2>
+                <p className="text-blue-700 max-w-lg">
+                  Gestiona tus torneos, visualiza inscripciones y organiza competencias de manera profesional.
+                </p>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
+                  <Link href="/tournaments/my-tournaments">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Gestionar Mis Torneos
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50">
+                  <Link href="/tournaments/my-tournaments/create">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Crear Nuevo Torneo
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-10">
           <div className="flex flex-col md:flex-row gap-4">

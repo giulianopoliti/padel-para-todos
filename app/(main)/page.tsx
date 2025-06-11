@@ -19,6 +19,10 @@ import {
   Award,
   ChevronLeft,
   ChevronRight,
+  BookOpen,
+  Info,
+  User,
+  Lightbulb,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -416,6 +420,135 @@ export default async function HomePage() {
       {/* Sistema de Gestión Profesional - Bracket Demo */}
       <EnhancedBracketDemo />
 
+      {/* Información para Nuevos Usuarios */}
+      <section className="py-24 bg-gradient-to-br from-blue-50 to-slate-50">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">¿Nuevo en el Circuito de Pádel Amateur?</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto">
+              Conocé todo lo que necesitás saber para empezar a competir, sumar puntos y subir de categoría
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <Card className="hover:shadow-lg transition-all duration-300 border-slate-200">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <BarChart3 className="h-8 w-8 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-3">Sistema de Categorías</h3>
+                <p className="text-slate-600 mb-4 leading-relaxed">
+                  8 categorías automáticas basadas en puntos. Desde 8va (0-299 pts) hasta 1ra (1500+ pts). 
+                  Tu categoría se actualiza automáticamente.
+                </p>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/info/categorias">
+                    <Info className="mr-2 h-4 w-4" />
+                    Ver Categorías
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-all duration-300 border-slate-200">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trophy className="h-8 w-8 text-emerald-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-3">Tipos de Torneos</h3>
+                <p className="text-slate-600 mb-4 leading-relaxed">
+                  Torneos American (1 día) y Long (1-2 meses). Cada tipo tiene un formato único. 
+                  Ganar suma puntos, perder también.
+                </p>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/info/tournaments">
+                    <Trophy className="mr-2 h-4 w-4" />
+                    Ver Torneos
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-all duration-300 border-slate-200">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Building2 className="h-8 w-8 text-amber-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-3">Para Clubes</h3>
+                <p className="text-slate-600 mb-4 leading-relaxed">
+                  Si tenés un club, podés organizar torneos, gestionar inscripciones automáticamente 
+                  y ganar visibilidad en la plataforma.
+                </p>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/info/clubes">
+                    <Building2 className="mr-2 h-4 w-4" />
+                    Ver Beneficios
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-center mt-12">
+            <Badge className="mb-4 bg-blue-100 text-blue-800 px-4 py-2">
+              <BookOpen className="mr-2 h-4 w-4" />
+              Guía Completa Disponible
+            </Badge>
+            <p className="text-slate-600 mb-6">
+              ¿Querés conocer todos los detalles del sistema? Tenemos una guía completa para vos.
+            </p>
+            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Link href="/info">
+                <BookOpen className="mr-2 h-4 w-4" />
+                Ver Guía Completa
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Próximamente: Entrenadores */}
+      <section className="py-16 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
+        <div className="container mx-auto px-6">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-flex items-center bg-purple-500 rounded-full px-4 py-2 mb-6">
+              <Lightbulb className="h-5 w-5 mr-2" />
+              <span className="text-sm font-medium">Próximamente</span>
+            </div>
+            
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Sección de Entrenadores</h2>
+            <p className="text-xl text-purple-100 mb-8 leading-relaxed">
+              Estamos trabajando en una nueva sección donde vas a poder encontrar entrenadores especializados, 
+              clases grupales e individuales, y entrenamientos personalizados para mejorar tu juego.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                asChild 
+                size="lg" 
+                className="bg-white text-purple-600 hover:bg-purple-50 px-6 py-3"
+              >
+                <Link href="/register?role=coach">
+                  <User className="mr-2 h-5 w-5" />
+                  Soy Entrenador - Registrarme
+                </Link>
+              </Button>
+              <Button 
+                asChild 
+                size="lg" 
+                variant="outline" 
+                className="border-white text-white hover:bg-white hover:text-purple-600 px-6 py-3"
+              >
+                <Link href="/register">
+                  <Bell className="mr-2 h-5 w-5" />
+                  Notificarme cuando esté listo
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Torneos Disponibles */}
       <section className="py-24 bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="container mx-auto px-6">
@@ -521,6 +654,118 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Footer con Enlaces de Información */}
+      <footer className="bg-slate-900 text-white py-16">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {/* Logo y descripción */}
+            <div className="md:col-span-2">
+              <div className="mb-6">
+                <Image
+                  src={LOGOS.home}
+                  alt="Circuito de Pádel Amateur - Logo"
+                  width={300}
+                  height={100}
+                  className="h-24 w-auto"
+                />
+              </div>
+              <p className="text-slate-300 leading-relaxed max-w-md">
+                La plataforma que revoluciona el pádel amateur en Argentina. 
+                Ranking nacional, torneos organizados y un sistema de puntos que te motiva a mejorar.
+              </p>
+            </div>
+
+            {/* Información */}
+            <div>
+              <h3 className="text-lg font-bold mb-4">Información</h3>
+              <ul className="space-y-3">
+                <li>
+                  <Link 
+                    href="/info/categorias" 
+                    className="text-slate-300 hover:text-white transition-colors flex items-center"
+                  >
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Sistema de Categorías
+                  </Link>
+                </li>
+                <li>
+                  <Link 
+                    href="/info/tournaments" 
+                    className="text-slate-300 hover:text-white transition-colors flex items-center"
+                  >
+                    <Trophy className="h-4 w-4 mr-2" />
+                    Tipos de Torneos
+                  </Link>
+                </li>
+                <li>
+                  <Link 
+                    href="/info/clubes" 
+                    className="text-slate-300 hover:text-white transition-colors flex items-center"
+                  >
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Beneficios para Clubes
+                  </Link>
+                </li>
+                <li>
+                  <Link 
+                    href="/info" 
+                    className="text-slate-300 hover:text-white transition-colors flex items-center"
+                  >
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    Guía Completa
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Accesos Rápidos */}
+            <div>
+              <h3 className="text-lg font-bold mb-4">Accesos Rápidos</h3>
+              <ul className="space-y-3">
+                <li>
+                  <Link 
+                    href="/ranking" 
+                    className="text-slate-300 hover:text-white transition-colors"
+                  >
+                    Ranking Nacional
+                  </Link>
+                </li>
+                <li>
+                  <Link 
+                    href="/tournaments" 
+                    className="text-slate-300 hover:text-white transition-colors"
+                  >
+                    Torneos Disponibles
+                  </Link>
+                </li>
+                <li>
+                  <Link 
+                    href="/clubes" 
+                    className="text-slate-300 hover:text-white transition-colors"
+                  >
+                    Encontrar Clubes
+                  </Link>
+                </li>
+                <li>
+                  <Link 
+                    href="/register" 
+                    className="text-slate-300 hover:text-white transition-colors"
+                  >
+                    Registrarse
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-800 mt-12 pt-8 text-center">
+            <p className="text-slate-400">
+              © 2024 Circuito de Pádel Amateur. Todos los derechos reservados.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

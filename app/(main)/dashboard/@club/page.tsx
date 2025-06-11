@@ -19,7 +19,7 @@ export default function ClubDashboard() {
               asChild
               className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl shadow-sm w-full"
             >
-              <Link href="/my-tournaments" className="flex items-center justify-center gap-2">
+              <Link href="/tournaments/my-tournaments" className="flex items-center justify-center gap-2">
                 <Trophy className="h-5 w-5" />
                 Ir a Mis Torneos
               </Link>

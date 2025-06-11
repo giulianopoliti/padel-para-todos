@@ -86,7 +86,7 @@ export default function ClubTournamentsPage() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex justify-end">
             <Button
-              onClick={() => router.push('/my-tournaments')}
+              onClick={() => router.push('/tournaments/my-tournaments')}
               className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl shadow-sm"
             >
               <Trophy className="mr-2 h-5 w-5" />

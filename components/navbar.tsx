@@ -39,6 +39,11 @@ const publicLinks = [
     label: "Entrenadores",
     icon: "User" as const,
   },
+  {
+    path: "/info",
+    label: "Información",
+    icon: "BookOpen" as const,
+  },
 ];
 
 // Define the expected props for NavbarClient explicitly

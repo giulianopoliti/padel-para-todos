@@ -46,17 +46,6 @@ const routePermissions: RouteConfig[] = [
     icon: "MapPin",
     roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
   },
-  {path: "/my-tournaments",
-    label: "Mis Torneos",
-    icon: "Trophy",
-    roles: ["CLUB"], // Accessible to all logged-in users
-  },
-  {
-    path: "/coaches",
-    label: "Entrenadores",
-    icon: "User",
-    roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Mantenemos los roles para usuarios autenticados
-  },
   // Example Admin/Specific Role Routes (Uncomment/modify as needed)
   // { 
   //   path: "/users", 
@@ -80,12 +69,6 @@ const routePermissions: RouteConfig[] = [
     path: "/edit-profile",
     label: "Editar perfil",
     icon: "User",
-    roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
-  },
-  {
-    path: "/settings",
-    label: "Configuración",
-    icon: "Settings",
     roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
   },
 ];
@@ -113,7 +96,7 @@ export function checkRoutePermission(
   role?: Role | null // Role can be null/undefined if user is not logged in
 ): boolean {
   // Public routes accessible to everyone (even unauthenticated)
-  const publicPaths = ["/", "/login", "/auth/callback", "/tournaments", "/ranking", "/register", "/clubes", "/coaches", "/players"];
+  const publicPaths = ["/", "/login", "/auth/callback", "/tournaments", "/ranking", "/register", "/clubes", "/coaches", "/players", "/info"];
   if (publicPaths.some(publicPath => path.startsWith(publicPath))) {
     return true;
   }

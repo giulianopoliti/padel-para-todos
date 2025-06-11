@@ -166,7 +166,7 @@ export default function ClubTournamentClient({
       {/* Botón de modificar torneo (solo para propietarios) */}
       {isOwner && (
         <div className="flex justify-center mb-8">
-          <Link href={`/my-tournaments/${tournament.id}`}>
+                            <Link href={`/tournaments/my-tournaments/${tournament.id}`}>
             <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3">
               <Settings className="mr-2 h-4 w-4" />
               Modificar Torneo

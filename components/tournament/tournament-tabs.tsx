@@ -244,7 +244,7 @@ export default function TournamentsTabs({
 
           {/* Action button */}
           <Button asChild className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-lg">
-            <Link href={`/my-tournaments/${tournament.id}`} className="flex items-center justify-center gap-2">
+                                <Link href={`/my-tournaments/${tournament.id}`} className="flex items-center justify-center gap-2">
               Ver detalles
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>

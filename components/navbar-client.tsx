@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Trophy, Menu, X, BarChart3, Calendar, MapPin, User, Home } from "lucide-react"
+import { Trophy, Menu, X, BarChart3, Calendar, MapPin, User, Home, BookOpen } from "lucide-react"
 import type { User as AuthUser } from "@supabase/supabase-js"
 import NavbarUserProfile from "./navbar-user-profile"
 import { useState } from "react"
@@ -33,6 +33,7 @@ const getIconComponent = (iconName: string) => {
     BarChart3: BarChart3,
     MapPin: MapPin,
     User: User,
+    BookOpen: BookOpen,
     BarChart: BarChart3, // Fallback for ranking
   }
   

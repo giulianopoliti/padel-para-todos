@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import TournamentsTabs from "@/components/tournament/tournament-tabs"
-import { getClubTournaments } from "../tournaments/my-tournaments/actions"
+import { getClubTournaments } from "@/app/api/tournaments/actions"
 import { Button } from "@/components/ui/button"
 import { Plus, Trophy, BarChart3 } from "lucide-react"
 import Link from "next/link"
