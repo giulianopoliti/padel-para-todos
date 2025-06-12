@@ -20,34 +20,48 @@ export async function getTournaments() {
             return [];
         }
 
-        // Map the raw data to our Tournament type
-        const tournaments = data?.map((rawTournament): Tournament => {
-            return {
-                id: rawTournament.id,
-                name: rawTournament.name,
-                club: {
-                    ...rawTournament.club,
-                    image: rawTournament.club?.cover_image_url // Map cover_image_url to image for compatibility
-                },
-                createdAt: rawTournament.created_at,
-                startDate: rawTournament.start_date,
-                endDate: rawTournament.end_date,
-                category: rawTournament.category,
-                gender: rawTournament.gender || "MALE",
-                status: rawTournament.status || "NOT_STARTED",
-                type: rawTournament.type || "AMERICAN",
-                pre_tournament_image_url: rawTournament.pre_tournament_image_url,
-                price: rawTournament.price,
-                description: rawTournament.description,
-                address: rawTournament.address,
-                time: rawTournament.time,
-                prize: rawTournament.prize,
-                maxParticipants: rawTournament.max_participants,
-                currentParticipants: rawTournament.current_participants
-            };
-        }) || [];
+        // Get current participants count for each tournament
+        const tournamentsWithParticipants = [];
+        if (data && data.length > 0) {
+            for (const rawTournament of data) {
+                const { data: inscriptions, error: inscriptionsError } = await supabase
+                    .from("inscriptions")
+                    .select("id")
+                    .eq("tournament_id", rawTournament.id);
 
-        return tournaments;
+                if (inscriptionsError) {
+                    console.error(`Error fetching inscriptions for tournament ${rawTournament.id}:`, inscriptionsError);
+                }
+
+                const currentParticipants = inscriptions ? inscriptions.length : 0;
+
+                // Map the raw data to our Tournament type
+                const tournament: Tournament = {
+                    id: rawTournament.id,
+                    name: rawTournament.name,
+                    club: {
+                        ...rawTournament.club,
+                        image: rawTournament.club?.cover_image_url // Map cover_image_url to image for compatibility
+                    },
+                    createdAt: rawTournament.created_at,
+                    startDate: rawTournament.start_date,
+                    endDate: rawTournament.end_date,
+                    category: rawTournament.category_name,
+                    gender: rawTournament.gender || "MALE",
+                    status: rawTournament.status || "NOT_STARTED",
+                    type: rawTournament.type || "AMERICAN",
+                    pre_tournament_image_url: rawTournament.pre_tournament_image_url,
+                    price: rawTournament.price,
+                    description: rawTournament.description,
+                    maxParticipants: rawTournament.max_participants,
+                    currentParticipants: currentParticipants
+                };
+
+                tournamentsWithParticipants.push(tournament);
+            }
+        }
+
+        return tournamentsWithParticipants;
     } catch (error) {
         console.error("Error in getTournaments:", error);
         return [];
