@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button"
 import { PlusCircle, Search, Trash2, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
-import CoupleRegistrationAdvanced from "./couple-registration-advanced"
+import CoupleRegistrationAdvanced from "@/components/tournament/couple-registration-advanced"
+import RegisterCoupleForm from "@/components/tournament/player/register-couple-form"
 import { removeCoupleFromTournament } from "@/app/api/tournaments/actions"
+import { useUser } from "@/contexts/user-context"
 
 interface PlayerInfo {
   id: string
@@ -47,8 +49,10 @@ export default function TournamentCouplesTab({
   const [isDeleting, setIsDeleting] = useState(false)
   
   const { toast } = useToast()
+  const { user, userDetails } = useUser()
 
   const isTournamentActive = tournamentStatus !== "NOT_STARTED"
+  const isPlayer = userDetails?.role === 'PLAYER' && userDetails?.player_id
   const currentCouples = coupleInscriptions.length
 
   const handleRegisterSuccess = () => {
@@ -207,22 +211,36 @@ export default function TournamentCouplesTab({
         )}
       </div>
 
-      {/* Diálogo para inscribir pareja - Reemplazado con sistema avanzado */}
+      {/* Diálogo para inscribir pareja */}
       <Dialog open={registerCoupleDialogOpen} onOpenChange={setRegisterCoupleDialogOpen}>
-        <DialogContent className="sm:max-w-[1000px] max-h-[95vh] overflow-y-auto">
+        <DialogContent className={isPlayer ? "sm:max-w-[800px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[1000px] max-h-[95vh] overflow-y-auto"}>
           <DialogHeader>
-            <DialogTitle>Sistema Avanzado de Inscripción de Parejas</DialogTitle>
+            <DialogTitle>
+              {isPlayer ? "Inscripción en Pareja" : "Sistema Avanzado de Inscripción de Parejas"}
+            </DialogTitle>
             <DialogDescription>
-              Registre parejas de manera flexible: combine jugadores nuevos y existentes según sus necesidades
+              {isPlayer 
+                ? "Registra una pareja para el torneo" 
+                : "Registre parejas de manera flexible: combine jugadores nuevos y existentes según sus necesidades"
+              }
             </DialogDescription>
           </DialogHeader>
-          <CoupleRegistrationAdvanced
-            tournamentId={tournamentId}
-            onComplete={handleRegisterSuccess}
-            players={allPlayers}
-            isClubMode={true}
-            userPlayerId={null}
-          />
+          
+          {isPlayer ? (
+            <RegisterCoupleForm
+              tournamentId={tournamentId}
+              onComplete={handleRegisterSuccess}
+              players={allPlayers}
+            />
+          ) : (
+            <CoupleRegistrationAdvanced
+              tournamentId={tournamentId}
+              onComplete={handleRegisterSuccess}
+              players={allPlayers}
+              isClubMode={true}
+              userPlayerId={null}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

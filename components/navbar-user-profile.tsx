@@ -33,12 +33,41 @@ export default function NavbarUserProfile({ profileLinks = [], params }: NavbarU
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
   const handleLogout = async () => {
+    console.log("[NavbarUserProfile] Starting logout...");
     setIsLoggingOut(true);
+    
     try {
+      console.log("[NavbarUserProfile] Calling logout function...");
       await logout();
+      
+      console.log("[NavbarUserProfile] Logout successful, redirecting...");
+      
+      // Force navigation
       router.push("/login");
+      
+      // Fallback: Force page reload if navigation doesn't work
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          console.log("[NavbarUserProfile] Force redirecting with window.location...");
+          window.location.href = "/login";
+        }
+      }, 1000);
+      
     } catch (error) {
       console.error("[NavbarUserProfile] Error logging out:", error);
+      
+      // Even if logout failed, try to redirect
+      console.log("[NavbarUserProfile] Logout failed, but redirecting anyway...");
+      router.push("/login");
+      
+      // Force page reload as fallback
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          console.log("[NavbarUserProfile] Force redirecting after error...");
+          window.location.href = "/login";
+        }
+      }, 500);
+      
     } finally {
       setIsLoggingOut(false);
     }

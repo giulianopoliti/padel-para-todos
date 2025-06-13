@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
 import RegisterPlayerForm from "./club/register-player-form"
-import { pairIndividualPlayers, removePlayerFromTournament } from "@/app/api/tournaments/actions"
+import { pairIndividualPlayers, removePlayerFromTournament, registerPlayerForTournament } from "@/app/api/tournaments/actions"
+import { useUser } from "@/contexts/user-context"
 
 interface PlayerInfo {
   id: string
@@ -47,17 +48,106 @@ export default function TournamentPlayersTab({
   })
   const [isPairing, setIsPairing] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isRegisteringMyself, setIsRegisteringMyself] = useState(false)
+  const [showRegisterConfirmation, setShowRegisterConfirmation] = useState(false)
+  const [showCancelConfirmation, setShowCancelConfirmation] = useState(false)
+  const [isCancelingMyself, setIsCancelingMyself] = useState(false)
   
   const { toast } = useToast()
+  const { user, userDetails } = useUser()
 
   const isTournamentActive = tournamentStatus !== "NOT_STARTED"
   const currentPlayers = individualInscriptions.length
   const isMaxPlayersReached = currentPlayers >= maxPlayers
   const canPairPlayers = !isTournamentActive && currentPlayers >= 2
+  const isPlayer = userDetails?.role === 'PLAYER' && userDetails?.player_id
+  const isPlayerAlreadyRegistered = isPlayer && individualInscriptions.some(p => p.id === userDetails.player_id)
 
   const handleRegisterSuccess = () => {
     setRegisterPlayerDialogOpen(false)
     window.location.reload()
+  }
+
+  const handleRegisterMyself = async () => {
+    if (!isPlayer || !userDetails.player_id) {
+      toast({
+        title: "Error de autenticación",
+        description: "Debes estar logueado como jugador para inscribirte.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsRegisteringMyself(true)
+    try {
+      const result = await registerPlayerForTournament(tournamentId, userDetails.player_id)
+
+      if (result.success) {
+        toast({
+          title: "¡Inscripción exitosa!",
+          description: "Te has inscrito exitosamente en el torneo.",
+          variant: "default"
+        })
+        setShowRegisterConfirmation(false)
+        window.location.reload()
+      } else {
+        toast({
+          title: "Error en la inscripción",
+          description: result.message || "No se pudo completar la inscripción.",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error("Error registering myself:", error)
+      toast({
+        title: "Error inesperado",
+        description: "Ocurrió un error al inscribirte en el torneo.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsRegisteringMyself(false)
+    }
+  }
+
+  const handleCancelMyself = async () => {
+    if (!isPlayer || !userDetails.player_id) {
+      toast({
+        title: "Error de autenticación",
+        description: "Debes estar logueado como jugador para cancelar tu inscripción.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsCancelingMyself(true)
+    try {
+      const result = await removePlayerFromTournament(tournamentId, userDetails.player_id)
+
+      if (result.success) {
+        toast({
+          title: "Inscripción cancelada",
+          description: "Has cancelado tu inscripción exitosamente.",
+          variant: "default"
+        })
+        setShowCancelConfirmation(false)
+        window.location.reload()
+      } else {
+        toast({
+          title: "Error al cancelar",
+          description: result.message || "No se pudo cancelar la inscripción.",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error("Error canceling myself:", error)
+      toast({
+        title: "Error inesperado",
+        description: "Ocurrió un error al cancelar tu inscripción.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsCancelingMyself(false)
+    }
   }
 
   const handleSelectPlayer = (player: PlayerInfo, slot: 'player1' | 'player2') => {
@@ -201,14 +291,43 @@ export default function TournamentPlayersTab({
             )}
             
             {!isTournamentActive && (
-              <Button
-                onClick={() => setRegisterPlayerDialogOpen(true)}
-                className="bg-slate-900 hover:bg-slate-800 text-white"
-                disabled={isMaxPlayersReached}
-              >
-                <UserPlus className="mr-2 h-4 w-4" />
-                Inscribir Jugador
-              </Button>
+              <>
+                {isPlayer && !isPlayerAlreadyRegistered ? (
+                  <Button
+                    onClick={() => setShowRegisterConfirmation(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    disabled={isMaxPlayersReached}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Inscribirme solo
+                  </Button>
+                ) : isPlayer && isPlayerAlreadyRegistered ? (
+                  <div className="flex items-center gap-2">
+                    <div className="bg-green-50 border border-green-200 rounded-md px-3 py-2">
+                      <p className="text-sm text-green-700 font-medium">
+                        ✓ Ya estás inscrito
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => setShowCancelConfirmation(true)}
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                    >
+                      Cancelar inscripción
+                    </Button>
+                  </div>
+                ) : !isPlayer ? (
+                  <Button
+                    onClick={() => setRegisterPlayerDialogOpen(true)}
+                    className="bg-slate-900 hover:bg-slate-800 text-white"
+                    disabled={isMaxPlayersReached}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Inscribir Jugador
+                  </Button>
+                ) : null}
+              </>
             )}
           </div>
         </div>
@@ -248,14 +367,27 @@ export default function TournamentPlayersTab({
                     </TableCell>
                     {!isTournamentActive && (
                       <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeletePlayerClick(player)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {isPlayer && player.id === userDetails.player_id ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowCancelConfirmation(true)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ) : !isPlayer ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeletePlayerClick(player)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
                       </TableCell>
                     )}
                   </TableRow>
@@ -270,17 +402,35 @@ export default function TournamentPlayersTab({
             </div>
             <h3 className="text-xl font-semibold text-slate-900 mb-2">No hay jugadores inscritos</h3>
             <p className="text-slate-500 max-w-md mx-auto mb-6">
-              Aún no hay jugadores individuales inscritos en este torneo. Comienza agregando el primer jugador.
+              {isPlayer && !isPlayerAlreadyRegistered 
+                ? "Aún no hay jugadores individuales inscritos en este torneo. ¡Sé el primero en inscribirte!"
+                : isPlayer && isPlayerAlreadyRegistered
+                ? "Ya estás inscrito en este torneo como jugador individual."
+                : "Aún no hay jugadores individuales inscritos en este torneo. Comienza agregando el primer jugador."
+              }
             </p>
             {!isTournamentActive && (
-              <Button
-                onClick={() => setRegisterPlayerDialogOpen(true)}
-                className="bg-slate-900 hover:bg-slate-800 text-white"
-                disabled={isMaxPlayersReached}
-              >
-                <UserPlus className="mr-2 h-4 w-4" />
-                Inscribir Primer Jugador
-              </Button>
+              <>
+                {isPlayer && !isPlayerAlreadyRegistered ? (
+                  <Button
+                    onClick={() => setShowRegisterConfirmation(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    disabled={isMaxPlayersReached}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Inscribirme solo
+                  </Button>
+                ) : !isPlayer ? (
+                  <Button
+                    onClick={() => setRegisterPlayerDialogOpen(true)}
+                    className="bg-slate-900 hover:bg-slate-800 text-white"
+                    disabled={isMaxPlayersReached}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Inscribir Primer Jugador
+                  </Button>
+                ) : null}
+              </>
             )}
           </div>
         )}
@@ -515,6 +665,108 @@ export default function TournamentPlayersTab({
                 <>
                   <Trash2 className="mr-2 h-4 w-4" />
                   Eliminar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de confirmación para inscribirse */}
+      <Dialog open={showRegisterConfirmation} onOpenChange={setShowRegisterConfirmation}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-green-600" />
+              ¿Confirmar inscripción?
+            </DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que quieres inscribirte como jugador individual en este torneo?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+            <h4 className="font-medium text-green-900 mb-2">Detalles de la inscripción:</h4>
+            <div className="space-y-1 text-sm text-green-800">
+              <p><strong>Modalidad:</strong> Jugador individual</p>
+              <p><strong>Podrás:</strong> Ser emparejado automáticamente por el club organizador</p>
+              <p><strong>Nota:</strong> También puedes inscribirte en pareja desde la pestaña "Parejas"</p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowRegisterConfirmation(false)}
+              disabled={isRegisteringMyself}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleRegisterMyself}
+              disabled={isRegisteringMyself}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isRegisteringMyself ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Inscribiéndome...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Confirmar inscripción
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de confirmación para cancelar inscripción */}
+      <Dialog open={showCancelConfirmation} onOpenChange={setShowCancelConfirmation}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              ¿Cancelar tu inscripción?
+            </DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que quieres cancelar tu inscripción en este torneo? Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+            <h4 className="font-medium text-red-900 mb-2">Consecuencias de cancelar:</h4>
+            <div className="space-y-1 text-sm text-red-800">
+              <p>• Perderás tu lugar en el torneo</p>
+              <p>• Si ya fuiste emparejado, tu compañero quedará sin pareja</p>
+              <p>• Tendrás que volver a inscribirte si cambias de opinión</p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowCancelConfirmation(false)}
+              disabled={isCancelingMyself}
+            >
+              Mantener inscripción
+            </Button>
+            <Button
+              onClick={handleCancelMyself}
+              disabled={isCancelingMyself}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isCancelingMyself ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Cancelando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Cancelar inscripción
                 </>
               )}
             </Button>

@@ -71,6 +71,11 @@ export async function signout() {
   try {
     console.log("[ServerAction] Performing signout");
     const supabase = await createClient();
+    
+    // Get current session before logout for debugging
+    const { data: sessionBefore } = await supabase.auth.getSession();
+    console.log("[ServerAction] Session before logout:", sessionBefore.session ? 'exists' : 'none');
+    
     const { error } = await supabase.auth.signOut();
     
     if (error) {
@@ -78,8 +83,17 @@ export async function signout() {
       return { success: false, error: error.message };
     }
     
+    // Verify logout worked
+    const { data: sessionAfter } = await supabase.auth.getSession();
+    console.log("[ServerAction] Session after logout:", sessionAfter.session ? 'still exists' : 'cleared');
+    
     console.log("[ServerAction] Signout successful");
+    
+    // Force clear all paths
     revalidatePath("/", "layout");
+    revalidatePath("/home");
+    revalidatePath("/tournaments");
+    
     return { success: true };
   } catch (unexpectedError) {
     console.error("[ServerAction] Unexpected error during signout:", unexpectedError);

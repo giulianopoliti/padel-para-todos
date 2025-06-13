@@ -110,18 +110,83 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Logout function using server action
   const logout = useCallback(async () => {
+    console.log("[UserContext] Starting logout process...");
     setError(null);
+    
     try {
+      // Try server action logout first
+      console.log("[UserContext] Calling server signout...");
       const result = await serverSignout(); 
+      
+      console.log("[UserContext] Server signout result:", result);
+      
       if (result.success) {
+        console.log("[UserContext] Server signout successful, clearing state...");
         setUser(null);
         setUserDetails(null);
+        
         // Clear any cached data
+        console.log("[UserContext] Refreshing router...");
         router.refresh();
+        
+        console.log("[UserContext] Logout completed successfully");
       } else {
-        throw new Error(result.error || "Server action signout failed");
+        console.warn("[UserContext] Server signout failed, trying direct logout...");
+        
+        // Special case: if session is already missing, treat as successful logout
+        if (result.error === 'Auth session missing!') {
+          console.log("[UserContext] Session already missing, treating as successful logout...");
+          setUser(null);
+          setUserDetails(null);
+          router.refresh();
+          return; // Exit successfully
+        }
+        
+        // Fallback: Try direct supabase logout
+        console.log("[UserContext] Attempting direct Supabase logout...");
+        const { error: directLogoutError } = await supabase.auth.signOut();
+        
+        if (directLogoutError) {
+          console.error("[UserContext] Direct logout also failed:", directLogoutError);
+          // Even if direct logout fails, force clear the state
+          console.log("[UserContext] Forcing state clear despite direct logout failure...");
+          setUser(null);
+          setUserDetails(null);
+          router.refresh();
+          return;
+        }
+        
+        console.log("[UserContext] Direct logout successful, clearing state...");
+        setUser(null);
+        setUserDetails(null);
+        router.refresh();
       }
     } catch (err: any) {
+      console.error("[UserContext] Logout error:", err);
+      
+      // Last resort: Force clear state even if logout failed
+      console.log("[UserContext] Force clearing state due to error...");
+      setUser(null);
+      setUserDetails(null);
+      
+      // Try to manually clear any localStorage/sessionStorage
+      try {
+        if (typeof window !== 'undefined') {
+          console.log("[UserContext] Clearing browser storage...");
+          localStorage.clear();
+          sessionStorage.clear();
+        }
+      } catch (storageError) {
+        console.warn("[UserContext] Could not clear browser storage:", storageError);
+      }
+      
+      // Force page reload as last resort
+      if (typeof window !== 'undefined') {
+        console.log("[UserContext] Force reloading page...");
+        window.location.href = '/login';
+        return;
+      }
+      
       setError(err.message || "Failed to logout.");
       throw err; // Re-throw so the component can handle it
     } 
