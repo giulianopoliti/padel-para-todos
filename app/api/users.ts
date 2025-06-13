@@ -5,9 +5,25 @@ import { supabase } from "@/utils/supabase/client";
 import { Player, Couple, Category, Role } from "@/types";
 import { User } from "@supabase/supabase-js";
 
-
-export async function getPlayersMale() {
+export async function getTop5MalePlayers() {
     const { data, error } = await supabase
+        .from("players")
+        .select("*")
+        .eq("gender", "MALE")
+        .order("score", { ascending: false })
+        .limit(5);
+
+    if (error) {
+        console.error("Error fetching top 5 male players:", error);
+        return [];
+    }
+
+    return data;
+}
+
+
+export async function getPlayersMale(limit?: number) {
+    let query = supabase
         .from("players")
         .select(`
             *,
@@ -17,6 +33,13 @@ export async function getPlayersMale() {
         `)
         .eq("gender", "MALE")
         .order("score", { ascending: false });
+
+    // Si se especifica un límite, aplicarlo
+    if (limit) {
+        query = query.limit(limit);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
         console.error("Error fetching players:", error);

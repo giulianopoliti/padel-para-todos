@@ -11,7 +11,8 @@ export type IconName =
   | 'Settings'
   | 'BarChart' // For Ranking
   | 'User' // For Profile
-  | 'LayoutDashboard'; // Added for Dashboard
+  | 'LayoutDashboard' // Added for Dashboard
+  | 'BookOpen'; // For Information
 
 // Structure for defining route permissions and navigation links
 interface RouteConfig {
@@ -45,6 +46,18 @@ const routePermissions: RouteConfig[] = [
     path: "/clubes",
     label: "Clubes",
     icon: "MapPin",
+    roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
+  },
+  {
+    path: "/info",
+    label: "Información",
+    icon: "BookOpen",
+    roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
+  },
+  {
+    path: "/coaches",
+    label: "Entrenadores",
+    icon: "User",
     roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
   },
   // Example Admin/Specific Role Routes (Uncomment/modify as needed)

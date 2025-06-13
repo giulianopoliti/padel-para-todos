@@ -12,7 +12,7 @@ type Role = "PLAYER" | "CLUB" | "COACH" | "ADMIN";
 import NavbarClient from './navbar-client';
 import SkeletonNavbar from './skeleton-navbar';
 
-// Define the public links that should always be visible
+// Define the public links that should always be visible (when not logged in)
 const publicLinks = [
   { 
     path: "/", 
@@ -33,16 +33,6 @@ const publicLinks = [
     path: "/clubes", 
     label: "Clubes", 
     icon: "MapPin" as const,
-  },
-  {
-    path: "/coaches",
-    label: "Entrenadores",
-    icon: "User" as const,
-  },
-  {
-    path: "/info",
-    label: "Información",
-    icon: "BookOpen" as const,
   },
 ];
 
