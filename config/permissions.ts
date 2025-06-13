@@ -48,18 +48,19 @@ const routePermissions: RouteConfig[] = [
     icon: "MapPin",
     roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
   },
-  {
-    path: "/info",
-    label: "Información",
-    icon: "BookOpen",
-    roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
-  },
-  {
-    path: "/coaches",
-    label: "Entrenadores",
-    icon: "User",
-    roles: ["PLAYER", "CLUB", "COACH", "ADMIN"], // Accessible to all logged-in users
-  },
+  // Rutas disponibles pero no visibles en navbar
+  // {
+  //   path: "/info",
+  //   label: "Información",
+  //   icon: "BookOpen",
+  //   roles: [], // No visible en navbar para nadie
+  // },
+  // {
+  //   path: "/coaches",
+  //   label: "Entrenadores",
+  //   icon: "User",
+  //   roles: [], // No visible en navbar para nadie
+  // },
   // Example Admin/Specific Role Routes (Uncomment/modify as needed)
   // { 
   //   path: "/users", 

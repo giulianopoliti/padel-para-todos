@@ -36,7 +36,7 @@ export default function NavbarUserProfile({ profileLinks = [], params }: NavbarU
     setIsLoggingOut(true);
     try {
       await logout();
-      router.refresh();
+      router.push("/login");
     } catch (error) {
       console.error("[NavbarUserProfile] Error logging out:", error);
     } finally {

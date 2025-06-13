@@ -116,14 +116,14 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       if (result.success) {
         setUser(null);
         setUserDetails(null);
-        // Let the component handle navigation instead of auto-redirecting
-        // router.push("/login"); 
-        router.refresh(); 
+        // Clear any cached data
+        router.refresh();
       } else {
         throw new Error(result.error || "Server action signout failed");
       }
     } catch (err: any) {
       setError(err.message || "Failed to logout.");
+      throw err; // Re-throw so the component can handle it
     } 
   }, [router]);
 
