@@ -45,7 +45,7 @@ export default function PublicTournamentDetailsTabs({
   maxPlayers = 32,
   allPlayers = [],
 }: PublicTournamentDetailsTabsProps) {
-  const isTournamentActive = tournamentStatus === "IN_PROGRESS" || tournamentStatus === "PAIRING"
+  const isTournamentActive = tournamentStatus === "IN_PROGRESS" || tournamentStatus === "PAIRING" || tournamentStatus === "FINISHED"
   const [activeTab, setActiveTab] = useState(isTournamentActive ? "couples" : "players")
 
   return (

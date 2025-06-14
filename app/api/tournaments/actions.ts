@@ -493,7 +493,10 @@ export async function startMatches(tournamentId: string) {
 export async function completeTournament(tournamentId: string) {
   const supabase = await createClient();
   console.log(`[completeTournament] Finalizando torneo ${tournamentId}`);
-  const { data, error } = await supabase.from('tournaments').update({ status: 'FINISHED' }).eq('id', tournamentId).select().single();
+  const { data, error } = await supabase.from('tournaments').update({ 
+    status: 'FINISHED',
+    end_date: new Date().toISOString()
+  }).eq('id', tournamentId).select().single();
   if (error) {
     console.error("[completeTournament] Error al finalizar torneo:", error);
     throw new Error("No se pudo finalizar el torneo");
@@ -1222,7 +1225,8 @@ export async function updateMatchResult({ matchId, result_couple1, result_couple
           .from('tournaments')
           .update({ 
             status: 'FINISHED', // Confirmado desde la estructura de la tabla
-            winner_id: winner_id   // Asignar el couple_id del ganador de la final
+            winner_id: winner_id,   // Asignar el couple_id del ganador de la final
+            end_date: new Date().toISOString()  // Establecer fecha de finalización
           })
           .eq('id', updatedMatch.tournament_id);
 
@@ -1510,7 +1514,11 @@ export async function createKnockoutStageMatchesAction(tournamentId: string) {
       if (rankedCouples.length === 1) {
          console.log(`[createKnockoutStageMatchesAction] Only one seeded couple (${rankedCouples[0].couple_id}), they are the tournament winner.`);
          // Update tournament status to FINISHED and set winner_id
-         await supabase.from('tournaments').update({ status: 'FINISHED', winner_id: rankedCouples[0].couple_id }).eq('id', tournamentId);
+         await supabase.from('tournaments').update({ 
+           status: 'FINISHED', 
+           winner_id: rankedCouples[0].couple_id,
+           end_date: new Date().toISOString()
+         }).eq('id', tournamentId);
          
          // Calcular y asignar todos los puntos ahora que el torneo está terminado
          console.log(`[createKnockoutStageMatchesAction] Tournament ${tournamentId} finished with single winner, calculating all points...`);
@@ -1620,7 +1628,11 @@ export async function advanceToNextStageAction(tournamentId: string) {
     // If only one winner remains and it's not the final match being processed, they are the tournament winner.
     if (winners.length === 1 && currentRound !== "SEMIFINAL") { // Assuming SEMIFINAL leads to FINAL match
         const tournamentWinner = winners[0];
-        await supabase.from('tournaments').update({ status: 'FINISHED', winner_id: tournamentWinner.winnerId }).eq('id', tournamentId);
+        await supabase.from('tournaments').update({ 
+          status: 'FINISHED', 
+          winner_id: tournamentWinner.winnerId,
+          end_date: new Date().toISOString()
+        }).eq('id', tournamentId);
         console.log(`[advanceToNextStageAction] Tournament ${tournamentId} concluded. Winner: ${tournamentWinner.winnerId}`);
         revalidatePath(`/my-tournaments/${tournamentId}`);
         revalidatePath(`/tournaments/${tournamentId}`);
