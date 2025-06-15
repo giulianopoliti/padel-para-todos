@@ -17,19 +17,27 @@ import {
   Hand,
   CircleUser,
   ChevronLeft,
+  Zap,
 } from "lucide-react"
 import { notFound } from "next/navigation"
 import { getPlayerProfile } from "@/app/api/users"
+import { getPlayerWeeklyPoints } from "@/app/api/tournaments/actions"
 
 export default async function PlayerProfilePage({ params }: { params: { id: string } }) {
-  const playerData = await getPlayerProfile(params.id)
+  const [playerData, weeklyPointsResult] = await Promise.all([
+    getPlayerProfile(params.id),
+    getPlayerWeeklyPoints(params.id)
+  ]);
 
   console.log("🎯 PlayerProfilePage - Received playerData:", playerData);
   console.log("🖼️ PlayerProfilePage - profileImage value:", playerData?.profileImage);
+  console.log("📊 PlayerProfilePage - Weekly points:", weeklyPointsResult);
 
   if (!playerData) {
     notFound()
   }
+
+  const weeklyPoints = weeklyPointsResult.success ? weeklyPointsResult.pointsThisWeek : 0;
 
   // Default gallery images for fallback
   const defaultGallery = [
@@ -131,7 +139,28 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
           {/* Main Stats Column */}
           <div className="lg:col-span-2 space-y-8">
             {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Weekly Points Card */}
+              <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 shadow-sm">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-green-600 text-white p-2 rounded-lg">
+                    <Zap className="h-5 w-5" />
+                  </div>
+                  <h3 className="font-semibold text-gray-800">Esta Semana</h3>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Puntos ganados</span>
+                    <span className={`font-bold text-lg ${weeklyPoints > 0 ? 'text-green-600' : weeklyPoints < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                      {weeklyPoints > 0 ? '+' : ''}{weeklyPoints}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {weeklyPoints > 0 ? '¡Excelente semana!' : weeklyPoints < 0 ? 'Sigue intentando' : 'Sin actividad esta semana'}
+                  </div>
+                </div>
+              </Card>
+
               <Card className="p-6 bg-white border-gray-200 shadow-sm">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-blue-600 text-white p-2 rounded-lg">

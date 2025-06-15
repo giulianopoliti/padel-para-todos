@@ -49,9 +49,10 @@ interface Category {
 interface RankingClientProps {
   initialPlayers: Player[]
   initialCategories: Category[]
+  weeklyPoints: { [playerId: string]: number }
 }
 
-export default function RankingClient({ initialPlayers, initialCategories }: RankingClientProps) {
+export default function RankingClient({ initialPlayers, initialCategories, weeklyPoints }: RankingClientProps) {
   // Añadimos club a los jugadores para la demo
   const playersWithClub = initialPlayers.map((player) => ({
     ...player,
@@ -211,6 +212,26 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
     }
   }
 
+  const getWeeklyPointsBadge = (playerId: string) => {
+    const points = weeklyPoints[playerId] || 0;
+    
+    if (points > 0) {
+      return (
+        <Badge className="bg-green-100 text-green-700 border-0 text-xs">
+          +{points}
+        </Badge>
+      )
+    } else if (points < 0) {
+      return (
+        <Badge className="bg-red-100 text-red-700 border-0 text-xs">
+          {points}
+        </Badge>
+      )
+    } else {
+      return null; // No mostrar nada si no hay cambios
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="container mx-auto px-6 py-12">
@@ -350,7 +371,10 @@ export default function RankingClient({ initialPlayers, initialCategories }: Ran
 
                                                              <div className="flex items-center space-x-4">
                                  <div className="text-right">
-                                   <div className="font-bold text-slate-900">{player.score}</div>
+                                   <div className="flex items-center space-x-2">
+                                     <div className="font-bold text-slate-900">{player.score}</div>
+                                     {getWeeklyPointsBadge(player.id)}
+                                   </div>
                                    <div className="text-xs text-slate-500">puntos</div>
                                  </div>
                                </div>

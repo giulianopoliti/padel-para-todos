@@ -507,6 +507,16 @@ export async function completeTournament(tournamentId: string) {
   await _calculateAllTournamentPoints(tournamentId, supabase);
   console.log(`[completeTournament] Points calculation completed for tournament: ${tournamentId}`);
   
+  // Generar historial de puntos y ranking para este torneo
+  console.log(`[completeTournament] Generating player tournament history...`);
+  await generatePlayerTournamentHistory(tournamentId, supabase);
+  
+  // Crear snapshot semanal del ranking después del torneo
+  const currentDate = new Date();
+  const weekStart = getWeekStartDate(currentDate);
+  console.log(`[completeTournament] Creating weekly ranking snapshot for week: ${weekStart}`);
+  await createWeeklyRankingSnapshot(weekStart, supabase);
+  
   // Ensure the returned tournament data is plain
   const plainTournament = data ? {
     ...data,
@@ -2855,3 +2865,695 @@ export async function getClubTournaments(): Promise<GetClubTournamentsResult> {
     };
   }
 } 
+
+// --- RANKING AND HISTORY TRACKING FUNCTIONS ---
+
+/**
+ * Obtiene el lunes de la semana de una fecha dada
+ */
+function getWeekStartDate(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Ajustar para que lunes sea el primer día
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().split('T')[0]; // Solo la fecha YYYY-MM-DD
+}
+
+/**
+ * Calcula el ranking actual de todos los jugadores
+ */
+async function calculateCurrentRanking(supabase: any): Promise<{player_id: string, score: number, rank_position: number}[]> {
+  const { data: players, error } = await supabase
+    .from('players')
+    .select('id, score')
+    .eq('status', 'active')
+    .order('score', { ascending: false });
+    
+  if (error || !players) {
+    console.error('[calculateCurrentRanking] Error fetching players:', error);
+    return [];
+  }
+  
+  return players.map((player: any, index: number) => ({
+    player_id: player.id,
+    score: player.score || 0,
+    rank_position: index + 1
+  }));
+}
+
+/**
+ * Crea un snapshot semanal del ranking
+ */
+async function createWeeklyRankingSnapshot(weekStartDate: string, supabase: any): Promise<boolean> {
+  try {
+    const ranking = await calculateCurrentRanking(supabase);
+    
+    if (ranking.length === 0) {
+      console.log('[createWeeklyRankingSnapshot] No players found for ranking');
+      return true;
+    }
+    
+    // Preparar datos para insertar
+    const snapshotData = ranking.map(rank => ({
+      player_id: rank.player_id,
+      rank_position: rank.rank_position,
+      score: rank.score,
+      week_start_date: weekStartDate,
+      snapshot_type: 'weekly'
+    }));
+    
+    // Insertar snapshot (usando upsert por si ya existe)
+    const { error } = await supabase
+      .from('ranking_snapshots')
+      .upsert(snapshotData, { 
+        onConflict: 'player_id,week_start_date,snapshot_type',
+        ignoreDuplicates: false 
+      });
+      
+    if (error) {
+      console.error('[createWeeklyRankingSnapshot] Error inserting snapshot:', error);
+      return false;
+    }
+    
+    console.log(`[createWeeklyRankingSnapshot] Created weekly snapshot for ${weekStartDate} with ${ranking.length} players`);
+    return true;
+  } catch (e: any) {
+    console.error('[createWeeklyRankingSnapshot] Unexpected error:', e);
+    return false;
+  }
+}
+
+/**
+ * Genera el historial de tournament para todos los jugadores de un torneo
+ */
+async function generatePlayerTournamentHistory(tournamentId: string, supabase: any): Promise<boolean> {
+  try {
+    console.log(`[generatePlayerTournamentHistory] Processing tournament ${tournamentId}`);
+    
+    // Obtener información del torneo
+    const { data: tournament, error: tournamentError } = await supabase
+      .from('tournaments')
+      .select('end_date, start_date')
+      .eq('id', tournamentId)
+      .single();
+      
+    if (tournamentError || !tournament) {
+      console.error('[generatePlayerTournamentHistory] Tournament not found:', tournamentError);
+      return false;
+    }
+    
+    // Obtener TODOS los jugadores que participaron en el torneo
+    // Esto incluye jugadores individuales Y ambos miembros de las parejas
+    const allPlayerIds = new Set<string>();
+    
+    // 1. Obtener jugadores individuales
+    const { data: individualInscriptions, error: individualError } = await supabase
+      .from('inscriptions')
+      .select('player_id')
+      .eq('tournament_id', tournamentId)
+      .eq('is_pending', false)
+      .is('couple_id', null)
+      .not('player_id', 'is', null);
+      
+    if (individualError) {
+      console.error('[generatePlayerTournamentHistory] Error fetching individual participants:', individualError);
+      return false;
+    }
+    
+    // Agregar jugadores individuales
+    individualInscriptions?.forEach((inscription: any) => {
+      if (inscription.player_id) {
+        allPlayerIds.add(inscription.player_id);
+      }
+    });
+    
+    // 2. Obtener jugadores de parejas
+    const { data: coupleInscriptions, error: coupleError } = await supabase
+      .from('inscriptions')
+      .select(`
+        couple_id,
+        couples!inner(
+          player1_id,
+          player2_id
+        )
+      `)
+      .eq('tournament_id', tournamentId)
+      .eq('is_pending', false)
+      .not('couple_id', 'is', null);
+      
+    if (coupleError) {
+      console.error('[generatePlayerTournamentHistory] Error fetching couple participants:', coupleError);
+      return false;
+    }
+    
+    // Agregar ambos jugadores de cada pareja
+    coupleInscriptions?.forEach((inscription: any) => {
+      const couple = inscription.couples;
+      if (couple && couple.player1_id) {
+        allPlayerIds.add(couple.player1_id);
+      }
+      if (couple && couple.player2_id) {
+        allPlayerIds.add(couple.player2_id);
+      }
+    });
+    
+    console.log(`[generatePlayerTournamentHistory] Found ${allPlayerIds.size} total players (individuals + couples)`);
+    
+    if (allPlayerIds.size === 0) {
+      console.log('[generatePlayerTournamentHistory] No participants found');
+      return true;
+    }
+    
+    // Obtener información actual de todos los jugadores
+    const { data: allPlayers, error: playersError } = await supabase
+      .from('players')
+      .select('id, score')
+      .in('id', Array.from(allPlayerIds));
+      
+    if (playersError) {
+      console.error('[generatePlayerTournamentHistory] Error fetching player data:', playersError);
+      return false;
+    }
+    
+    if (!allPlayers || allPlayers.length === 0) {
+      console.log('[generatePlayerTournamentHistory] No player data found');
+      return true;
+    }
+    
+    // Fecha de la semana del torneo para buscar snapshot previo
+    const tournamentDate = new Date(tournament.end_date || tournament.start_date || new Date());
+    const weekStart = getWeekStartDate(tournamentDate);
+    
+    // Buscar snapshot de la semana anterior para obtener puntos/ranking previos
+    const previousWeekDate = new Date(weekStart);
+    previousWeekDate.setDate(previousWeekDate.getDate() - 7);
+    const previousWeekStart = previousWeekDate.toISOString().split('T')[0];
+    
+    // Obtener snapshots previos
+    const { data: previousSnapshots } = await supabase
+      .from('ranking_snapshots')
+      .select('player_id, rank_position, score')
+      .eq('week_start_date', previousWeekStart)
+      .eq('snapshot_type', 'weekly');
+    
+    // Crear mapa de datos previos
+    const previousData = new Map();
+    if (previousSnapshots) {
+      previousSnapshots.forEach((snap: any) => {
+        previousData.set(snap.player_id, {
+          rank_before: snap.rank_position,
+          points_before: snap.score
+        });
+      });
+    }
+    
+    // Calcular ranking actual
+    const currentRanking = await calculateCurrentRanking(supabase);
+    const currentRankMap = new Map();
+    currentRanking.forEach(rank => {
+      currentRankMap.set(rank.player_id, {
+        rank_after: rank.rank_position,
+        points_after: rank.score
+      });
+    });
+    
+    // Preparar datos del historial
+    const historyData = [];
+    
+    for (const player of allPlayers) {
+      const playerId = player.id;
+      const currentScore = player.score || 0;
+      
+      const prevData = previousData.get(playerId) || { rank_before: null, points_before: 0 };
+      const currentData = currentRankMap.get(playerId) || { rank_after: null, points_after: currentScore };
+      
+      const pointsEarned = currentData.points_after - prevData.points_before;
+      const rankChange = prevData.rank_before && currentData.rank_after 
+        ? prevData.rank_before - currentData.rank_after // Positivo = subió posiciones
+        : null;
+      
+      historyData.push({
+        player_id: playerId,
+        tournament_id: tournamentId,
+        points_before: prevData.points_before,
+        points_after: currentData.points_after,
+        points_earned: pointsEarned,
+        rank_before: prevData.rank_before,
+        rank_after: currentData.rank_after,
+        rank_change: rankChange
+      });
+    }
+    
+    // Insertar historial (usando upsert por si ya existe)
+    const { error: historyError } = await supabase
+      .from('player_tournament_history')
+      .upsert(historyData, { 
+        onConflict: 'player_id,tournament_id',
+        ignoreDuplicates: false 
+      });
+      
+    if (historyError) {
+      console.error('[generatePlayerTournamentHistory] Error inserting history:', historyError);
+      return false;
+    }
+    
+    console.log(`[generatePlayerTournamentHistory] Created history for ${historyData.length} players`);
+    return true;
+  } catch (e: any) {
+    console.error('[generatePlayerTournamentHistory] Unexpected error:', e);
+    return false;
+  }
+}
+
+/**
+ * Función para procesar retroactivamente todos los torneos finalizados
+ */
+export async function processHistoricalTournaments(): Promise<{ success: boolean; message: string; processed?: number }> {
+  const supabase = await createClient();
+  
+  try {
+    console.log('[processHistoricalTournaments] Starting historical processing...');
+    
+    // Obtener todos los torneos finalizados ordenados por fecha
+    const { data: tournaments, error } = await supabase
+      .from('tournaments')
+      .select('id, name, end_date, start_date')
+      .eq('status', 'FINISHED')
+      .order('end_date', { ascending: true });
+      
+    if (error) {
+      console.error('[processHistoricalTournaments] Error fetching tournaments:', error);
+      return { success: false, message: `Error al obtener torneos: ${error.message}` };
+    }
+    
+    if (!tournaments || tournaments.length === 0) {
+      return { success: true, message: 'No hay torneos finalizados para procesar', processed: 0 };
+    }
+    
+    let processed = 0;
+    const weekSnapshots = new Set<string>();
+    
+    for (const tournament of tournaments) {
+      console.log(`[processHistoricalTournaments] Processing tournament: ${tournament.name}`);
+      
+      // Crear snapshot semanal si no existe
+      const tournamentDate = new Date(tournament.end_date || tournament.start_date || new Date());
+      const weekStart = getWeekStartDate(tournamentDate);
+      
+      if (!weekSnapshots.has(weekStart)) {
+        await createWeeklyRankingSnapshot(weekStart, supabase);
+        weekSnapshots.add(weekStart);
+      }
+      
+      // Generar historial del torneo
+      const success = await generatePlayerTournamentHistory(tournament.id, supabase);
+      if (success) {
+        processed++;
+      }
+      
+      // Crear snapshot post-torneo
+      await createWeeklyRankingSnapshot(weekStart, supabase);
+    }
+    
+    console.log(`[processHistoricalTournaments] Completed. Processed ${processed} tournaments`);
+    return { 
+      success: true, 
+      message: `Procesamiento completado. ${processed} torneos procesados exitosamente.`,
+      processed 
+    };
+    
+  } catch (e: any) {
+    console.error('[processHistoricalTournaments] Unexpected error:', e);
+    return { success: false, message: `Error inesperado: ${e.message}` };
+  }
+} 
+
+/**
+ * Obtiene las estadísticas de la semana: jugadores que más puntos sumaron
+ */
+export async function getWeeklyTopPerformers(weekStartDate?: string): Promise<{
+  success: boolean;
+  data?: any[];
+  error?: string;
+  weekStart?: string;
+}> {
+  const supabase = await createClient();
+  
+  try {
+    // Si no se proporciona fecha, usar la semana actual
+    const targetWeekStart = weekStartDate || getWeekStartDate(new Date());
+    
+    // Obtener historial de torneos de esa semana
+    const { data: weekHistory, error } = await supabase
+      .from('player_tournament_history')
+      .select(`
+        player_id,
+        points_earned,
+        rank_change,
+        points_before,
+        points_after,
+        tournament_id,
+        tournaments!inner(name, end_date),
+        players!inner(first_name, last_name)
+      `)
+      .gte('created_at', `${targetWeekStart}T00:00:00Z`)
+      .lt('created_at', `${new Date(new Date(targetWeekStart).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}T00:00:00Z`)
+      .order('points_earned', { ascending: false });
+    
+    if (error) {
+      console.error('[getWeeklyTopPerformers] Error fetching weekly data:', error);
+      return { success: false, error: error.message };
+    }
+    
+    if (!weekHistory || weekHistory.length === 0) {
+      return { 
+        success: true, 
+        data: [], 
+        weekStart: targetWeekStart,
+        error: 'No hay datos para esta semana' 
+      };
+    }
+    
+    // Procesar datos para mostrar top performers
+    const processedData = weekHistory
+      .filter((record: any) => record.points_earned > 0) // Solo los que sumaron puntos
+      .slice(0, 10) // Top 10
+      .map((record: any) => ({
+        playerId: record.player_id,
+        playerName: `${record.players.first_name} ${record.players.last_name}`.trim(),
+        pointsEarned: record.points_earned,
+        rankChange: record.rank_change,
+        pointsBefore: record.points_before,
+        pointsAfter: record.points_after,
+        tournamentName: record.tournaments.name,
+        tournamentDate: record.tournaments.end_date
+      }));
+    
+    return {
+      success: true,
+      data: processedData,
+      weekStart: targetWeekStart
+    };
+    
+  } catch (e: any) {
+    console.error('[getWeeklyTopPerformers] Unexpected error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Obtiene comparación de ranking entre dos semanas
+ */
+export async function getWeeklyRankingComparison(currentWeek?: string, previousWeek?: string): Promise<{
+  success: boolean;
+  data?: {
+    biggestGainers: any[];
+    biggestLosers: any[];
+    weeklyStats: {
+      currentWeek: string;
+      previousWeek: string;
+      totalPlayers: number;
+      playersWithChanges: number;
+    };
+  };
+  error?: string;
+}> {
+  const supabase = await createClient();
+  
+  try {
+    const currentWeekStart = currentWeek || getWeekStartDate(new Date());
+    const previousWeekDate = new Date(currentWeekStart);
+    previousWeekDate.setDate(previousWeekDate.getDate() - 7);
+    const previousWeekStart = previousWeek || previousWeekDate.toISOString().split('T')[0];
+    
+    // Obtener snapshots de ambas semanas
+    const [currentSnapshots, previousSnapshots] = await Promise.all([
+      supabase
+        .from('ranking_snapshots')
+        .select(`
+          player_id,
+          rank_position,
+          score,
+          players!inner(first_name, last_name)
+        `)
+        .eq('week_start_date', currentWeekStart)
+        .eq('snapshot_type', 'weekly'),
+      
+      supabase
+        .from('ranking_snapshots')
+        .select(`
+          player_id,
+          rank_position,
+          score,
+          players!inner(first_name, last_name)
+        `)
+        .eq('week_start_date', previousWeekStart)
+        .eq('snapshot_type', 'weekly')
+    ]);
+    
+    if (currentSnapshots.error || previousSnapshots.error) {
+      console.error('[getWeeklyRankingComparison] Error fetching snapshots:', 
+        currentSnapshots.error || previousSnapshots.error);
+      return { 
+        success: false, 
+        error: currentSnapshots.error?.message || previousSnapshots.error?.message 
+      };
+    }
+    
+    if (!currentSnapshots.data || !previousSnapshots.data) {
+      return { 
+        success: false, 
+        error: 'No se encontraron datos de ranking para las semanas solicitadas' 
+      };
+    }
+    
+    // Crear mapas para fácil comparación
+    const currentMap = new Map();
+    const previousMap = new Map();
+    
+    currentSnapshots.data.forEach((snap: any) => {
+      currentMap.set(snap.player_id, snap);
+    });
+    
+    previousSnapshots.data.forEach((snap: any) => {
+      previousMap.set(snap.player_id, snap);
+    });
+    
+    // Calcular cambios
+    const changes: any[] = [];
+    
+    currentMap.forEach((current: any, playerId: string) => {
+      const previous = previousMap.get(playerId);
+      if (previous) {
+        const rankChange = previous.rank_position - current.rank_position; // Positivo = subió
+        const pointsChange = current.score - previous.score;
+        
+        if (rankChange !== 0) {
+          changes.push({
+            playerId,
+            playerName: `${current.players.first_name} ${current.players.last_name}`.trim(),
+            currentRank: current.rank_position,
+            previousRank: previous.rank_position,
+            rankChange,
+            currentScore: current.score,
+            previousScore: previous.score,
+            pointsChange
+          });
+        }
+      }
+    });
+    
+    // Ordenar y obtener top gainers/losers
+    const biggestGainers = changes
+      .filter(change => change.rankChange > 0)
+      .sort((a, b) => b.rankChange - a.rankChange)
+      .slice(0, 5);
+      
+    const biggestLosers = changes
+      .filter(change => change.rankChange < 0)
+      .sort((a, b) => a.rankChange - b.rankChange)
+      .slice(0, 5);
+    
+    return {
+      success: true,
+      data: {
+        biggestGainers,
+        biggestLosers,
+        weeklyStats: {
+          currentWeek: currentWeekStart,
+          previousWeek: previousWeekStart,
+          totalPlayers: currentSnapshots.data.length,
+          playersWithChanges: changes.length
+        }
+      }
+    };
+    
+  } catch (e: any) {
+    console.error('[getWeeklyRankingComparison] Unexpected error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Obtiene el resumen de actividad de las últimas semanas
+ */
+export async function getRecentWeeksActivity(weeksCount: number = 4): Promise<{
+  success: boolean;
+  data?: any[];
+  error?: string;
+}> {
+  const supabase = await createClient();
+  
+  try {
+    const currentDate = new Date();
+    const weeks = [];
+    
+    // Generar las fechas de las últimas N semanas
+    for (let i = 0; i < weeksCount; i++) {
+      const weekDate = new Date(currentDate);
+      weekDate.setDate(weekDate.getDate() - (i * 7));
+      const weekStart = getWeekStartDate(weekDate);
+      weeks.push(weekStart);
+    }
+    
+    const weeklyData = [];
+    
+    for (const weekStart of weeks) {
+      // Obtener torneos de esa semana
+      const weekEndDate = new Date(weekStart);
+      weekEndDate.setDate(weekEndDate.getDate() + 7);
+      
+      const { data: tournaments, error: tournamentsError } = await supabase
+        .from('tournaments')
+        .select('id, name, end_date')
+        .eq('status', 'FINISHED')
+        .gte('end_date', `${weekStart}T00:00:00Z`)
+        .lt('end_date', `${weekEndDate.toISOString().split('T')[0]}T00:00:00Z`);
+      
+      // Obtener estadísticas de puntos de esa semana
+      const { data: weekStats, error: statsError } = await supabase
+        .rpc('get_week_summary', { week_start: weekStart });
+      
+      if (!tournamentsError && tournaments) {
+        weeklyData.push({
+          weekStart,
+          tournamentsCount: tournaments.length,
+          tournaments: tournaments.map((t: any) => ({ id: t.id, name: t.name, endDate: t.end_date })),
+          // stats: weekStats || { totalPointsAwarded: 0, playersParticipated: 0 }
+        });
+      }
+    }
+    
+    return {
+      success: true,
+      data: weeklyData.reverse() // Orden cronológico
+    };
+    
+  } catch (e: any) {
+    console.error('[getRecentWeeksActivity] Unexpected error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Obtiene los puntos ganados por un jugador en la última semana
+ */
+export async function getPlayerWeeklyPoints(playerId: string): Promise<{
+  success: boolean;
+  pointsThisWeek: number;
+  error?: string;
+}> {
+  const supabase = await createClient();
+  
+  try {
+    // Calcular el inicio de la semana actual
+    const currentWeekStart = getWeekStartDate(new Date());
+    const weekEndDate = new Date(currentWeekStart);
+    weekEndDate.setDate(weekEndDate.getDate() + 7);
+    
+    // Obtener el historial de torneos de esta semana para el jugador
+    const { data: weekHistory, error } = await supabase
+      .from('player_tournament_history')
+      .select('points_earned')
+      .eq('player_id', playerId)
+      .gte('created_at', `${currentWeekStart}T00:00:00Z`)
+      .lt('created_at', `${weekEndDate.toISOString().split('T')[0]}T00:00:00Z`);
+    
+    if (error) {
+      console.error('[getPlayerWeeklyPoints] Error fetching weekly points:', error);
+      return { success: false, pointsThisWeek: 0, error: error.message };
+    }
+    
+    // Sumar todos los puntos ganados en la semana
+    const totalPoints = weekHistory?.reduce((sum, record) => sum + (record.points_earned || 0), 0) || 0;
+    
+    return {
+      success: true,
+      pointsThisWeek: totalPoints
+    };
+    
+  } catch (e: any) {
+    console.error('[getPlayerWeeklyPoints] Unexpected error:', e);
+    return { success: false, pointsThisWeek: 0, error: e.message };
+  }
+}
+
+/**
+ * Obtiene los puntos ganados en la última semana para múltiples jugadores
+ */
+export async function getMultiplePlayersWeeklyPoints(playerIds: string[]): Promise<{
+  success: boolean;
+  weeklyPoints: { [playerId: string]: number };
+  error?: string;
+}> {
+  const supabase = await createClient();
+  
+  try {
+    if (playerIds.length === 0) {
+      return { success: true, weeklyPoints: {} };
+    }
+    
+    // Calcular el inicio de la semana actual
+    const currentWeekStart = getWeekStartDate(new Date());
+    const weekEndDate = new Date(currentWeekStart);
+    weekEndDate.setDate(weekEndDate.getDate() + 7);
+    
+    // Obtener el historial de torneos de esta semana para todos los jugadores
+    const { data: weekHistory, error } = await supabase
+      .from('player_tournament_history')
+      .select('player_id, points_earned')
+      .in('player_id', playerIds)
+      .gte('created_at', `${currentWeekStart}T00:00:00Z`)
+      .lt('created_at', `${weekEndDate.toISOString().split('T')[0]}T00:00:00Z`);
+    
+    if (error) {
+      console.error('[getMultiplePlayersWeeklyPoints] Error fetching weekly points:', error);
+      return { success: false, weeklyPoints: {}, error: error.message };
+    }
+    
+    // Agrupar y sumar puntos por jugador
+    const weeklyPoints: { [playerId: string]: number } = {};
+    
+    // Inicializar todos los jugadores con 0 puntos
+    playerIds.forEach(playerId => {
+      weeklyPoints[playerId] = 0;
+    });
+    
+    // Sumar los puntos ganados
+    weekHistory?.forEach(record => {
+      if (weeklyPoints.hasOwnProperty(record.player_id)) {
+        weeklyPoints[record.player_id] += record.points_earned || 0;
+      }
+    });
+    
+    return {
+      success: true,
+      weeklyPoints
+    };
+    
+  } catch (e: any) {
+    console.error('[getMultiplePlayersWeeklyPoints] Unexpected error:', e);
+    return { success: false, weeklyPoints: {}, error: e.message };
+  }
+}

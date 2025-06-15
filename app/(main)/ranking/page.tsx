@@ -1,4 +1,5 @@
 import { getPlayersMale, getCategories } from "@/app/api/users"
+import { getMultiplePlayersWeeklyPoints } from "@/app/api/tournaments/actions"
 import RankingClient from "./ranking-client"
 
 export const revalidate = 3600 // Revalidate data every hour
@@ -10,7 +11,15 @@ export default async function RankingPage() {
     getCategories()
   ])
 
+  // Get weekly points for all players
+  const playerIds = players.map(player => player.id);
+  const weeklyPointsResult = await getMultiplePlayersWeeklyPoints(playerIds);
+  const weeklyPoints = weeklyPointsResult.success ? weeklyPointsResult.weeklyPoints : {};
 
-  return <RankingClient initialPlayers={players} initialCategories={categories} />
+  return <RankingClient 
+    initialPlayers={players} 
+    initialCategories={categories} 
+    weeklyPoints={weeklyPoints}
+  />
 }
 
