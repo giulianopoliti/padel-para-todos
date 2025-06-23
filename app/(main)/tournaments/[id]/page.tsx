@@ -254,7 +254,7 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
                       <div>
                         <h3 className="font-semibold text-slate-900 mb-1">Fechas del torneo</h3>
                         <p className="text-slate-600">
-                          {tournament.start_date ? formatDate(tournament.start_date) : "Fecha no especificada"} - {tournament.end_date ? formatDate(tournament.end_date) : "Fecha no especificada"}
+                          {tournament.start_date ? formatDate(tournament.start_date) : "Fecha no especificada"} {tournament.end_date ? formatDate(tournament.end_date) : ""}
                         </p>
                       </div>
                     </div>

@@ -35,12 +35,13 @@ export async function getTournaments() {
 
                 const currentParticipants = inscriptions ? inscriptions.length : 0;
 
-                // Map the raw data to our Tournament type
-                const tournament: Tournament = {
+                // Map the raw data to the format expected by TournamentsClient
+                const tournament = {
                     id: rawTournament.id,
                     name: rawTournament.name,
                     club: {
-                        ...rawTournament.club,
+                        id: rawTournament.club?.id,
+                        name: rawTournament.club?.name,
                         image: rawTournament.club?.cover_image_url // Map cover_image_url to image for compatibility
                     },
                     createdAt: rawTournament.created_at,
@@ -54,7 +55,16 @@ export async function getTournaments() {
                     price: rawTournament.price,
                     description: rawTournament.description,
                     maxParticipants: rawTournament.max_participants,
-                    currentParticipants: currentParticipants
+                    currentParticipants: currentParticipants,
+                    // Additional fields for TournamentsClient compatibility
+                    address: rawTournament.club?.address,
+                    time: rawTournament.start_date ? new Date(rawTournament.start_date).toLocaleTimeString('es-ES', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    }) : undefined,
+                    prize: rawTournament.description?.includes('premio') || rawTournament.description?.includes('$') 
+                        ? rawTournament.description 
+                        : undefined
                 };
 
                 tournamentsWithParticipants.push(tournament);

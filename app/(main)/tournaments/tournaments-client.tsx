@@ -18,8 +18,8 @@ import Link from "next/link"
 interface Tournament {
   id: string
   name: string
-  startDate: string
-  endDate: string
+  startDate: string | null
+  endDate: string | null
   status: string
   category: string
   type?: string
@@ -272,7 +272,8 @@ function TournamentCard({
   categories: Category[]
   onView: () => void
 }) {
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "Fecha no especificada"
     const date = new Date(dateString)
     return date.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })
   }
@@ -327,7 +328,8 @@ function TournamentCard({
           <h3 className="text-white font-bold text-lg line-clamp-1">{tournament.name}</h3>
           <p className="text-white/90 text-sm flex items-center">
             <Calendar className="h-4 w-4 mr-1" />
-            {formatDate(tournament.startDate)} - {formatDate(tournament.endDate)}
+            {formatDate(tournament.startDate)} 
+            {tournament.endDate && ` - ${formatDate(tournament.endDate)}`}
           </p>
         </div>
       </div>
@@ -337,10 +339,10 @@ function TournamentCard({
           <Badge className="bg-blue-100 text-blue-800 border-blue-200 px-3 py-1">
             Categoría {getCategoryName(tournament.category)}
           </Badge>
-          {tournament.prize && (
+          {(tournament.prize || tournament.price) && (
             <div className="flex items-center text-gray-700 text-sm">
               <Award className="h-4 w-4 mr-1 text-blue-600" />
-              {tournament.prize}
+              {tournament.prize || `$${tournament.price}`}
             </div>
           )}
         </div>
@@ -349,13 +351,15 @@ function TournamentCard({
       <CardContent className="flex-grow space-y-3">
         <div className="flex items-center text-sm text-gray-600">
           <MapPin className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
-          <span className="line-clamp-1">{tournament.address || "Dirección no especificada"}</span>
+          <span className="line-clamp-1">{tournament.address || tournament.club?.name || "Dirección no especificada"}</span>
         </div>
 
-        <div className="flex items-center text-sm text-gray-600">
-          <Clock className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
-          <span>{tournament.time || "Horario no especificado"}</span>
-        </div>
+        {tournament.time && (
+          <div className="flex items-center text-sm text-gray-600">
+            <Clock className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
+            <span>{tournament.time}</span>
+          </div>
+        )}
 
         <div className="flex items-center text-sm text-gray-600">
           <Users className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
