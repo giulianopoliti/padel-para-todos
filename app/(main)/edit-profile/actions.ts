@@ -18,7 +18,7 @@ const playerProfileSchema = z.object({
   score: z.number().nullable().optional(),
   preferred_hand: z.string().nullable().optional(),
   racket: z.string().nullable().optional(),
-  gender: z.enum(["MALE", "FEMALE", "MIXED"] as const).nullable().optional(), // Corrected "SHEMALE" to "FEMALE" based on common usage, adjust if "SHEMALE" is intentional
+  gender: z.enum(["MALE", "SHEMALE", "MIXED"] as const).nullable().optional(), // Using actual database enum values
   preferred_side: z.enum(["DRIVE", "REVES"] as const).nullable().optional(),
   club_id: z.string().uuid("ID de club inválido").nullable().optional(), // NO_CLUB for placeholder
 });
@@ -66,7 +66,7 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
     score: (rawFormEntries.score === '' || rawFormEntries.score === undefined || rawFormEntries.score === null) ? null : Number(rawFormEntries.score),
     preferred_hand: rawFormEntries.preferred_hand === '' ? null : rawFormEntries.preferred_hand,
     racket: rawFormEntries.racket === '' ? null : rawFormEntries.racket,
-    gender: rawFormEntries.gender === '' ? null : (rawFormEntries.gender === 'SHEMALE' ? 'FEMALE' : rawFormEntries.gender),
+    gender: rawFormEntries.gender === '' ? null : rawFormEntries.gender,
     preferred_side: rawFormEntries.preferred_side === '' ? null : rawFormEntries.preferred_side,
     club_id: (rawFormEntries.club_id === '' || rawFormEntries.club_id === 'NO_CLUB') ? null : rawFormEntries.club_id,
   };
@@ -154,9 +154,33 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
       playerUpsertData.profile_image_url = newAvatarPublicUrl;
     }
     
-    const { error: playerUpsertError } = await supabase
+    // First check if player record exists
+    const { data: existingPlayer, error: checkError } = await supabase
       .from('players')
-      .upsert(playerUpsertData, { onConflict: 'user_id' });
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Error checking existing player:', checkError);
+      return { success: false, message: `Error al verificar jugador existente: ${checkError.message}`, errors: null };
+    }
+
+    let playerUpsertError;
+    if (existingPlayer) {
+      // Update existing player
+      const { error } = await supabase
+        .from('players')
+        .update(playerUpsertData)
+        .eq('user_id', user.id);
+      playerUpsertError = error;
+    } else {
+      // Insert new player record
+      const { error } = await supabase
+        .from('players')
+        .insert(playerUpsertData);
+      playerUpsertError = error;
+    }
 
     if (playerUpsertError) {
       console.error(`Error upserting into players:`, playerUpsertError);
@@ -190,23 +214,37 @@ export async function getPlayerProfile() {
       return { success: false, message: "Usuario no autenticado." };
     }
 
-    // Get user data with all related information
+    // Get user data first
     const { data: userData, error: userError } = await supabase
       .from("users")
-      .select(`
-        *,
-        players (
-          *,
-          categories (name),
-          clubes (id, name)
-        )
-      `)
+      .select("*")
       .eq("id", user.id)
       .single();
 
     if (userError) {
       console.error("Error fetching user data:", userError);
       return { success: false, message: "Error al obtener datos del usuario." };
+    }
+
+    // Get player data separately if user is a PLAYER
+    let playerData = null;
+    if (userData.role === 'PLAYER') {
+      const { data: player, error: playerError } = await supabase
+        .from("players")
+        .select(`
+          *,
+          categories (name),
+          clubes (id, name)
+        `)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (playerError) {
+        console.error("Error fetching player data:", playerError);
+        // Don't return error here, just continue without player data
+      } else {
+        playerData = player;
+      }
     }
 
     // Get all clubs for the dropdown
@@ -219,13 +257,32 @@ export async function getPlayerProfile() {
       console.error("Error fetching clubs:", clubsError);
     }
 
-    // Flatten the player data if it exists
-    const playerData = userData.players?.[0];
 
-    const userProfile = {
-      ...userData,
-      // Player specific fields
-      ...(playerData && {
+
+    // Create user profile with player data if available
+    let userProfile;
+    if (!playerData && userData.role === 'PLAYER') {
+      userProfile = {
+        ...userData,
+        // Default empty player fields for new players
+        first_name: '',
+        last_name: '',
+        dni: null,
+        phone: null,
+        date_of_birth: null,
+        category_name: null,
+        score: null,  
+        preferred_hand: null,
+        racket: null,
+        gender: null,
+        preferred_side: null,
+        club_id: null,
+        profile_image_url: null,
+      };
+    } else if (playerData) {
+      userProfile = {
+        ...userData,
+        // Player specific fields from playerData
         first_name: playerData.first_name,
         last_name: playerData.last_name,
         dni: playerData.dni,
@@ -239,12 +296,19 @@ export async function getPlayerProfile() {
         preferred_side: playerData.preferred_side,
         club_id: playerData.club_id,
         profile_image_url: playerData.profile_image_url,
-      }),
-    };
+      };
+    } else {
+      // For non-player users
+      userProfile = {
+        ...userData,
+      };
+    }
 
     return {
       success: true,
-      message: "Datos obtenidos con éxito.",
+      message: !playerData && userData.role === 'PLAYER' ? 
+        "Complete su perfil de jugador para comenzar a participar en torneos." : 
+        "Datos obtenidos con éxito.",
       userProfile,
       allClubs: allClubs || []
     };
@@ -792,5 +856,60 @@ export async function removeClubGalleryAction(formData: FormData): Promise<{ suc
   } catch (error) {
     console.error("💥 Error in removeClubGalleryAction:", error);
     return { success: false, message: "Error inesperado al eliminar la imagen." };
+  }
+}
+
+/**
+ * Optional migration function to create player records for users who don't have them
+ * This can be called manually if needed to fix orphaned PLAYER users
+ */
+export async function migrateOrphanedPlayers(): Promise<{ success: boolean; message: string; migrated: number }> {
+  const supabase = await createClient();
+  
+  try {
+    // Find all users with PLAYER role but no player record
+    const { data: orphanedUsers, error: findError } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('role', 'PLAYER')
+      .not('id', 'in', `(SELECT user_id FROM players WHERE user_id IS NOT NULL)`);
+    
+    if (findError) {
+      console.error('Error finding orphaned users:', findError);
+      return { success: false, message: `Error finding orphaned users: ${findError.message}`, migrated: 0 };
+    }
+    
+    if (!orphanedUsers || orphanedUsers.length === 0) {
+      return { success: true, message: 'No orphaned users found.', migrated: 0 };
+    }
+    
+    // Create player records for orphaned users
+    const playerRecords = orphanedUsers.map(user => ({
+      user_id: user.id,
+      first_name: '',
+      last_name: '',
+      score: 0,
+      is_categorized: false,
+    }));
+    
+    const { error: insertError } = await supabase
+      .from('players')
+      .insert(playerRecords);
+    
+    if (insertError) {
+      console.error('Error inserting player records:', insertError);
+      return { success: false, message: `Error creating player records: ${insertError.message}`, migrated: 0 };
+    }
+    
+    console.log(`Successfully migrated ${orphanedUsers.length} orphaned users`);
+    return {
+      success: true,
+      message: `Successfully migrated ${orphanedUsers.length} orphaned player users.`,
+      migrated: orphanedUsers.length
+    };
+    
+  } catch (error: any) {
+    console.error('Unexpected error in migrateOrphanedPlayers:', error);
+    return { success: false, message: `Unexpected error: ${error.message}`, migrated: 0 };
   }
 } 

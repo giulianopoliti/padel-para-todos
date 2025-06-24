@@ -181,7 +181,7 @@ export function PersonalDataSection({ defaultValues }: PersonalDataSectionProps)
               </Label>
             </div>
             <div className="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
-              <RadioGroupItem value="FEMALE" id="gender-female" className="text-blue-600 border-gray-300" disabled />
+              <RadioGroupItem value="SHEMALE" id="gender-female" className="text-blue-600 border-gray-300" disabled />
               <Label htmlFor="gender-female" className="text-gray-600">
                 Femenino
               </Label>
