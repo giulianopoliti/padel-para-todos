@@ -188,6 +188,13 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
   const resolvedParams = await params;
   const { tournament, individualInscriptions, coupleInscriptions, allPlayers } = await getData(resolvedParams.id)
 
+  // Debug: Log tournament data to see club info
+  console.log("Tournament data:", JSON.stringify({
+    id: tournament.id,
+    name: tournament.name,
+    clubes: tournament.clubes
+  }, null, 2));
+
   // Configurar el máximo de jugadores (podría venir del torneo en el futuro)
   const maxPlayers = tournament.max_participants || 32
 
