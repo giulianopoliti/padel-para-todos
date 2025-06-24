@@ -183,6 +183,25 @@ function formatDate(dateString: string) {
   return formatDateArgentina(dateString)
 }
 
+// Formatear hora usando horario de Argentina
+function formatTime(dateString: string | null | undefined) {
+  if (!dateString) return "Hora no especificada"
+  
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return "Hora no especificada"
+    
+    return date.toLocaleTimeString("es-AR", { 
+      hour: "2-digit", 
+      minute: "2-digit",
+      timeZone: "America/Argentina/Buenos_Aires"
+    })
+  } catch (error) {
+    console.error("Error formatting time:", error)
+    return "Hora no especificada"
+  }
+}
+
 // Componente principal
 export default async function TournamentDetailsPage({ params }: { params: { id: string } }) {
   const resolvedParams = await params;
@@ -256,8 +275,17 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
                       <div>
                         <h3 className="font-semibold text-slate-900 mb-1">Fechas del torneo</h3>
                         <p className="text-slate-600">
-                          {tournament.start_date ? formatDate(tournament.start_date) : "Fecha no especificada"} {tournament.end_date ? formatDate(tournament.end_date) : ""}
+                          {tournament.start_date ? formatDate(tournament.start_date) : "Fecha no especificada"}
+                          {tournament.end_date && tournament.end_date !== tournament.start_date && ` - ${formatDate(tournament.end_date)}`}
                         </p>
+                        {tournament.start_date && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <Clock className="h-4 w-4 text-blue-500" />
+                            <p className="text-sm text-slate-500">
+                              Hora de inicio: <span className="font-medium text-slate-700">{formatTime(tournament.start_date)}</span>
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
