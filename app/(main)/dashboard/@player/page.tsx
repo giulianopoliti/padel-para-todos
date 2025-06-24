@@ -150,12 +150,14 @@ export default async function PlayerDashboard() {
                   </Badge>
                 </div>
               )}
-              {playerData?.score && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Puntaje:</span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Puntaje:</span>
+                {playerData?.score && playerData.score > 0 ? (
                   <span className="font-semibold text-padel-green-700">{playerData.score} pts</span>
-                </div>
-              )}
+                ) : (
+                  <span className="text-sm text-gray-500 italic">Todavía no tenés puntos</span>
+                )}
+              </div>
             </div>
 
             <Link href="/edit-profile" className="block">
@@ -176,7 +178,7 @@ export default async function PlayerDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 p-6">
-            {playerData?.score && playerRanking ? (
+            {playerData?.score && playerData.score > 0 && playerRanking ? (
               <>
                 <div className="text-center bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-xl border border-yellow-200">
                   <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-orange-600">
@@ -202,14 +204,14 @@ export default async function PlayerDashboard() {
                   )}
                 </div>
               </>
-                         ) : (
-               <div className="text-center py-8 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                 <Trophy className="mx-auto h-16 w-16 text-gray-300 mb-4" />
-                 <p className="text-gray-600 text-sm font-medium">
-                   {!playerData?.score ? "Completa tu perfil para aparecer en el ranking" : "Cargando ranking..."}
-                 </p>
-               </div>
-             )}
+            ) : (
+              <div className="text-center py-8 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                <Trophy className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+                <p className="text-gray-600 text-sm font-medium">
+                  Juega un torneo para aparecer en el ranking
+                </p>
+              </div>
+            )}
 
             <Link href="/ranking" className="block">
               <Button 

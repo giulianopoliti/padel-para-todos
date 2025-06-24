@@ -248,11 +248,7 @@ export async function registerNewPlayer({
     created_at: new Date().toISOString()
   };
       
-      // Solo agregar club_id si existe en la estructura del torneo
-      if (tournamentData.club_id) {
-        // @ts-ignore - Ignorar error de tipo ya que estamos verificando existencia
-        newPlayerData.club_id = tournamentData.club_id;
-      }
+      // Los nuevos jugadores se crean sin club asignado
       
       console.log("[registerNewPlayer] Datos para crear jugador:", newPlayerData);
       
@@ -468,11 +464,7 @@ export async function createPlayerForCouple({
         created_at: new Date().toISOString()
       };
   
-  // Solo agregar club_id si existe en la estructura del torneo
-  if (tournamentData.club_id) {
-    // @ts-ignore - Ignorar error de tipo ya que estamos verificando existencia
-    newPlayerData.club_id = tournamentData.club_id;
-  }
+  // Los nuevos jugadores se crean sin club asignado
   
   console.log("[createPlayerForCouple] Datos para crear jugador:", newPlayerData);
   

@@ -61,12 +61,37 @@ async function checkPlayerByDNI(dni: string, supabase: any) {
 /**
  * Helper function to link a user to an existing player
  */
-async function linkUserToExistingPlayer(playerId: string, userId: string, supabase: any) {
+async function linkUserToExistingPlayer(playerId: string, userId: string, supabase: any, formData?: FormData) {
   console.log(`[linkUserToExistingPlayer] Linking user ${userId} to player ${playerId}`);
+  
+  // Prepare update data - always include user_id
+  const updateData: any = { user_id: userId };
+  
+  // If formData is provided, also update additional fields from the registration form
+  if (formData) {
+    const phone = formData.get('phone') as string | null;
+    const gender = formData.get('gender') as string | null;
+    const dateOfBirth = formData.get('dateOfBirth') as string | null;
+    
+    // Only update fields that have values
+    if (phone && phone.trim() !== '') {
+      updateData.phone = phone;
+    }
+    
+    if (gender && gender.trim() !== '') {
+      updateData.gender = gender as 'MALE' | 'SHEMALE' | 'MIXED';
+    }
+    
+    if (dateOfBirth && dateOfBirth.trim() !== '') {
+      updateData.date_of_birth = dateOfBirth;
+    }
+    
+    console.log(`[linkUserToExistingPlayer] Updating player with additional data:`, updateData);
+  }
   
   const { error } = await supabase
     .from('players')
-    .update({ user_id: userId })
+    .update(updateData)
     .eq('id', playerId);
     
   if (error) {
@@ -74,7 +99,7 @@ async function linkUserToExistingPlayer(playerId: string, userId: string, supaba
     return { success: false, error: error.message };
   }
   
-  console.log(`[linkUserToExistingPlayer] Successfully linked user ${userId} to player ${playerId}`);
+  console.log(`[linkUserToExistingPlayer] Successfully linked user ${userId} to player ${playerId} with updated data`);
   return { success: true };
 }
 
@@ -105,8 +130,9 @@ function validatePlayerLinking(existingPlayer: any, formData: FormData) {
 
 /**
  * Function to confirm linking a user account to an existing player
+ * Legacy version for backward compatibility
  */
-export async function confirmPlayerLinking(playerId: string, tempUserId: string): Promise<RegisterResult> {
+export async function confirmPlayerLinking(playerId: string, tempUserId: string, formData?: FormData): Promise<RegisterResult> {
   const supabase = await createClient();
   
   console.log(`[confirmPlayerLinking] Confirming link between user ${tempUserId} and player ${playerId}`);
@@ -129,8 +155,8 @@ export async function confirmPlayerLinking(playerId: string, tempUserId: string)
       return { success: false, error: 'Este jugador ya tiene una cuenta vinculada.' };
     }
     
-    // Perform the linking
-    const linkResult = await linkUserToExistingPlayer(playerId, tempUserId, supabase);
+    // Perform the linking with form data if available
+    const linkResult = await linkUserToExistingPlayer(playerId, tempUserId, supabase, formData);
     
     if (!linkResult.success) {
       return { success: false, error: `Error al vincular cuenta: ${linkResult.error}` };
@@ -155,6 +181,67 @@ export async function confirmPlayerLinking(playerId: string, tempUserId: string)
     
   } catch (error: any) {
     console.error(`[confirmPlayerLinking] Unexpected error:`, error);
+    return { success: false, error: `Error inesperado: ${error.message}` };
+  }
+}
+
+/**
+ * Function to confirm linking a user account to an existing player with complete form data
+ * This version receives the complete form data to update additional fields like date_of_birth, phone, etc.
+ */
+export async function confirmPlayerLinkingWithFormData(
+  playerId: string, 
+  tempUserId: string, 
+  formData: FormData
+): Promise<RegisterResult> {
+  const supabase = await createClient();
+  
+  console.log(`[confirmPlayerLinkingWithFormData] Confirming link between user ${tempUserId} and player ${playerId} with form data`);
+  
+  try {
+    // Double-check that the player doesn't already have a user linked
+    const { data: playerCheck, error: checkError } = await supabase
+      .from('players')
+      .select('id, first_name, last_name, user_id, score, category_name')
+      .eq('id', playerId)
+      .single();
+      
+    if (checkError) {
+      console.error(`[confirmPlayerLinkingWithFormData] Error checking player:`, checkError);
+      return { success: false, error: 'Error al verificar el jugador.' };
+    }
+    
+    if (playerCheck.user_id) {
+      console.error(`[confirmPlayerLinkingWithFormData] Player already has user linked:`, playerCheck.user_id);
+      return { success: false, error: 'Este jugador ya tiene una cuenta vinculada.' };
+    }
+    
+    // Perform the linking with complete form data
+    const linkResult = await linkUserToExistingPlayer(playerId, tempUserId, supabase, formData);
+    
+    if (!linkResult.success) {
+      return { success: false, error: `Error al vincular cuenta: ${linkResult.error}` };
+    }
+    
+    console.log(`[confirmPlayerLinkingWithFormData] Successfully linked user ${tempUserId} to player ${playerId} with updated data`);
+    
+    revalidatePath('/', 'layout');
+    
+    return {
+      success: true,
+      matched: true,
+      message: `¡Cuenta vinculada exitosamente! Tu perfil de jugador existente ha sido conectado con tu nueva cuenta y datos actualizados.`,
+      playerData: {
+        name: `${playerCheck.first_name} ${playerCheck.last_name}`,
+        score: playerCheck.score || 0,
+        category: playerCheck.category_name || 'Sin categorizar',
+        isExistingPlayer: true
+      },
+      redirectUrl: '/login',
+    };
+    
+  } catch (error: any) {
+    console.error(`[confirmPlayerLinkingWithFormData] Unexpected error:`, error);
     return { success: false, error: `Error inesperado: ${error.message}` };
   }
 }

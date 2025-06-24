@@ -360,7 +360,10 @@ export default function RankingClient({ initialPlayers, initialCategories, weekl
                                    </Link>
                                    <div className="flex items-center space-x-2">
                                      <Badge variant="outline" className="text-xs">
-                                       Categoría {getCategoryName(player.category)}
+                                       {player.category && player.category.toLowerCase() !== 'sin categoria' && player.category.toLowerCase() !== 'sin categoría' 
+                                         ? `Categoría ${getCategoryName(player.category)}`
+                                         : 'Sin Categoría'
+                                       }
                                      </Badge>
                                      <Link href={`/clubes/${player.id}`} className="text-xs text-slate-500 hover:text-blue-600 transition-colors">
                                        {player.club}
