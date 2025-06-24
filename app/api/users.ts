@@ -23,7 +23,7 @@ export async function getTop5MalePlayers() {
 
 
 export async function getPlayersMale(limit?: number) {
-    let query = supabase
+    const query = supabase
         .from("players")
         .select(`
             *,
@@ -31,13 +31,7 @@ export async function getPlayersMale(limit?: number) {
                 name
             )
         `)
-        .eq("gender", "MALE")
-        .order("score", { ascending: false });
-
-    // Si se especifica un límite, aplicarlo
-    if (limit) {
-        query = query.limit(limit);
-    }
+        .eq("gender", "MALE");
 
     const { data, error } = await query;
 
@@ -45,8 +39,23 @@ export async function getPlayersMale(limit?: number) {
         console.error("Error fetching players:", error);
         return [];
     }
+
+    // Sort the data exactly like in ranking-client (score descending)
+    const sortedData = data?.sort((a, b) => {
+        const scoreA = a.score || 0;
+        const scoreB = b.score || 0;
+        
+        // Standard descending order comparison (like ranking-client)
+        if (scoreA < scoreB) return 1;
+        if (scoreA > scoreB) return -1;
+        return 0;
+    }) || [];
+
+    // Apply limit after sorting if specified
+    const finalData = limit ? sortedData.slice(0, limit) : sortedData;
+
     // Map the raw data to our Player type
-    const players = data?.map((rawPlayer): Player => {
+    const players = finalData?.map((rawPlayer): Player => {
         
         // Get profile image - use profile_image_url first, then default
         let profileImageUrl = rawPlayer.profile_image_url;
