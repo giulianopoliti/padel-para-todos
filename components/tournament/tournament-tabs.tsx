@@ -40,7 +40,12 @@ export default function TournamentsTabs({
   // Formatear fecha
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })
+    return date.toLocaleDateString("es-AR", { 
+      day: "numeric", 
+      month: "long", 
+      year: "numeric",
+      timeZone: "America/Argentina/Buenos_Aires"
+    })
   }
 
   // Formatear hora
@@ -50,7 +55,11 @@ export default function TournamentsTabs({
     try {
       if (timeString.includes("T")) {
         const date = new Date(timeString)
-        return date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })
+        return date.toLocaleTimeString("es-AR", { 
+          hour: "2-digit", 
+          minute: "2-digit",
+          timeZone: "America/Argentina/Buenos_Aires"
+        })
       }
       return timeString.substring(0, 5)
     } catch (error) {

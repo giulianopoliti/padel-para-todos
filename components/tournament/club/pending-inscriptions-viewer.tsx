@@ -146,7 +146,7 @@ export default function PendingInscriptionsViewer({
                         Contacto: {insc.phone || "No provisto"}
                       </div>
                        <div className="text-xs text-slate-400 mt-1">
-                        Solicitado: {new Date(insc.created_at).toLocaleString('es-ES')}
+                        Solicitado: {new Date(insc.created_at).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}
                       </div>
                     </div>
                     <Button

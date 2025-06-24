@@ -22,6 +22,7 @@ import Link from "next/link"
 import PublicTournamentDetailsTabs from "@/components/tournament/public-tournament-details-tabs"
 import { getAllPlayersDTO } from "@/app/api/players/actions"
 import { getTournamentDetailsWithInscriptions } from "@/app/api/tournaments/actions"
+import { formatDateArgentina } from "@/lib/utils"
 
 // Componente de carga para usar con Suspense
 function TournamentDetailsLoading() {
@@ -177,10 +178,9 @@ function getStatusText(status: string) {
   }
 }
 
-// Formatear fecha
+// Formatear fecha usando horario de Argentina
 function formatDate(dateString: string) {
-  const date = new Date(dateString)
-  return date.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })
+  return formatDateArgentina(dateString)
 }
 
 // Componente principal
@@ -188,12 +188,7 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
   const resolvedParams = await params;
   const { tournament, individualInscriptions, coupleInscriptions, allPlayers } = await getData(resolvedParams.id)
 
-  // Debug: Log tournament data to see club info
-  console.log("Tournament data:", JSON.stringify({
-    id: tournament.id,
-    name: tournament.name,
-    clubes: tournament.clubes
-  }, null, 2));
+
 
   // Configurar el máximo de jugadores (podría venir del torneo en el futuro)
   const maxPlayers = tournament.max_participants || 32

@@ -5,7 +5,12 @@ import type { AmericanMatch, LargeMatch } from "@/types"
  */
 export const formatDate = (dateString: string): string => {
   const date = new Date(dateString)
-  return date.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })
+  return date.toLocaleDateString("es-AR", { 
+    day: "numeric", 
+    month: "long", 
+    year: "numeric",
+    timeZone: "America/Argentina/Buenos_Aires"
+  })
 }
 
 /**

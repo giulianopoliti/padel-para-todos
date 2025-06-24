@@ -49,7 +49,12 @@ export default function TournamentCard({
 }: TournamentCardProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })
+    return date.toLocaleDateString("es-AR", { 
+      day: "numeric", 
+      month: "short", 
+      year: "numeric",
+      timeZone: "America/Argentina/Buenos_Aires"
+    })
   }
 
   const getCategoryName = (categoryName: string) => {

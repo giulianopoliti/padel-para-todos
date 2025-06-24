@@ -275,7 +275,12 @@ function TournamentCard({
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "Fecha no especificada"
     const date = new Date(dateString)
-    return date.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })
+    return date.toLocaleDateString("es-AR", { 
+      day: "numeric", 
+      month: "short", 
+      year: "numeric",
+      timeZone: "America/Argentina/Buenos_Aires"
+    })
   }
 
   const getCategoryName = (categoryName: string) => {

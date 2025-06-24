@@ -58,9 +58,10 @@ export async function getTournaments() {
                     currentParticipants: currentParticipants,
                     // Additional fields for TournamentsClient compatibility
                     address: rawTournament.club?.address,
-                    time: rawTournament.start_date ? new Date(rawTournament.start_date).toLocaleTimeString('es-ES', { 
+                    time: rawTournament.start_date ? new Date(rawTournament.start_date).toLocaleTimeString('es-AR', { 
                         hour: '2-digit', 
-                        minute: '2-digit' 
+                        minute: '2-digit',
+                        timeZone: 'America/Argentina/Buenos_Aires'
                     }) : undefined,
                     prize: rawTournament.description?.includes('premio') || rawTournament.description?.includes('$') 
                         ? rawTournament.description 

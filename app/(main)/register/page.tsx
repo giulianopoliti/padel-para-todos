@@ -181,7 +181,7 @@ El usuario intentó registrarse con un DNI que ya existe en el sistema, pero ind
 
 👤 *Acción del usuario:* RECHAZÓ la vinculación con el perfil existente
 
-⏰ *Fecha y hora:* ${new Date().toLocaleString('es-AR')}
+                ⏰ *Fecha y hora:* ${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}
 
 🔧 *Acción requerida:*
 Revisar manualmente los datos del perfil ID ${conflictData.existingPlayerId} y resolver el conflicto. El usuario no puede completar su registro hasta que se solucione este problema.

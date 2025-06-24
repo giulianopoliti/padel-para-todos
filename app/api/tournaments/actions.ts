@@ -915,7 +915,6 @@ export async function getTournamentDetailsWithInscriptions(tournamentId: string)
   const supabase = await createClient();
   const tournament = await getTournamentById(tournamentId);
   console.log("Tournament (from getTournamentDetailsWithInscriptions):", JSON.stringify(tournament, null, 2));
-  console.log("Club phone specifically:", tournament?.clubes?.phone);
   if (!tournament) return { tournament: null, inscriptions: [] };
   try {
     const { data: rawInscriptions, error: inscriptionsError } = await supabase

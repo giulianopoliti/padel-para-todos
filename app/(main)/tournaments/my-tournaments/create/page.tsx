@@ -153,7 +153,15 @@ export default function CreateTournamentPage() {
       const formatDateTime = (date: string, time: string) => {
         if (!date || !time) return null;
         const fullTime = time.length === 5 ? `${time}:00` : time;
-        return new Date(`${date}T${fullTime}`).toISOString();
+        
+        // Crear la fecha asumiendo que es horario de Argentina
+        const localDate = new Date(`${date}T${fullTime}`);
+        
+        // Ajustar a UTC considerando el offset de Argentina (-3)
+        const argentinaOffset = -3 * 60; // Argentina es UTC-3, en minutos
+        const utcTime = localDate.getTime() - (argentinaOffset * 60 * 1000);
+        
+        return new Date(utcTime).toISOString();
       };
 
       const dataForAction = {
