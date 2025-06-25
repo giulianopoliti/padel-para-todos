@@ -24,9 +24,10 @@ import { getPlayerProfile } from "@/app/api/users"
 import { getPlayerWeeklyPoints } from "@/app/api/tournaments/actions"
 
 export default async function PlayerProfilePage({ params }: { params: { id: string } }) {
+  const resolvedParams = await params;
   const [playerData, weeklyPointsResult] = await Promise.all([
-    getPlayerProfile(params.id),
-    getPlayerWeeklyPoints(params.id)
+    getPlayerProfile(resolvedParams.id),
+    getPlayerWeeklyPoints(resolvedParams.id)
   ]);
 
   console.log("🎯 PlayerProfilePage - Received playerData:", playerData);
@@ -172,6 +173,10 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Disputados</span>
                     <span className="font-semibold text-gray-800">{playerData.stats.tournamentsPlayed}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Inscripto a</span>
+                    <span className="font-semibold text-blue-600">{playerData.stats.upcomingTournaments}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Finales jugadas</span>

@@ -889,7 +889,19 @@ export const getUser = async (): Promise<User | null> => {
 
       // Calculate age from date_of_birth
       const age = player.date_of_birth 
-        ? new Date().getFullYear() - new Date(player.date_of_birth).getFullYear()
+        ? (() => {
+            const today = new Date();
+            const birthDate = new Date(player.date_of_birth);
+            let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            
+            // If the birthday hasn't occurred this year yet, subtract 1 from age
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+              calculatedAge--;
+            }
+            
+            return calculatedAge;
+          })()
         : null;
 
       // Get profile image - use profile_image_url first, then default
@@ -936,7 +948,8 @@ export const getUser = async (): Promise<User | null> => {
         lastTournament,
         age,
         stats: {
-          tournamentsPlayed: tournamentsStats.totalTournaments,
+          tournamentsPlayed: tournamentsStats.tournamentsPlayed,
+          upcomingTournaments: tournamentsStats.upcomingTournaments,
           winRate: matchesStats.winRate,
           finals: { 
             played: tournamentsStats.finalsPlayed, 
@@ -974,8 +987,8 @@ export const getUser = async (): Promise<User | null> => {
   export async function getPlayerTournamentStats(playerId: string) {
     const supabase = await createClient();
     try {
-      // Get all tournaments where the player participated
-      const { data: inscriptions, error } = await supabase
+      // Get individual inscriptions where the player participated
+      const { data: individualInscriptions, error: individualError } = await supabase
         .from('inscriptions')
         .select(`
           tournament_id,
@@ -987,33 +1000,124 @@ export const getUser = async (): Promise<User | null> => {
             end_date
           )
         `)
-        .eq('player_id', playerId);
+        .eq('player_id', playerId)
+        .eq('is_pending', false);
 
-      if (error) {
-        console.error("Error fetching player tournament stats:", error);
-        return { totalTournaments: 0, finalsPlayed: 0, finalsWon: 0 };
+      if (individualError) {
+        console.error("Error fetching individual inscriptions:", individualError);
       }
 
-      const totalTournaments = inscriptions?.length || 0;
+      // Get couple inscriptions where the player participated
+      const { data: coupleInscriptions, error: coupleError } = await supabase
+        .from('inscriptions')
+        .select(`
+          tournament_id,
+          couple_id,
+          tournaments!inner(
+            id,
+            name,
+            status,
+            start_date,
+            end_date
+          ),
+          couples!inner(
+            id,
+            player1_id,
+            player2_id
+          )
+        `)
+        .not('couple_id', 'is', null)
+        .eq('is_pending', false);
+
+      if (coupleError) {
+        console.error("Error fetching couple inscriptions:", coupleError);
+      }
+
+      // Filter couple inscriptions to only include those where the player is part of the couple
+      const playerCoupleInscriptions = (coupleInscriptions || []).filter(
+        (inscription: any) => {
+          const couple = inscription.couples;
+          return couple && (couple.player1_id === playerId || couple.player2_id === playerId);
+        }
+      );
+
+      // Combine all inscriptions
+      const allInscriptions = [
+        ...(individualInscriptions || []),
+        ...playerCoupleInscriptions
+      ];
+
+      console.log(`[getPlayerTournamentStats] Player ${playerId} - Individual: ${individualInscriptions?.length || 0}, Couple: ${playerCoupleInscriptions.length}, Total: ${allInscriptions.length}`);
+
+      if (allInscriptions.length === 0) {
+        return { 
+          tournamentsPlayed: 0, 
+          upcomingTournaments: 0, 
+          finalsPlayed: 0, 
+          finalsWon: 0 
+        };
+      }
+
+      // Remove duplicates (in case a player is inscribed both individually and in couple to same tournament)
+      const uniqueInscriptions = allInscriptions.filter((inscription, index, self) =>
+        index === self.findIndex(i => i.tournament_id === inscription.tournament_id)
+      );
+
+      console.log(`[getPlayerTournamentStats] Player ${playerId} - Unique tournaments: ${uniqueInscriptions.length}`);
+      
+      // Debug: Log tournament details
+      uniqueInscriptions.forEach((inscription: any, index: number) => {
+        const tournament = inscription.tournaments;
+        console.log(`[getPlayerTournamentStats] Tournament ${index + 1}: ${tournament.name}, Status: ${tournament.status}, Start Date: ${tournament.start_date}`);
+      });
+
+      // Separate tournaments by status
+      const playedTournaments = uniqueInscriptions.filter(
+        (inscription: any) => {
+          const tournament = inscription.tournaments;
+          // Consider a tournament "played" if it's FINISHED, IN_PROGRESS, PAIRING, or has already started
+          return tournament.status === 'FINISHED' || 
+                 tournament.status === 'IN_PROGRESS' || 
+                 tournament.status === 'PAIRING' ||
+                 (tournament.start_date && new Date(tournament.start_date) <= new Date());
+        }
+      );
+
+      const upcomingTournaments = uniqueInscriptions.filter(
+        (inscription: any) => {
+          const tournament = inscription.tournaments;
+          // Consider a tournament "upcoming" if it's NOT_STARTED and hasn't started yet
+          return tournament.status === 'NOT_STARTED' && 
+                 tournament.start_date && 
+                 new Date(tournament.start_date) > new Date();
+        }
+      );
+
+      const completedTournaments = uniqueInscriptions.filter(
+        (inscription: any) => inscription.tournaments.status === 'FINISHED'
+      );
 
       // For now, we'll estimate finals based on completed tournaments
       // In a more complete implementation, you'd track actual finals participation
-      const completedTournaments = inscriptions?.filter(
-        (inscription: any) => inscription.tournaments.status === 'FINISHED'
-      ) || [];
-
-      // Rough estimation - assumes top performers reach finals more often
       const finalsPlayed = Math.floor(completedTournaments.length * 0.3); // 30% reach finals
       const finalsWon = Math.floor(finalsPlayed * 0.4); // 40% win when they reach finals
 
+      console.log(`[getPlayerTournamentStats] Player ${playerId} - Played: ${playedTournaments.length}, Upcoming: ${upcomingTournaments.length}`);
+
       return {
-        totalTournaments,
+        tournamentsPlayed: playedTournaments.length,
+        upcomingTournaments: upcomingTournaments.length,
         finalsPlayed,
         finalsWon
       };
     } catch (error) {
       console.error("Error in getPlayerTournamentStats:", error);
-      return { totalTournaments: 0, finalsPlayed: 0, finalsWon: 0 };
+      return { 
+        tournamentsPlayed: 0, 
+        upcomingTournaments: 0, 
+        finalsPlayed: 0, 
+        finalsWon: 0 
+      };
     }
   }
 
