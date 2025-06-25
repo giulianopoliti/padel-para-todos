@@ -14,10 +14,9 @@ const playerProfileSchema = z.object({
   dni: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
   date_of_birth: z.string().nullable().optional(), // Expecting yyyy-mm-dd or empty
-  category_name: z.string().nullable().optional(), // Now editable
-  score: z.number().nullable().optional(),
   preferred_hand: z.string().nullable().optional(),
   racket: z.string().nullable().optional(),
+  description: z.string().max(200, "La descripción no puede tener más de 200 caracteres.").nullable().optional(),
   gender: z.enum(["MALE", "SHEMALE", "MIXED"] as const).nullable().optional(), // Using actual database enum values
   preferred_side: z.enum(["DRIVE", "REVES"] as const).nullable().optional(),
   club_id: z.string().uuid("ID de club inválido").nullable().optional(), // NO_CLUB for placeholder
@@ -31,10 +30,9 @@ export type FormState = {
     dni?: string[];
     phone?: string[];
     date_of_birth?: string[];
-    category_name?: string[];
-    score?: string[];
     preferred_hand?: string[];
     racket?: string[];
+    description?: string[];
     gender?: string[];
     preferred_side?: string[];
     club_id?: string[];
@@ -62,10 +60,9 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
     dni: rawFormEntries.dni === '' ? null : rawFormEntries.dni,
     phone: rawFormEntries.phone === '' ? null : rawFormEntries.phone,
     date_of_birth: rawFormEntries.date_of_birth === '' ? null : rawFormEntries.date_of_birth,
-    category_name: rawFormEntries.category_name === '' ? null : rawFormEntries.category_name,
-    score: (rawFormEntries.score === '' || rawFormEntries.score === undefined || rawFormEntries.score === null) ? null : Number(rawFormEntries.score),
     preferred_hand: rawFormEntries.preferred_hand === '' ? null : rawFormEntries.preferred_hand,
     racket: rawFormEntries.racket === '' ? null : rawFormEntries.racket,
+    description: rawFormEntries.description === '' ? null : rawFormEntries.description,
     gender: rawFormEntries.gender === '' ? null : rawFormEntries.gender,
     preferred_side: rawFormEntries.preferred_side === '' ? null : rawFormEntries.preferred_side,
     club_id: (rawFormEntries.club_id === '' || rawFormEntries.club_id === 'NO_CLUB') ? null : rawFormEntries.club_id,
@@ -140,10 +137,9 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
       dni: validatedData.dni,
       phone: validatedData.phone,
       date_of_birth: validatedData.date_of_birth,
-      category_name: validatedData.category_name,
-      score: validatedData.score,
       preferred_hand: validatedData.preferred_hand,
       racket: validatedData.racket,
+      description: validatedData.description,
       gender: validatedData.gender as Database["public"]["Enums"]["GENDER"],
       preferred_side: validatedData.preferred_side as Database["public"]["Enums"]["PREFERRED_SIDE"],
       club_id: validatedData.club_id,
@@ -184,15 +180,6 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
 
     if (playerUpsertError) {
       console.error(`Error upserting into players:`, playerUpsertError);
-      if (playerUpsertError.message.includes('foreign key constraint') && playerUpsertError.message.includes('category_name')) {
-          return { 
-              success: false, 
-              message: `Error al guardar detalles de Jugador: La categoría seleccionada no es válida. (${playerUpsertError.message})`, 
-              errors: { category_name: ["Categoría inválida."] } 
-            };
-      } else if (playerUpsertError.message.includes('column') && playerUpsertError.message.includes('category_name') && playerUpsertError.message.includes('does not exist')){
-        return { success: false, message: `Error al guardar detalles de Jugador: La columna 'category_name' no existe en la tabla 'players'. Por favor, verifica tu esquema de base de datos y regenera los tipos.`, errors: { category_name: ["Campo de categoría no existe en la base de datos."] } };  
-      }
       return { success: false, message: `Error al guardar detalles de Jugador: ${playerUpsertError.message}. Intenta de nuevo.`, errors: null };
     }
 
@@ -274,6 +261,7 @@ export async function getPlayerProfile() {
         score: null,  
         preferred_hand: null,
         racket: null,
+        description: null,
         gender: null,
         preferred_side: null,
         club_id: null,
@@ -292,6 +280,7 @@ export async function getPlayerProfile() {
         score: playerData.score,
         preferred_hand: playerData.preferred_hand,
         racket: playerData.racket,
+        description: playerData.description,
         gender: playerData.gender,
         preferred_side: playerData.preferred_side,
         club_id: playerData.club_id,

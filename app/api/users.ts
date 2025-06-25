@@ -971,6 +971,7 @@ export const getUser = async (): Promise<User | null> => {
         category: player.category_name,
         racket: player.racket,
         score: player.score,
+        description: player.description,
       };
 
       return result;

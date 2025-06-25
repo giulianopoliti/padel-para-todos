@@ -18,6 +18,7 @@ import {
   CircleUser,
   ChevronLeft,
   Zap,
+  MessageCircle,
 } from "lucide-react"
 import { notFound } from "next/navigation"
 import { getPlayerProfile } from "@/app/api/users"
@@ -132,6 +133,18 @@ export default async function PlayerProfilePage({ params }: { params: { id: stri
                   </span>
                 )}
               </div>
+              
+              {/* Player Description */}
+              {playerData.description && (
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-start gap-2">
+                    <MessageCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-gray-700 text-sm italic leading-relaxed">
+                      "{playerData.description}"
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

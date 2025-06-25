@@ -81,32 +81,23 @@ export function GameDataSection({ defaultValues, allClubs }: GameDataSectionProp
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="category_name" className="text-sm font-medium text-gray-700">
-              Categoría
-            </Label>
-            <Input
-              id="category_name"
-              name="category_name"
-              defaultValue={defaultValues.category_name}
-              className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="score" className="text-sm font-medium text-gray-700">
-              Puntaje
-            </Label>
-            <Input
-              id="score"
-              name="score"
-              type="number"
-              step="0.01"
-              defaultValue={defaultValues.score}
-              className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="description" className="text-sm font-medium text-gray-700">
+            Descripción Personal
+          </Label>
+          <textarea
+            id="description"
+            name="description"
+            rows={3}
+            defaultValue={defaultValues.description}
+            placeholder="Cuéntanos algo divertido sobre ti, tu estilo de juego, o lo que más te gusta del pádel..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-blue-500 focus:ring-blue-500 resize-none text-sm"
+            maxLength={200}
+          />
+          <p className="text-xs text-gray-500">Máximo 200 caracteres</p>
         </div>
+
+
       </CardContent>
     </Card>
   )

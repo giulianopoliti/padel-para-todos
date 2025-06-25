@@ -7,6 +7,8 @@ export async function GET(request: Request) {
   // https://supabase.com/docs/guides/auth/server-side/nextjs
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const type = requestUrl.searchParams.get("type");
+  const next = requestUrl.searchParams.get("next");
   const origin = requestUrl.origin;
 
   if (code) {
@@ -14,6 +16,16 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  // URL to redirect to after sign up process completes
+  // Handle password reset flow
+  if (type === "recovery") {
+    return NextResponse.redirect(`${origin}/reset-password`);
+  }
+
+  // Handle custom redirect
+  if (next) {
+    return NextResponse.redirect(`${origin}${next}`);
+  }
+
+  // Default redirect after sign up/login
   return NextResponse.redirect(`${origin}/home`);
 }
