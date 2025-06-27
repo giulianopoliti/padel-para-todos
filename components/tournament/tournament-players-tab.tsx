@@ -317,8 +317,8 @@ export default function TournamentPlayersTab({
 
   return (
     <>
-      <div className="p-6 border-b border-gray-200 bg-slate-50">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="p-4 sm:p-6 border-b border-gray-200 bg-slate-50">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-1">Jugadores Individuales</h3>
             <p className="text-sm text-slate-600">
@@ -327,59 +327,69 @@ export default function TournamentPlayersTab({
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {canPairPlayers && user && (
               <Button
                 onClick={() => setPairPlayersDialogOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+                size="sm"
               >
                 <Users className="mr-2 h-4 w-4" />
-                Emparejar Jugadores
+                <span className="hidden sm:inline">Emparejar Jugadores</span>
+                <span className="sm:hidden">Emparejar</span>
               </Button>
             )}
             
             {!isTournamentActive && (
               <>
                 {isPlayer && !isPlayerAlreadyRegistered ? (
-                  <>
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <Button
                       onClick={handleRegisterMyselfClick}
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                      className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none"
+                      size="sm"
                       disabled={isMaxPlayersReached}
                     >
                       <UserPlus className="mr-2 h-4 w-4" />
-                      Inscribirme solo
+                      <span className="hidden sm:inline">Inscribirme solo</span>
+                      <span className="sm:hidden">Individual</span>
                     </Button>
                     <Button
                       onClick={handleRegisterCoupleClick}
-                      className="bg-slate-900 hover:bg-slate-800 text-white"
+                      className="bg-slate-900 hover:bg-slate-800 text-white flex-1 sm:flex-none"
+                      size="sm"
                     >
                       <Users className="mr-2 h-4 w-4" />
-                      Inscribir pareja
+                      <span className="hidden sm:inline">Inscribir pareja</span>
+                      <span className="sm:hidden">Pareja</span>
                     </Button>
-                  </>
+                  </div>
                 ) : !user ? (
-                  <>
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <Button
                       onClick={handleRegisterMyselfClick}
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                      className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none"
+                      size="sm"
                       disabled={isMaxPlayersReached}
                     >
                       <UserPlus className="mr-2 h-4 w-4" />
-                      Inscribirme solo
+                      <span className="hidden sm:inline">Inscribirme solo</span>
+                      <span className="sm:hidden">Individual</span>
                     </Button>
                     <Button
                       onClick={handleRegisterCoupleClick}
-                      className="bg-slate-900 hover:bg-slate-800 text-white"
+                      className="bg-slate-900 hover:bg-slate-800 text-white flex-1 sm:flex-none"
+                      size="sm"
                     >
                       <Users className="mr-2 h-4 w-4" />
-                      Inscribir pareja
+                      <span className="hidden sm:inline">Inscribir pareja</span>
+                      <span className="sm:hidden">Pareja</span>
                     </Button>
-                  </>
+                  </div>
                 ) : isPlayer && isPlayerAlreadyRegistered ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <div className="bg-green-50 border border-green-200 rounded-md px-3 py-2">
-                      <p className="text-sm text-green-700 font-medium">
+                      <p className="text-sm text-green-700 font-medium text-center">
                         ✓ Ya estás inscrito
                       </p>
                     </div>
@@ -389,24 +399,20 @@ export default function TournamentPlayersTab({
                       size="sm"
                       className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
                     >
-                      Cancelar inscripción
-                    </Button>
-                    <Button
-                      onClick={handleRegisterCoupleClick}
-                      className="bg-slate-900 hover:bg-slate-800 text-white"
-                    >
-                      <Users className="mr-2 h-4 w-4" />
-                      Inscribir pareja
+                      <span className="hidden sm:inline">Cancelar inscripción</span>
+                      <span className="sm:hidden">Cancelar</span>
                     </Button>
                   </div>
                 ) : !isPlayer ? (
                   <Button
                     onClick={() => setRegisterPlayerDialogOpen(true)}
-                    className="bg-slate-900 hover:bg-slate-800 text-white"
+                    className="bg-slate-900 hover:bg-slate-800 text-white w-full sm:w-auto"
+                    size="sm"
                     disabled={isMaxPlayersReached}
                   >
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Inscribir Jugador
+                    <span className="hidden sm:inline">Inscribir Jugador</span>
+                    <span className="sm:hidden">Inscribir</span>
                   </Button>
                 ) : null}
               </>
@@ -415,75 +421,135 @@ export default function TournamentPlayersTab({
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {individualInscriptions.length > 0 ? (
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader className="bg-slate-50">
-                <TableRow className="border-b border-gray-200">
-                  <TableHead className="font-semibold text-slate-700">Nombre</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Apellido</TableHead>
-                  <TableHead className="font-semibold text-slate-700">DNI</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Teléfono</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-center">Puntaje</TableHead>
-                  {!isTournamentActive && (
-                    <TableHead className="font-semibold text-slate-700 text-center">Acciones</TableHead>
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {individualInscriptions.map((player) => (
-                  <TableRow key={player.id} className="hover:bg-slate-50 border-b border-gray-100">
-                    <TableCell className="font-medium text-slate-900">{player.first_name || "—"}</TableCell>
-                    <TableCell className="text-slate-700">{player.last_name || "—"}</TableCell>
-                    <TableCell className="text-slate-700">{player.dni || "—"}</TableCell>
-                    <TableCell className="text-slate-700">{player.phone || "—"}</TableCell>
-                    <TableCell className="text-center">
+          <>
+            {/* Vista móvil - Cards */}
+            <div className="block sm:hidden space-y-3">
+              {individualInscriptions.map((player) => (
+                <div key={player.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-slate-900 text-lg">
+                        {getPlayerDisplayName(player)}
+                      </h4>
+                      <div className="space-y-1 mt-2">
+                        <p className="text-sm text-slate-600">
+                          <span className="font-medium">DNI:</span> {player.dni || "No especificado"}
+                        </p>
+                        <p className="text-sm text-slate-600">
+                          <span className="font-medium">Teléfono:</span> {player.phone || "No especificado"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
                       {player.score !== null ? (
-                        <div className="inline-flex items-center justify-center bg-slate-100 text-slate-700 font-semibold rounded-full h-8 w-8 border border-slate-200">
+                        <div className="inline-flex items-center justify-center bg-slate-100 text-slate-700 font-semibold rounded-full h-10 w-10 border border-slate-200">
                           {player.score}
                         </div>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-slate-400 text-sm">Sin puntaje</span>
                       )}
-                    </TableCell>
+                      {!isTournamentActive && (
+                        <>
+                          {isPlayer && player.id === userDetails.player_id ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowCancelConfirmation(true)}
+                              className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Cancelar
+                            </Button>
+                          ) : !isPlayer ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeletePlayerClick(player)}
+                              className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Eliminar
+                            </Button>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Vista desktop - Tabla */}
+            <div className="hidden sm:block border border-gray-200 rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader className="bg-slate-50">
+                  <TableRow className="border-b border-gray-200">
+                    <TableHead className="font-semibold text-slate-700">Nombre</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Apellido</TableHead>
+                    <TableHead className="font-semibold text-slate-700">DNI</TableHead>
+                    <TableHead className="font-semibold text-slate-700">Teléfono</TableHead>
+                    <TableHead className="font-semibold text-slate-700 text-center">Puntaje</TableHead>
                     {!isTournamentActive && (
+                      <TableHead className="font-semibold text-slate-700 text-center">Acciones</TableHead>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {individualInscriptions.map((player) => (
+                    <TableRow key={player.id} className="hover:bg-slate-50 border-b border-gray-100">
+                      <TableCell className="font-medium text-slate-900">{player.first_name || "—"}</TableCell>
+                      <TableCell className="text-slate-700">{player.last_name || "—"}</TableCell>
+                      <TableCell className="text-slate-700">{player.dni || "—"}</TableCell>
+                      <TableCell className="text-slate-700">{player.phone || "—"}</TableCell>
                       <TableCell className="text-center">
-                        {isPlayer && player.id === userDetails.player_id ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowCancelConfirmation(true)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        ) : !isPlayer ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeletePlayerClick(player)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        {player.score !== null ? (
+                          <div className="inline-flex items-center justify-center bg-slate-100 text-slate-700 font-semibold rounded-full h-8 w-8 border border-slate-200">
+                            {player.score}
+                          </div>
                         ) : (
                           <span className="text-slate-400">—</span>
                         )}
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        ) : (
-          <div className="text-center py-16">
-            <div className="bg-slate-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Search className="h-10 w-10 text-slate-400" />
+                      {!isTournamentActive && (
+                        <TableCell className="text-center">
+                          {isPlayer && player.id === userDetails.player_id ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowCancelConfirmation(true)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : !isPlayer ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeletePlayerClick(player)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">No hay jugadores inscritos</h3>
-            <p className="text-slate-500 max-w-md mx-auto mb-6">
+          </>
+        ) : (
+          <div className="text-center py-12 sm:py-16 px-4">
+            <div className="bg-slate-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+              <Search className="h-8 w-8 sm:h-10 sm:w-10 text-slate-400" />
+            </div>
+            <h3 className="text-lg sm:text-xl font-semibold text-slate-900 mb-2">No hay jugadores inscritos</h3>
+            <p className="text-slate-500 max-w-md mx-auto mb-6 text-sm sm:text-base">
               {isPlayer && !isPlayerAlreadyRegistered 
                 ? "Aún no hay jugadores individuales inscritos en este torneo. ¡Sé el primero en inscribirte!"
                 : isPlayer && isPlayerAlreadyRegistered
@@ -494,49 +560,59 @@ export default function TournamentPlayersTab({
             {!isTournamentActive && (
               <>
                 {isPlayer && !isPlayerAlreadyRegistered ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center max-w-sm mx-auto">
                     <Button
                       onClick={handleRegisterMyselfClick}
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                      className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none"
+                      size="sm"
                       disabled={isMaxPlayersReached}
                     >
                       <UserPlus className="mr-2 h-4 w-4" />
-                      Inscribirme solo
+                      <span className="hidden sm:inline">Inscribirme solo</span>
+                      <span className="sm:hidden">Individual</span>
                     </Button>
                     <Button
                       onClick={handleRegisterCoupleClick}
-                      className="bg-slate-900 hover:bg-slate-800 text-white"
+                      className="bg-slate-900 hover:bg-slate-800 text-white flex-1 sm:flex-none"
+                      size="sm"
                     >
                       <Users className="mr-2 h-4 w-4" />
-                      Inscribir pareja
+                      <span className="hidden sm:inline">Inscribir pareja</span>
+                      <span className="sm:hidden">Pareja</span>
                     </Button>
                   </div>
                 ) : !user ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center max-w-sm mx-auto">
                     <Button
                       onClick={handleRegisterMyselfClick}
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                      className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none"
+                      size="sm"
                       disabled={isMaxPlayersReached}
                     >
                       <UserPlus className="mr-2 h-4 w-4" />
-                      Inscribirme solo
+                      <span className="hidden sm:inline">Inscribirme solo</span>
+                      <span className="sm:hidden">Individual</span>
                     </Button>
                     <Button
                       onClick={handleRegisterCoupleClick}
-                      className="bg-slate-900 hover:bg-slate-800 text-white"
+                      className="bg-slate-900 hover:bg-slate-800 text-white flex-1 sm:flex-none"
+                      size="sm"
                     >
                       <Users className="mr-2 h-4 w-4" />
-                      Inscribir pareja
+                      <span className="hidden sm:inline">Inscribir pareja</span>
+                      <span className="sm:hidden">Pareja</span>
                     </Button>
                   </div>
                 ) : !isPlayer ? (
                   <Button
                     onClick={() => setRegisterPlayerDialogOpen(true)}
                     className="bg-slate-900 hover:bg-slate-800 text-white"
+                    size="sm"
                     disabled={isMaxPlayersReached}
                   >
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Inscribir Primer Jugador
+                    <span className="hidden sm:inline">Inscribir Primer Jugador</span>
+                    <span className="sm:hidden">Inscribir Jugador</span>
                   </Button>
                 ) : null}
               </>
