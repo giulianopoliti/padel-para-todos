@@ -3557,3 +3557,253 @@ export async function getMultiplePlayersWeeklyPoints(playerIds: string[]): Promi
     return { success: false, weeklyPoints: {}, error: e.message };
   }
 }
+
+/**
+ * Converts an individual player registration to a couple registration
+ * Automatically removes the individual registration and creates a couple registration
+ */
+export async function registerCoupleForTournamentAndRemoveIndividual(
+  tournamentId: string, 
+  player1Id: string, 
+  player2Id: string
+): Promise<{ 
+  success: boolean; 
+  error?: string; 
+  inscription?: any; 
+  convertedFrom?: 'player1' | 'player2' | null;
+  message?: string;
+}> {
+  console.log("🔥🔥🔥 [registerCoupleForTournamentAndRemoveIndividual] FUNCIÓN NUEVA LLAMADA 🔥🔥🔥");
+  console.log(`[registerCoupleForTournamentAndRemoveIndividual] Iniciando conversión de inscripción individual a pareja en torneo ${tournamentId}`, { 
+    player1Id, 
+    player2Id,
+    types: { player1Id: typeof player1Id, player2Id: typeof player2Id }
+  });
+  const supabase = await createClient();
+  
+  try {
+    // First, get tournament info to determine category
+    const { data: tournamentData, error: tournamentError } = await supabase
+      .from('tournaments')
+      .select('category_name')
+      .eq('id', tournamentId)
+      .single();
+      
+    if (tournamentError) {
+      console.error("[registerCoupleForTournamentAndRemoveIndividual] Error fetching tournament:", tournamentError);
+      return { success: false, error: "Error al obtener información del torneo" };
+    }
+    
+    // Determine category name
+    const categoryName = tournamentData.category_name || '';
+    
+    // Check and categorize both players if needed
+    if (categoryName) {
+      // Categorize player 1
+      const categorization1 = await checkAndCategorizePlayer(player1Id, categoryName, supabase);
+      if (!categorization1.success) {
+        console.error("[registerCoupleForTournamentAndRemoveIndividual] Error categorizing player 1:", categorization1.message);
+        return { success: false, error: categorization1.message };
+      }
+      
+      // Categorize player 2
+      const categorization2 = await checkAndCategorizePlayer(player2Id, categoryName, supabase);
+      if (!categorization2.success) {
+        console.error("[registerCoupleForTournamentAndRemoveIndividual] Error categorizing player 2:", categorization2.message);
+        return { success: false, error: categorization2.message };
+      }
+      
+      if (categorization1.wasCategorized) {
+        console.log(`[registerCoupleForTournamentAndRemoveIndividual] Player 1 ${player1Id} was categorized with score ${categorization1.newScore}`);
+      }
+      if (categorization2.wasCategorized) {
+        console.log(`[registerCoupleForTournamentAndRemoveIndividual] Player 2 ${player2Id} was categorized with score ${categorization2.newScore}`);
+      }
+    }
+
+    // Check existing inscriptions for both players
+    const { data: existingInscriptions, error: checkError } = await supabase
+      .from('inscriptions')
+      .select(`
+        id, 
+        player_id, 
+        couple_id,
+        couples (
+          id,
+          player1_id,
+          player2_id
+        )
+      `)
+      .eq('tournament_id', tournamentId)
+      .eq('is_pending', false)
+      .or(`player_id.eq.${player1Id},player_id.eq.${player2Id}`);
+
+    if (checkError) {
+      console.error("[registerCoupleForTournamentAndRemoveIndividual] Error checking existing inscriptions:", checkError);
+      return { success: false, error: "Error al verificar inscripciones existentes." };
+    }
+
+    console.log(`[registerCoupleForTournamentAndRemoveIndividual] Found ${existingInscriptions?.length || 0} existing inscriptions:`, existingInscriptions);
+
+    // Analyze existing inscriptions
+    let individualInscriptionToRemove: any = null;
+    let convertedFrom: 'player1' | 'player2' | null = null;
+    let otherPlayerInCouple = false;
+
+    if (existingInscriptions && existingInscriptions.length > 0) {
+      for (const inscription of existingInscriptions) {
+        // Check for individual inscriptions
+        if (inscription.player_id && !inscription.couple_id) {
+          if (inscription.player_id === player1Id) {
+            individualInscriptionToRemove = inscription;
+            convertedFrom = 'player1';
+          } else if (inscription.player_id === player2Id) {
+            individualInscriptionToRemove = inscription;
+            convertedFrom = 'player2';
+          }
+        }
+        // Check if either player is already in a couple
+        else if (inscription.couple_id && inscription.couples) {
+          const couple = Array.isArray(inscription.couples) ? inscription.couples[0] : inscription.couples;
+          if (couple && (
+            couple.player1_id === player1Id || 
+            couple.player1_id === player2Id ||
+            couple.player2_id === player1Id || 
+            couple.player2_id === player2Id
+          )) {
+            otherPlayerInCouple = true;
+          }
+        }
+      }
+    }
+
+    console.log(`[registerCoupleForTournamentAndRemoveIndividual] Analysis results:`, {
+      individualInscriptionToRemove: individualInscriptionToRemove ? { id: individualInscriptionToRemove.id, player_id: individualInscriptionToRemove.player_id } : null,
+      convertedFrom,
+      otherPlayerInCouple
+    });
+
+    // Validate conversion conditions
+    if (otherPlayerInCouple) {
+      return { 
+        success: false, 
+        error: "Uno de los jugadores ya está inscrito en otra pareja para este torneo." 
+      };
+    }
+
+    if (!individualInscriptionToRemove) {
+      // Neither player has individual registration, use regular couple registration
+      console.log("[registerCoupleForTournamentAndRemoveIndividual] No individual registration found, proceeding with regular couple registration");
+      const result = await registerCoupleForTournament(tournamentId, player1Id, player2Id);
+      return {
+        ...result,
+        convertedFrom: null,
+        message: result.success ? "Pareja inscrita correctamente" : result.error
+      };
+    }
+
+    // Create or find the couple
+    const { data: existingCouple, error: findCoupleError } = await supabase
+      .from('couples')
+      .select('id')
+      .or(`and(player1_id.eq.${player1Id},player2_id.eq.${player2Id}),and(player1_id.eq.${player2Id},player2_id.eq.${player1Id})`)
+      .maybeSingle();
+
+    if (findCoupleError) {
+      console.error("[registerCoupleForTournamentAndRemoveIndividual] Error checking existing couple:", findCoupleError);
+      return { success: false, error: "Error al verificar pareja existente." };
+    }
+
+    let coupleIdToInsert: string;
+    
+    if (existingCouple) {
+      coupleIdToInsert = existingCouple.id;
+    } else {
+      // Create new couple
+      const { data: newCouple, error: coupleError } = await supabase
+        .from('couples')
+        .insert({ player1_id: player1Id, player2_id: player2Id })
+        .select('id')
+        .single();
+      
+      if (coupleError || !newCouple?.id) {
+        console.error("[registerCoupleForTournamentAndRemoveIndividual] Error creating couple:", coupleError);
+        return { success: false, error: "No se pudo crear la pareja." };
+      }
+      coupleIdToInsert = newCouple.id;
+    }
+
+    // Check for existing couple inscription
+    const { data: existingCoupleInscription, error: checkCoupleError } = await supabase
+      .from('inscriptions')
+      .select('id')
+      .eq('tournament_id', tournamentId)
+      .eq('couple_id', coupleIdToInsert)
+      .eq('is_pending', false)
+      .maybeSingle();
+
+    if (checkCoupleError) {
+      console.error("[registerCoupleForTournamentAndRemoveIndividual] Error checking existing couple inscription:", checkCoupleError);
+      return { success: false, error: "Error al verificar inscripción de pareja existente." };
+    }
+    
+    if (existingCoupleInscription) {
+      return { success: false, error: "Esta pareja ya está inscrita en el torneo." };
+    }
+
+    // Strategy: Create new couple inscription and delete individual inscription
+    
+    // First, create the new couple inscription
+    // We'll use the player_id of the player who was individually registered as the main reference
+    const { data: newInscription, error: insertError } = await supabase
+      .from('inscriptions')
+      .insert({
+        tournament_id: tournamentId,
+        couple_id: coupleIdToInsert,
+        player_id: individualInscriptionToRemove.player_id, // Keep the original player_id as reference
+        is_pending: false
+      })
+      .select('id')
+      .single();
+      
+    if (insertError || !newInscription) {
+      console.error("[registerCoupleForTournamentAndRemoveIndividual] Error creating couple inscription:", insertError);
+      return { success: false, error: "No se pudo crear la inscripción de pareja." };
+    }
+    
+    // Then, delete the individual inscription
+    const { error: deleteError } = await supabase
+      .from('inscriptions')
+      .delete()
+      .eq('id', individualInscriptionToRemove.id);
+      
+    if (deleteError) {
+      console.error("[registerCoupleForTournamentAndRemoveIndividual] Error deleting individual inscription:", deleteError);
+      // Try to rollback by deleting the couple inscription we just created
+      await supabase
+        .from('inscriptions')
+        .delete()
+        .eq('id', newInscription.id);
+      return { success: false, error: "No se pudo eliminar la inscripción individual." };
+    }
+    
+    console.log(`[registerCoupleForTournamentAndRemoveIndividual] Successfully converted individual inscription ${individualInscriptionToRemove.id} to couple inscription ${newInscription.id} for couple ${coupleIdToInsert}`);
+    
+    revalidatePath(`/tournaments/${tournamentId}`);
+    
+    const convertedPlayerName = convertedFrom === 'player1' ? 'primer jugador' : 'segundo jugador';
+    return { 
+      success: true, 
+      inscription: newInscription,
+      convertedFrom,
+      message: `Inscripción convertida exitosamente. El ${convertedPlayerName} que estaba inscrito individualmente ahora forma pareja contigo.`
+    };
+
+  } catch (error: any) {
+    console.error("[registerCoupleForTournamentAndRemoveIndividual] Unexpected error:", error);
+    return { 
+      success: false, 
+      error: `Error inesperado al convertir inscripción: ${error.message}` 
+    };
+  }
+}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Search, UserPlus, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { registerCouple } from "../utils/registration-service"
+import { registerCoupleForTournamentAndRemoveIndividual } from '@/app/api/tournaments/actions'
 import PlayerSearch from "../ui/player-search"
 import PlayerSearchResults from "../ui/player-search-results"
 import CouplePreview from "../ui/couple-preview"
@@ -96,13 +97,18 @@ export default function ClubCoupleForm({ tournamentId, onComplete, players }: Cl
     setIsSubmitting(true)
     
     try {
-      const result = await registerCouple(tournamentId, selectedPlayer1Id, selectedPlayer2Id)
+      // Use the new function that handles individual-to-couple conversion
+      const result = await registerCoupleForTournamentAndRemoveIndividual(tournamentId, selectedPlayer1Id, selectedPlayer2Id)
 
       if (result.success) {
-        alert("¡Pareja registrada con éxito!")
+        if (result.convertedFrom) {
+          alert(result.message || "¡Inscripción convertida exitosamente! La inscripción individual se ha convertido a pareja.")
+        } else {
+          alert("¡Pareja registrada con éxito!")
+        }
         onComplete(true)
       } else {
-        alert("Error al registrar la pareja.")
+        alert(result.error || "Error al registrar la pareja.")
         onComplete(false)
       }
     } catch (error) {

@@ -14,7 +14,7 @@ import CouplePreview from './components/CouplePreview'
 import RegistrationActions from './components/RegistrationActions'
 
 // Import backend functions
-import { registerCoupleForTournament } from '@/app/api/tournaments/actions'
+import { registerCoupleForTournament, registerCoupleForTournamentAndRemoveIndividual } from '@/app/api/tournaments/actions'
 import { createPlayerForCouple } from '@/app/api/players/actions'
 
 export default function CoupleRegistrationAdvanced({
@@ -54,19 +54,32 @@ export default function CoupleRegistrationAdvanced({
       
       // Escenario 1: Ambos jugadores existentes
       if (player1.type === 'existing' && player2.type === 'existing') {
-        const result = await registerCoupleForTournament(
+        console.log("🚀🚀🚀 [Frontend] Llamando registerCoupleForTournamentAndRemoveIndividual 🚀🚀🚀");
+        console.log("Player IDs:", { player1Id: player1.existingPlayer!.id, player2Id: player2.existingPlayer!.id });
+        // Use the new function that handles individual-to-couple conversion
+        const result = await registerCoupleForTournamentAndRemoveIndividual(
           tournamentId, 
           player1.existingPlayer!.id, 
           player2.existingPlayer!.id
         )
         
         if (result.success) {
+          let toastTitle = "¡Pareja registrada!"
+          let toastDescription = "La pareja se ha inscrito exitosamente en el torneo"
+          
+          // If conversion happened, show special message
+          if (result.convertedFrom) {
+            toastTitle = "¡Inscripción convertida!"
+            toastDescription = result.message || "Se ha convertido la inscripción individual a pareja exitosamente"
+          }
+          
           toast({
-            title: "¡Pareja registrada!",
-            description: "La pareja se ha inscrito exitosamente en el torneo",
+            title: toastTitle,
+            description: toastDescription,
           })
           onComplete(true)
         } else {
+          console.error('[CoupleRegistrationAdvanced] Existing players registration error:', result.error)
           toast({
             title: "Error en el registro",
             description: result.error || "No se pudo registrar la pareja",
@@ -128,16 +141,26 @@ export default function CoupleRegistrationAdvanced({
         player2Id = player2.existingPlayer!.id
       }
       
-      // Registrar la pareja con los IDs obtenidos
-      const result = await registerCoupleForTournament(tournamentId, player1Id, player2Id)
+      // Registrar la pareja con los IDs obtenidos usando la nueva función
+      const result = await registerCoupleForTournamentAndRemoveIndividual(tournamentId, player1Id, player2Id)
       
       if (result.success) {
+        let toastTitle = "¡Pareja registrada!"
+        let toastDescription = "La pareja se ha inscrito exitosamente en el torneo"
+        
+        // If conversion happened, show special message
+        if (result.convertedFrom) {
+          toastTitle = "¡Inscripción convertida!"
+          toastDescription = result.message || "Se ha convertido la inscripción individual a pareja exitosamente"
+        }
+        
         toast({
-          title: "¡Pareja registrada!",
-          description: "La pareja se ha inscrito exitosamente en el torneo",
+          title: toastTitle,
+          description: toastDescription,
         })
         onComplete(true)
       } else {
+        console.error('[CoupleRegistrationAdvanced] Registration error:', result.error)
         toast({
           title: "Error en el registro",
           description: result.error || "No se pudo registrar la pareja",
@@ -148,6 +171,7 @@ export default function CoupleRegistrationAdvanced({
       
     } catch (error) {
       console.error('Error registrando pareja:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "No se pudo registrar la pareja. Intente nuevamente.",

@@ -73,13 +73,17 @@ export default function TournamentCouplesTab({
     if (!coupleToDelete) return
 
     setIsDeleting(true)
+    const isUserCouple = isUserInCouple(coupleToDelete)
+    
     try {
       const result = await removeCoupleFromTournament(tournamentId, coupleToDelete.id)
 
       if (result.success) {
         toast({
-          title: "Pareja eliminada",
-          description: result.message,
+          title: isUserCouple ? "Inscripción cancelada" : "Pareja eliminada",
+          description: isUserCouple 
+            ? "Tu inscripción de pareja ha sido cancelada exitosamente" 
+            : result.message,
           variant: "default"
         })
         setDeleteCoupleDialogOpen(false)
@@ -87,7 +91,7 @@ export default function TournamentCouplesTab({
         window.location.reload()
       } else {
         toast({
-          title: "Error al eliminar",
+          title: isUserCouple ? "Error al cancelar inscripción" : "Error al eliminar",
           description: result.message,
           variant: "destructive"
         })
@@ -96,7 +100,9 @@ export default function TournamentCouplesTab({
       console.error("Error deleting couple:", error)
       toast({
         title: "Error inesperado",
-        description: "Ocurrió un error al eliminar la pareja.",
+        description: isUserCouple 
+          ? "Ocurrió un error al cancelar tu inscripción." 
+          : "Ocurrió un error al eliminar la pareja.",
         variant: "destructive"
       })
     } finally {
@@ -109,6 +115,12 @@ export default function TournamentCouplesTab({
     const firstName = playerInfo.first_name || ""
     const lastName = playerInfo.last_name || ""
     return `${firstName} ${lastName}`.trim() || "—"
+  }
+
+  // Check if the logged-in user is part of this couple
+  const isUserInCouple = (couple: CoupleInfo) => {
+    if (!isPlayer || !userDetails?.player_id) return false
+    return couple.player_1_id === userDetails.player_id || couple.player_2_id === userDetails.player_id
   }
 
   const handleRegisterCoupleClick = () => {
@@ -196,14 +208,31 @@ export default function TournamentCouplesTab({
                     </TableCell>
                     {!isTournamentActive && (
                       <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteCoupleClick(couple)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-2 justify-center">
+                          {/* Show "Cancel my registration" button if user is part of this couple */}
+                          {isUserInCouple(couple) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteCoupleClick(couple)}
+                              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
+                            >
+                              Cancelar mi inscripción
+                            </Button>
+                          )}
+                          
+                          {/* Show admin delete button only for clubs */}
+                          {isClub && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteCoupleClick(couple)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
@@ -272,10 +301,16 @@ export default function TournamentCouplesTab({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Trash2 className="h-5 w-5 text-red-600" />
-              ¿Eliminar pareja del torneo?
+              {coupleToDelete && isUserInCouple(coupleToDelete) 
+                ? "¿Cancelar tu inscripción de pareja?" 
+                : "¿Eliminar pareja del torneo?"
+              }
             </DialogTitle>
             <DialogDescription>
-              Esta acción eliminará permanentemente a la pareja del torneo. No se puede deshacer.
+              {coupleToDelete && isUserInCouple(coupleToDelete)
+                ? "Esta acción cancelará tu inscripción como pareja en este torneo. No se puede deshacer."
+                : "Esta acción eliminará permanentemente a la pareja del torneo. No se puede deshacer."
+              }
             </DialogDescription>
           </DialogHeader>
 
@@ -325,12 +360,12 @@ export default function TournamentCouplesTab({
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Eliminando...
+                  {coupleToDelete && isUserInCouple(coupleToDelete) ? "Cancelando..." : "Eliminando..."}
                 </>
               ) : (
                 <>
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Eliminar
+                  {coupleToDelete && isUserInCouple(coupleToDelete) ? "Cancelar Inscripción" : "Eliminar"}
                 </>
               )}
             </Button>

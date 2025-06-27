@@ -1,17 +1,17 @@
 // Import any necessary API functions
-import { registerCoupleForTournament } from "@/app/api/tournaments/actions"
+import { registerCoupleForTournament, registerCoupleForTournamentAndRemoveIndividual } from "@/app/api/tournaments/actions"
 
 /**
- * Register a couple for a tournament
+ * Register a couple for a tournament (with automatic individual-to-couple conversion)
  * @param tournamentId Tournament ID
  * @param player1Id First player ID
  * @param player2Id Second player ID
- * @returns Result object with success flag
+ * @returns Result object with success flag and conversion info
  */
 export async function registerCouple(tournamentId: string, player1Id: string, player2Id: string) {
   try {
-    // Call the API function to register the couple
-    const result = await registerCoupleForTournament(tournamentId, player1Id, player2Id)
+    // Use the new function that handles individual-to-couple conversion
+    const result = await registerCoupleForTournamentAndRemoveIndividual(tournamentId, player1Id, player2Id)
     
     return result
   } catch (error) {

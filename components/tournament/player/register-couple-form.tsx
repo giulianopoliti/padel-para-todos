@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { registerCoupleForTournament } from "@/app/api/tournaments/actions"
+import { registerCoupleForTournament, registerCoupleForTournamentAndRemoveIndividual } from "@/app/api/tournaments/actions"
 import { createPlayerForCouple } from "@/app/api/players/actions"
 import { useUser } from "@/contexts/user-context"
 import { Search, UserPlus, AlertCircle, Users, User, Phone, CreditCard } from "lucide-react"
@@ -135,15 +135,29 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
     setIsSubmitting(true)
 
     try {
-      const result = await registerCoupleForTournament(tournamentId, userDetails.player_id, selectedCompanionId)
+      console.log("🚀🚀🚀 [RegisterCoupleForm] Llamando registerCoupleForTournamentAndRemoveIndividual 🚀🚀🚀");
+      console.log("Player IDs:", { player1Id: userDetails.player_id, player2Id: selectedCompanionId });
+      
+      // Use the new function that handles individual-to-couple conversion
+      const result = await registerCoupleForTournamentAndRemoveIndividual(tournamentId, userDetails.player_id, selectedCompanionId)
 
       if (result.success) {
+        let toastTitle = "¡Pareja registrada!"
+        let toastDescription = "Te has registrado exitosamente en pareja para el torneo"
+        
+        // If conversion happened, show special message
+        if (result.convertedFrom) {
+          toastTitle = "¡Inscripción convertida!"
+          toastDescription = result.message || "Se ha convertido tu inscripción individual a pareja exitosamente"
+        }
+        
         toast({
-          title: "¡Pareja registrada!",
-          description: "Te has registrado exitosamente en pareja para el torneo",
+          title: toastTitle,
+          description: toastDescription,
         })
         onComplete(true)
       } else {
+        console.error('[RegisterCoupleForm] Registration error:', result.error)
         toast({
           title: "Error en el registro",
           description: result.error || "No se pudo registrar la pareja",
@@ -199,16 +213,26 @@ export default function RegisterCoupleForm({ tournamentId, onComplete, players }
       })
 
       if (newPlayerResult.success && newPlayerResult.playerId) {
-        // Registrar la pareja con el nuevo jugador
-        const result = await registerCoupleForTournament(tournamentId, userDetails.player_id, newPlayerResult.playerId)
+        // Registrar la pareja con el nuevo jugador usando la nueva función
+        const result = await registerCoupleForTournamentAndRemoveIndividual(tournamentId, userDetails.player_id, newPlayerResult.playerId)
         
         if (result.success) {
+          let toastTitle = "¡Pareja registrada!"
+          let toastDescription = "Se ha registrado la pareja con el nuevo jugador exitosamente"
+          
+          // If conversion happened, show special message
+          if (result.convertedFrom) {
+            toastTitle = "¡Inscripción convertida!"
+            toastDescription = result.message || "Se ha convertido tu inscripción individual a pareja con el nuevo jugador"
+          }
+          
           toast({
-            title: "¡Pareja registrada!",
-            description: "Se ha registrado la pareja con el nuevo jugador exitosamente",
+            title: toastTitle,
+            description: toastDescription,
           })
           onComplete(true)
         } else {
+          console.error('[RegisterCoupleForm] New player registration error:', result.error)
           toast({
             title: "Error en el registro de pareja",
             description: result.error || "El jugador se creó pero no se pudo registrar la pareja",

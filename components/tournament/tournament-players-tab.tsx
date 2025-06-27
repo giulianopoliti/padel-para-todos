@@ -11,6 +11,8 @@ import RegisterPlayerForm from "./club/register-player-form"
 import { pairIndividualPlayers, removePlayerFromTournament, registerPlayerForTournament } from "@/app/api/tournaments/actions"
 import { useUser } from "@/contexts/user-context"
 import AuthRequiredDialog from "@/components/tournament/auth-required-dialog"
+import CoupleRegistrationAdvanced from "@/components/tournament/couple-registration-advanced"
+import RegisterCoupleForm from "@/components/tournament/player/register-couple-form"
 
 interface PlayerInfo {
   id: string
@@ -54,6 +56,7 @@ export default function TournamentPlayersTab({
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false)
   const [isCancelingMyself, setIsCancelingMyself] = useState(false)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
+  const [registerCoupleDialogOpen, setRegisterCoupleDialogOpen] = useState(false)
   
   const { toast } = useToast()
   const { user, userDetails } = useUser()
@@ -287,6 +290,31 @@ export default function TournamentPlayersTab({
     setShowRegisterConfirmation(true)
   }
 
+  const handleRegisterCoupleClick = () => {
+    if (!user) {
+      setAuthDialogOpen(true)
+      return
+    }
+    
+    if (!isPlayer && userDetails?.role !== 'CLUB') {
+      toast({
+        title: "Sin permisos para inscripción",
+        description: "Solo los jugadores y clubes pueden inscribir parejas.",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    setRegisterCoupleDialogOpen(true)
+  }
+
+  const handleRegisterCoupleSuccess = (wasSuccessful: boolean = true) => {
+    setRegisterCoupleDialogOpen(false)
+    if (wasSuccessful) {
+      window.location.reload()
+    }
+  }
+
   return (
     <>
       <div className="p-6 border-b border-gray-200 bg-slate-50">
@@ -300,7 +328,7 @@ export default function TournamentPlayersTab({
           </div>
 
           <div className="flex gap-2">
-            {canPairPlayers && (
+            {canPairPlayers && user && (
               <Button
                 onClick={() => setPairPlayersDialogOpen(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -313,23 +341,41 @@ export default function TournamentPlayersTab({
             {!isTournamentActive && (
               <>
                 {isPlayer && !isPlayerAlreadyRegistered ? (
-                  <Button
-                    onClick={handleRegisterMyselfClick}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    disabled={isMaxPlayersReached}
-                  >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Inscribirme solo
-                  </Button>
+                  <>
+                    <Button
+                      onClick={handleRegisterMyselfClick}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      disabled={isMaxPlayersReached}
+                    >
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Inscribirme solo
+                    </Button>
+                    <Button
+                      onClick={handleRegisterCoupleClick}
+                      className="bg-slate-900 hover:bg-slate-800 text-white"
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      Inscribir pareja
+                    </Button>
+                  </>
                 ) : !user ? (
-                  <Button
-                    onClick={handleRegisterMyselfClick}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    disabled={isMaxPlayersReached}
-                  >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Inscribirme solo
-                  </Button>
+                  <>
+                    <Button
+                      onClick={handleRegisterMyselfClick}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      disabled={isMaxPlayersReached}
+                    >
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Inscribirme solo
+                    </Button>
+                    <Button
+                      onClick={handleRegisterCoupleClick}
+                      className="bg-slate-900 hover:bg-slate-800 text-white"
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      Inscribir pareja
+                    </Button>
+                  </>
                 ) : isPlayer && isPlayerAlreadyRegistered ? (
                   <div className="flex items-center gap-2">
                     <div className="bg-green-50 border border-green-200 rounded-md px-3 py-2">
@@ -344,6 +390,13 @@ export default function TournamentPlayersTab({
                       className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
                     >
                       Cancelar inscripción
+                    </Button>
+                    <Button
+                      onClick={handleRegisterCoupleClick}
+                      className="bg-slate-900 hover:bg-slate-800 text-white"
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      Inscribir pareja
                     </Button>
                   </div>
                 ) : !isPlayer ? (
@@ -441,23 +494,41 @@ export default function TournamentPlayersTab({
             {!isTournamentActive && (
               <>
                 {isPlayer && !isPlayerAlreadyRegistered ? (
-                  <Button
-                    onClick={handleRegisterMyselfClick}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    disabled={isMaxPlayersReached}
-                  >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Inscribirme solo
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleRegisterMyselfClick}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      disabled={isMaxPlayersReached}
+                    >
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Inscribirme solo
+                    </Button>
+                    <Button
+                      onClick={handleRegisterCoupleClick}
+                      className="bg-slate-900 hover:bg-slate-800 text-white"
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      Inscribir pareja
+                    </Button>
+                  </div>
                 ) : !user ? (
-                  <Button
-                    onClick={handleRegisterMyselfClick}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    disabled={isMaxPlayersReached}
-                  >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Inscribirme solo
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleRegisterMyselfClick}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      disabled={isMaxPlayersReached}
+                    >
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Inscribirme solo
+                    </Button>
+                    <Button
+                      onClick={handleRegisterCoupleClick}
+                      className="bg-slate-900 hover:bg-slate-800 text-white"
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      Inscribir pareja
+                    </Button>
+                  </div>
                 ) : !isPlayer ? (
                   <Button
                     onClick={() => setRegisterPlayerDialogOpen(true)}
@@ -809,6 +880,39 @@ export default function TournamentPlayersTab({
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para inscribir pareja */}
+      <Dialog open={registerCoupleDialogOpen} onOpenChange={setRegisterCoupleDialogOpen}>
+        <DialogContent className={isPlayer ? "sm:max-w-[800px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[1000px] max-h-[95vh] overflow-y-auto"}>
+          <DialogHeader>
+            <DialogTitle>
+              {isPlayer ? "Inscripción en Pareja" : "Sistema Avanzado de Inscripción de Parejas"}
+            </DialogTitle>
+            <DialogDescription>
+              {isPlayer 
+                ? "Registra una pareja para el torneo" 
+                : "Registre parejas de manera flexible: combine jugadores nuevos y existentes según sus necesidades"
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isPlayer ? (
+            <RegisterCoupleForm
+              tournamentId={tournamentId}
+              onComplete={handleRegisterCoupleSuccess}
+              players={allPlayers}
+            />
+          ) : (
+            <CoupleRegistrationAdvanced
+              tournamentId={tournamentId}
+              onComplete={handleRegisterCoupleSuccess}
+              players={allPlayers}
+              isClubMode={true}
+              userPlayerId={userDetails?.player_id || null}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
