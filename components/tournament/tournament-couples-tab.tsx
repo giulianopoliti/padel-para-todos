@@ -10,6 +10,7 @@ import CoupleRegistrationAdvanced from "@/components/tournament/couple-registrat
 import RegisterCoupleForm from "@/components/tournament/player/register-couple-form"
 import { removeCoupleFromTournament } from "@/app/api/tournaments/actions"
 import { useUser } from "@/contexts/user-context"
+import AuthRequiredDialog from "@/components/tournament/auth-required-dialog"
 
 interface PlayerInfo {
   id: string
@@ -47,13 +48,16 @@ export default function TournamentCouplesTab({
   const [deleteCoupleDialogOpen, setDeleteCoupleDialogOpen] = useState(false)
   const [coupleToDelete, setCoupleToDelete] = useState<CoupleInfo | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [authDialogOpen, setAuthDialogOpen] = useState(false)
   
   const { toast } = useToast()
   const { user, userDetails } = useUser()
 
   const isTournamentActive = tournamentStatus !== "NOT_STARTED"
   const isPlayer = userDetails?.role === 'PLAYER' && userDetails?.player_id
+  const isClub = userDetails?.role === 'CLUB' && userDetails?.club_id
   const currentCouples = coupleInscriptions.length
+  const isLoggedIn = !!user
 
   const handleRegisterSuccess = () => {
     setRegisterCoupleDialogOpen(false)
@@ -107,6 +111,24 @@ export default function TournamentCouplesTab({
     return `${firstName} ${lastName}`.trim() || "—"
   }
 
+  const handleRegisterCoupleClick = () => {
+    if (!isLoggedIn) {
+      setAuthDialogOpen(true)
+      return
+    }
+    
+    if (!isPlayer && !isClub) {
+      toast({
+        title: "Sin permisos para inscripción",
+        description: "Solo los jugadores y clubes pueden inscribir parejas.",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    setRegisterCoupleDialogOpen(true)
+  }
+
   return (
     <>
       <div className="p-6 border-b border-gray-200 bg-slate-50">
@@ -120,7 +142,7 @@ export default function TournamentCouplesTab({
 
           {!isTournamentActive && (
             <Button
-              onClick={() => setRegisterCoupleDialogOpen(true)}
+              onClick={handleRegisterCoupleClick}
               className="bg-slate-900 hover:bg-slate-800 text-white"
             >
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -200,7 +222,7 @@ export default function TournamentCouplesTab({
             </p>
             {!isTournamentActive && (
               <Button
-                onClick={() => setRegisterCoupleDialogOpen(true)}
+                onClick={handleRegisterCoupleClick}
                 className="bg-slate-900 hover:bg-slate-800 text-white"
               >
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -315,6 +337,15 @@ export default function TournamentCouplesTab({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo de autenticación requerida */}
+      <AuthRequiredDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        title="Necesitas iniciar sesión"
+        description="Para inscribir una pareja en el torneo necesitas tener una cuenta activa."
+        actionText="inscribir una pareja"
+      />
     </>
   )
 }

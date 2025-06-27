@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast"
 import RegisterPlayerForm from "./club/register-player-form"
 import { pairIndividualPlayers, removePlayerFromTournament, registerPlayerForTournament } from "@/app/api/tournaments/actions"
 import { useUser } from "@/contexts/user-context"
+import AuthRequiredDialog from "@/components/tournament/auth-required-dialog"
 
 interface PlayerInfo {
   id: string
@@ -52,6 +53,7 @@ export default function TournamentPlayersTab({
   const [showRegisterConfirmation, setShowRegisterConfirmation] = useState(false)
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false)
   const [isCancelingMyself, setIsCancelingMyself] = useState(false)
+  const [authDialogOpen, setAuthDialogOpen] = useState(false)
   
   const { toast } = useToast()
   const { user, userDetails } = useUser()
@@ -267,6 +269,24 @@ export default function TournamentPlayersTab({
     return `${firstName} ${lastName}`.trim() || "Jugador sin nombre"
   }
 
+  const handleRegisterMyselfClick = () => {
+    if (!user) {
+      setAuthDialogOpen(true)
+      return
+    }
+    
+    if (!isPlayer) {
+      toast({
+        title: "Sin permisos para inscripción",
+        description: "Solo los jugadores pueden inscribirse individualmente.",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    setShowRegisterConfirmation(true)
+  }
+
   return (
     <>
       <div className="p-6 border-b border-gray-200 bg-slate-50">
@@ -294,7 +314,16 @@ export default function TournamentPlayersTab({
               <>
                 {isPlayer && !isPlayerAlreadyRegistered ? (
                   <Button
-                    onClick={() => setShowRegisterConfirmation(true)}
+                    onClick={handleRegisterMyselfClick}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    disabled={isMaxPlayersReached}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Inscribirme solo
+                  </Button>
+                ) : !user ? (
+                  <Button
+                    onClick={handleRegisterMyselfClick}
                     className="bg-green-600 hover:bg-green-700 text-white"
                     disabled={isMaxPlayersReached}
                   >
@@ -413,7 +442,16 @@ export default function TournamentPlayersTab({
               <>
                 {isPlayer && !isPlayerAlreadyRegistered ? (
                   <Button
-                    onClick={() => setShowRegisterConfirmation(true)}
+                    onClick={handleRegisterMyselfClick}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    disabled={isMaxPlayersReached}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Inscribirme solo
+                  </Button>
+                ) : !user ? (
+                  <Button
+                    onClick={handleRegisterMyselfClick}
                     className="bg-green-600 hover:bg-green-700 text-white"
                     disabled={isMaxPlayersReached}
                   >
@@ -773,6 +811,15 @@ export default function TournamentPlayersTab({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo de autenticación requerida */}
+      <AuthRequiredDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        title="Necesitas iniciar sesión"
+        description="Para inscribirte en el torneo necesitas tener una cuenta activa como jugador."
+        actionText="inscribirte"
+      />
     </>
   )
 }
