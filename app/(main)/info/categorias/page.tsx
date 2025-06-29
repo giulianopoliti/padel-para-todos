@@ -168,17 +168,25 @@ export default function CategoriasInfoPage() {
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-2">Al GANAR un partido:</h4>
                     <ul className="space-y-2 text-sm text-gray-600">
-                      <li>• <strong>+3 puntos base</strong> por victoria</li>
-                      <li>• <strong>+1% de los puntos del rival perdedor</strong></li>
-                      <li>• Los puntos transferidos se dividen entre ambos jugadores ganadores</li>
+                      <li>• <strong>+12 puntos</strong> por victoria</li>
+                      <li>• <strong>Sin bonificaciones adicionales</strong></li>
+                      <li>• Ambos jugadores de la pareja ganadora reciben 12 puntos</li>
                     </ul>
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-2">Al PERDER un partido:</h4>
                     <ul className="space-y-2 text-sm text-gray-600">
-                      <li>• <strong>+1 punto base</strong> por participación</li>
-                      <li>• <strong>-1% de tus puntos actuales</strong> transferidos al ganador</li>
-                      <li>• Nunca pierdes más puntos de los que tienes</li>
+                      <li>• <strong>-8 puntos</strong> por perder</li>
+                      <li>• <strong>Se restan puntos del ranking</strong></li>
+                      <li>• Sistema simple y directo</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Casos especiales:</h4>
+                    <ul className="space-y-2 text-sm text-gray-600">
+                      <li>• <strong>BYE (pase automático):</strong> +0 puntos</li>
+                      <li>• <strong>Avance sin jugar</strong> no otorga puntos</li>
+                      <li>• Solo los partidos jugados afectan al ranking</li>
                     </ul>
                   </div>
                 </div>
@@ -205,13 +213,13 @@ export default function CategoriasInfoPage() {
                     <div className="space-y-2 text-sm">
                       <div className="border-l-4 border-green-500 pl-3">
                         <p><strong>Si gana A:</strong></p>
-                        <p>A: +3 + 12 = +15 pts → 815 pts</p>
-                        <p>B: +1 - 12 = -11 pts → 1189 pts</p>
+                        <p>A: +12 pts → 812 pts</p>
+                        <p>B: -8 pts → 1192 pts</p>
                       </div>
                       <div className="border-l-4 border-red-500 pl-3">
                         <p><strong>Si gana B:</strong></p>
-                        <p>B: +3 + 8 = +11 pts → 1211 pts</p>
-                        <p>A: +1 - 8 = -7 pts → 793 pts</p>
+                        <p>B: +12 pts → 1212 pts</p>
+                        <p>A: -8 pts → 792 pts</p>
                       </div>
                     </div>
                   </div>

@@ -10,9 +10,11 @@ import { generateZones } from '@/utils/bracket-generator';
 import { generateKnockoutRounds, KnockoutPairing } from "@/utils/bracket-generator";
 import { ZoneWithRankedCouples, CoupleWithStats } from "@/utils/bracket-generator"; 
 
-const POINTS_FOR_WINNING_MATCH = 3;
-const POINTS_FOR_LOSING_MATCH = 1; 
-const SCORE_PERCENTAGE_TO_TRANSFER = 0.01; // 1% 
+// Sistema unificado de puntos para TODO el torneo
+const POINTS_FOR_WINNING_MATCH = 12;
+const POINTS_FOR_LOSING_MATCH = -8; // RESTA 8 puntos
+
+const SCORE_PERCENTAGE_TO_TRANSFER = 0.01; // 1% - DISABLED FOR NOW 
 
 // --- INTERFACES ---
 interface UpdateMatchResultParams {
@@ -290,7 +292,8 @@ async function _calculateAndApplyScoreChanges(
   winningCoupleId: string,
   losingCoupleId: string | null,
   supabase: any,
-  tournamentId?: string
+  tournamentId?: string,
+  matchRound?: string
 ) {
   // IMPORTANTE: Solo asignar puntos si el torneo está TERMINADO
   if (tournamentId) {
@@ -313,6 +316,19 @@ async function _calculateAndApplyScoreChanges(
 
   console.log(`[ScoreUpdate] Tournament is FINISHED or no tournament ID provided. Proceeding with score assignment.`);
 
+  // Si no hay pareja perdedora (BYE), no asignar puntos
+  if (!losingCoupleId) {
+    console.log(`[ScoreUpdate] BYE scenario for winning couple ${winningCoupleId}. NO points awarded (automatic advance).`);
+    return;
+  }
+
+  // Sistema unificado de puntos para todo el torneo
+  const winnerPoints = POINTS_FOR_WINNING_MATCH;
+  const loserPoints = POINTS_FOR_LOSING_MATCH;
+
+  console.log(`[ScoreUpdate] Match round: ${matchRound}, Winner: +${winnerPoints} pts, Loser: ${loserPoints} pts`);
+
+  // Obtener jugadores de la pareja ganadora
   const { data: winnerCouple, error: wcError } = await supabase
     .from('couples')
     .select('player1_id, player2_id')
@@ -328,14 +344,13 @@ async function _calculateAndApplyScoreChanges(
   const winnerP2Id = winnerCouple.player2_id;
   const validWinnerPlayerIds = [winnerP1Id, winnerP2Id].filter(id => typeof id === 'string' && id.length > 0) as string[];
 
-  if (!losingCoupleId) { // Handle BYE (no opponent)
-    for (const pId of validWinnerPlayerIds) {
-        await _updatePlayerScore(pId, POINTS_FOR_WINNING_MATCH, supabase);
-    }
-    console.log(`[ScoreUpdate] BYE scenario for winning couple ${winningCoupleId}. Awarded fixed points.`);
-    return;
+  // Asignar puntos a los ganadores
+  for (const pId of validWinnerPlayerIds) {
+    await _updatePlayerScore(pId, winnerPoints, supabase);
   }
+  console.log(`[ScoreUpdate] Winners awarded ${winnerPoints} points each: ${validWinnerPlayerIds.join(', ')}`);
 
+  // Obtener jugadores de la pareja perdedora
   const { data: loserCouple, error: lcError } = await supabase
     .from('couples')
     .select('player1_id, player2_id')
@@ -343,10 +358,7 @@ async function _calculateAndApplyScoreChanges(
     .single();
 
   if (lcError || !loserCouple) {
-    console.error(`[ScoreUpdate] Error fetching losing couple ${losingCoupleId}. Awarding default points to winners.`);
-    for (const pId of validWinnerPlayerIds) {
-        await _updatePlayerScore(pId, POINTS_FOR_WINNING_MATCH, supabase);
-    }
+    console.error(`[ScoreUpdate] Error fetching losing couple ${losingCoupleId}. Only winners awarded points.`);
     return;
   }
 
@@ -354,33 +366,13 @@ async function _calculateAndApplyScoreChanges(
   const loserP2Id = loserCouple.player2_id;
   const validLoserPlayerIds = [loserP1Id, loserP2Id].filter(id => typeof id === 'string' && id.length > 0) as string[];
 
-  let totalPointsToTransfer = 0;
-  const pointsToDeductFromLosers: { [key: string]: number } = {};
-
+  // Asignar puntos a los perdedores
   for (const pId of validLoserPlayerIds) {
-      const pScore = await _fetchPlayerScore(pId, supabase);
-      if (pScore !== null && pScore > 0) {
-          const transferAmount = Math.floor(pScore * SCORE_PERCENTAGE_TO_TRANSFER);
-          const actualTransfer = Math.min(transferAmount, pScore); // Cannot transfer more than they have
-          pointsToDeductFromLosers[pId] = actualTransfer;
-          totalPointsToTransfer += actualTransfer;
-      }
+    await _updatePlayerScore(pId, loserPoints, supabase);
   }
-  
-  for (const pId of validLoserPlayerIds) {
-      const deduction = pointsToDeductFromLosers[pId] || 0;
-      await _updatePlayerScore(pId, POINTS_FOR_LOSING_MATCH - deduction, supabase);
-  }
+  console.log(`[ScoreUpdate] Losers awarded ${loserPoints} points each: ${validLoserPlayerIds.join(', ')}`);
 
-  if (validWinnerPlayerIds.length > 0) {
-    const pointsPerWinnerFromTransfer = totalPointsToTransfer > 0 ? Math.floor(totalPointsToTransfer / validWinnerPlayerIds.length) : 0;
-    for (const pId of validWinnerPlayerIds) {
-        await _updatePlayerScore(pId, POINTS_FOR_WINNING_MATCH + pointsPerWinnerFromTransfer, supabase);
-    }
-  } else {
-      console.warn(`[ScoreUpdate] No valid player IDs found for winning couple ${winningCoupleId}. Points not distributed.`);
-  }
-  console.log(`[ScoreUpdate] Scores updated. Winner: ${winningCoupleId}, Loser: ${losingCoupleId}. Transferred total: ${totalPointsToTransfer}`);
+  console.log(`[ScoreUpdate] Match completed. Winners: ${winningCoupleId} (+${winnerPoints} pts), Losers: ${losingCoupleId} (${loserPoints} pts)`);
 }
 
 // Función para calcular y asignar TODOS los puntos cuando el torneo termine
@@ -1322,7 +1314,7 @@ export async function fetchTournamentZones(tournamentId: string) {
                   if (m.winner_id === couple.id) w++; else l++; 
                 }
               });
-              pts = w * POINTS_FOR_WINNING_MATCH + l * POINTS_FOR_LOSING_MATCH; // Zone points based on constants
+              pts = w * POINTS_FOR_WINNING_MATCH + l * Math.abs(POINTS_FOR_LOSING_MATCH); // Usar valor absoluto para el cálculo de zonas
             }
             return { 
               ...couple, 
@@ -1376,7 +1368,7 @@ export async function updateMatchResult({ matchId, result_couple1, result_couple
         else if (couple2_id === actualWinnerCoupleId) { winningCoupleId_param = couple2_id; losingCoupleId_param = couple1_id; }
         
         if (winningCoupleId_param) {
-          await _calculateAndApplyScoreChanges(winningCoupleId_param, losingCoupleId_param, supabase, tournamentIdForReval || undefined);
+          await _calculateAndApplyScoreChanges(winningCoupleId_param, losingCoupleId_param, supabase, tournamentIdForReval || undefined, updatedMatch.round);
         }
       } else { 
           console.warn(`[updateMatchResult] Match ${matchId} completed without a winner_id in DB. Applying fixed points for participation.`);
@@ -1752,8 +1744,9 @@ export async function createKnockoutStageMatchesAction(tournamentId: string) {
       if (result.success && result.match) {
         createdMatches.push(result.match);
         if (matchData.status === 'COMPLETED' && matchData.winner_id) { 
-          // If it's a BYE match, we might want to award points if your system does that.
-          // await _calculateAndApplyScoreChanges(matchData.winner_id, null, supabase); // Example if BYEs grant points
+          // BYE matches do NOT award points - players advance automatically without playing
+          // await _calculateAndApplyScoreChanges(matchData.winner_id, null, supabase); // BYE matches don't award points
+          console.log(`[createKnockoutStageMatchesAction] BYE match created for ${matchData.winner_id}, no points awarded.`);
         }
       } else {
         console.error("[createKnockoutStageMatchesAction] Error inserting knockout match:", result.error, "MatchData:", matchData);
@@ -1879,8 +1872,9 @@ export async function advanceToNextStageAction(tournamentId: string) {
           const result = await _createMatch(supabase, matchData);
           if (result.success && result.match) {
             createdNextRMatches.push(result.match);
-            if (matchData.status === 'COMPLETED' && matchData.winner_id) { // BYE match, apply score changes
-              await _calculateAndApplyScoreChanges(matchData.winner_id, null, supabase, tournamentId);
+            if (matchData.status === 'COMPLETED' && matchData.winner_id) { // BYE match, NO points awarded
+              // await _calculateAndApplyScoreChanges(matchData.winner_id, null, supabase, tournamentId); // BYE matches don't award points
+              console.log(`[advanceToNextStageAction] BYE match created for ${matchData.winner_id}, no points awarded.`);
             }
           } else { 
             return { success: false, error: `Error creando partidos para ${nextRound}: ${result.error}` }; 
@@ -4138,10 +4132,10 @@ async function extractCouplesSeededFromDatabase(tournamentId: string, supabase: 
         
         if (winnerId === couple1Id) {
           coupleStats[couple1Id].won++;
-          coupleStats[couple1Id].points += 3; // Puntos por ganar
+          coupleStats[couple1Id].points += POINTS_FOR_WINNING_MATCH; // Puntos por ganar
         } else {
           coupleStats[couple1Id].lost++;
-          coupleStats[couple1Id].points += 1; // Punto por perder
+          coupleStats[couple1Id].points += Math.abs(POINTS_FOR_LOSING_MATCH); // Usar valor absoluto para cálculo
         }
       }
 
@@ -4154,10 +4148,10 @@ async function extractCouplesSeededFromDatabase(tournamentId: string, supabase: 
         
         if (winnerId === couple2Id) {
           coupleStats[couple2Id].won++;
-          coupleStats[couple2Id].points += 3; // Puntos por ganar
+          coupleStats[couple2Id].points += POINTS_FOR_WINNING_MATCH; // Puntos por ganar
         } else {
           coupleStats[couple2Id].lost++;
-          coupleStats[couple2Id].points += 1; // Punto por perder
+          coupleStats[couple2Id].points += Math.abs(POINTS_FOR_LOSING_MATCH); // Usar valor absoluto para cálculo
         }
       }
     });

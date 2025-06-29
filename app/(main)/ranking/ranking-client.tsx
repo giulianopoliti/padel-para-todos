@@ -321,12 +321,12 @@ export default function RankingClient({ initialPlayers, initialCategories, weekl
                         <div className="text-sm text-slate-300 bg-slate-800 p-3 rounded-lg mb-3">
                           <p>El sistema de puntuación se basa en los resultados obtenidos en torneos oficiales:</p>
                           <ul className="list-disc pl-5 mt-2 space-y-1">
-                            <li>Victorias en torneos: 10-25 puntos</li>
-                            <li>Semifinales: 5-15 puntos</li>
-                            <li>Cuartos de final: 3-8 puntos</li>
-                            <li>Participación: 1-3 puntos</li>
+                            <li>Ganar un partido: +12 puntos</li>
+                            <li>Perder un partido: -8 puntos</li>
+                            <li>BYE (pase automático): +0 puntos</li>
+                            <li>Sistema simple y directo</li>
                           </ul>
-                          <p className="mt-2">Los puntos varían según la categoría y nivel del torneo.</p>
+                          <p className="mt-2">Los puntos se asignan al finalizar cada torneo.</p>
                         </div>
                       )}
                     </div>

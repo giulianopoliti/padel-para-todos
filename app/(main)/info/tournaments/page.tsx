@@ -235,17 +235,18 @@ export default function TournamentsInfoPage() {
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Puntos por resultado:</h4>
                   <ul className="space-y-1 text-sm text-gray-600">
-                    <li>• <strong>Ganar:</strong> +3 puntos + 1% de puntos del rival</li>
-                    <li>• <strong>Perder:</strong> +1 punto - 1% de tus puntos</li>
+                    <li>• <strong>Ganar:</strong> +12 puntos</li>
+                    <li>• <strong>Perder:</strong> -8 puntos</li>
+                    <li>• <strong>BYE (pase automático):</strong> +0 puntos</li>
                     <li>• <strong>Los puntos se asignan solo al finalizar el torneo</strong></li>
                   </ul>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Factores que influyen:</h4>
+                  <h4 className="font-semibold text-gray-900 mb-2">Sistema simplificado:</h4>
                   <ul className="space-y-1 text-sm text-gray-600">
-                    <li>• Puntos actuales de tu rival</li>
-                    <li>• Resultado final del torneo</li>
-                    <li>• Los puntos transferidos se dividen entre la pareja</li>
+                    <li>• Puntos fijos sin transferencias</li>
+                    <li>• Mismo sistema para todas las categorías</li>
+                    <li>• Ambos jugadores de la pareja reciben los mismos puntos</li>
                   </ul>
                 </div>
               </div>
