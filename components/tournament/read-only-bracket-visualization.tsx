@@ -89,11 +89,25 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
   const [matchDetailsLoading, setMatchDetailsLoading] = useState(false)
   const [playerDetails, setPlayerDetails] = useState<Record<string, any>>({})
   const bracketRef = useRef<HTMLDivElement>(null)
+  const [viewportWidth, setViewportWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024)
 
-  const matchSpacing = 80
-  const matchHeight = 130
-  const columnWidth = 380
-  const matchWidth = 320
+  // Add responsive viewport tracking
+  useEffect(() => {
+    const updateViewportWidth = () => {
+      setViewportWidth(window.innerWidth)
+    }
+
+    updateViewportWidth()
+    window.addEventListener('resize', updateViewportWidth)
+    return () => window.removeEventListener('resize', updateViewportWidth)
+  }, [])
+
+  // Responsive dimensions
+  const isMobile = viewportWidth < 768
+  const matchSpacing = isMobile ? 40 : 80
+  const matchHeight = isMobile ? 110 : 130  // Adjusted for better mobile footer visibility
+  const columnWidth = isMobile ? 200 : 380  // Adjusted for mobile screens
+  const matchWidth = isMobile ? 185 : 320   // Adjusted to fit mobile screens properly
 
   const loadTournamentData = async () => {
     try {
