@@ -8,7 +8,7 @@ interface TournamentBracketTabProps {
 
 export default function TournamentBracketTab({ tournamentId }: TournamentBracketTabProps) {
   return (
-    <div className="p-8">
+    <div className="h-full flex flex-col">
       <TournamentBracketVisualization tournamentId={tournamentId} />
     </div>
   )

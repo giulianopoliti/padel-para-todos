@@ -2,13 +2,18 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { fetchTournamentMatches } from "@/app/api/tournaments/actions"
 import { getTournamentById } from "@/app/api/tournaments/actions"
 import { advanceToNextStageAction } from "@/app/api/tournaments/actions"
 import { updateMatchResult } from "@/app/api/tournaments/actions"
 import { generateEliminationBracketAction, checkZonesReadyForElimination } from "@/app/api/tournaments/actions"
-import { Loader2, GitFork, CheckCircle, Clock, Trophy, ArrowRight, Settings, Users } from "lucide-react"
+import { getPlayerProfile } from "@/app/api/users"
+import { Loader2, GitFork, CheckCircle, Clock, Trophy, ArrowRight, Settings, Users, Eye } from "lucide-react"
+import Link from "next/link"
 import MatchResultDialog from "@/components/tournament/match-result-dialog"
 import SeedingExampleDemo from "@/components/tournament/seeding-example-demo"
 
@@ -31,6 +36,37 @@ interface Match {
   winner_id?: string | null
   zone_name?: string | null
   order?: number
+  // Additional detailed information from fetchTournamentMatches
+  couple1?: {
+    id: string
+    player1_id: string
+    player2_id: string
+    player1_details?: {
+      id: string
+      first_name: string
+      last_name: string
+    }
+    player2_details?: {
+      id: string
+      first_name: string
+      last_name: string
+    }
+  }
+  couple2?: {
+    id: string
+    player1_id: string
+    player2_id: string
+    player1_details?: {
+      id: string
+      first_name: string
+      last_name: string
+    }
+    player2_details?: {
+      id: string
+      first_name: string
+      last_name: string
+    }
+  }
 }
 
 interface MatchPosition {
@@ -59,18 +95,62 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
   const [error, setError] = useState<string | null>(null)
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [selectedMatchForDetails, setSelectedMatchForDetails] = useState<Match | null>(null)
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
+  const [matchDetailsLoading, setMatchDetailsLoading] = useState(false)
+  const [playerDetails, setPlayerDetails] = useState<Record<string, any>>({})
   const [isTournamentFinished, setIsTournamentFinished] = useState(false)
   const [currentTournamentRound, setCurrentTournamentRound] = useState<string>("")
   const [matchPositions, setMatchPositions] = useState<MatchPosition[]>([])
   const [connectorLines, setConnectorLines] = useState<ConnectorLine[]>([])
   const [zonesReady, setZonesReady] = useState<{ready: boolean; message: string; totalCouples?: number} | null>(null)
+  const [viewportWidth, setViewportWidth] = useState<number>(1200) // Default fallback
   const bracketRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
 
-  const matchSpacing = 80
-  const matchHeight = 130
-  const columnWidth = 380
-  const matchWidth = 320
+  // Update viewport width on mount and resize
+  useEffect(() => {
+    const updateViewportWidth = () => {
+      setViewportWidth(window.innerWidth)
+    }
+    
+    // Set initial width
+    updateViewportWidth()
+    
+    // Add resize listener
+    window.addEventListener('resize', updateViewportWidth)
+    return () => window.removeEventListener('resize', updateViewportWidth)
+  }, [])
+
+  // Responsive sizing based on screen size - SIGNIFICANTLY REDUCED for better fit
+  const isMobile = viewportWidth < 768
+  const matchSpacing = isMobile ? 40 : 50
+  const matchHeight = isMobile ? 110 : 120  // Increased for better footer visibility
+  const columnWidth = isMobile ? 200 : 250  // Slightly increased for better text fit
+  const matchWidth = isMobile ? 185 : 235   // Slightly increased for better text fit
+
+  // Calculate available width for bracket (accounting for sidebar and padding)
+  const availableWidth = viewportWidth - (viewportWidth > 1024 ? 280 : 40)
+
+  // Helper function to format player names with initials
+  const formatPlayerName = (fullName: string | undefined) => {
+    if (!fullName) return ""
+    const nameParts = fullName.trim().split(" ")
+    if (nameParts.length < 2) return fullName // Return as-is if not enough parts
+    
+    const firstName = nameParts[0]
+    const lastName = nameParts.slice(1).join(" ") // Handle multiple last names
+    const firstInitial = firstName.charAt(0).toUpperCase()
+    return `${firstInitial}. ${lastName}`
+  }
+
+  // Helper function to format couple names
+  const formatCoupleNames = (player1Name: string | undefined, player2Name: string | undefined) => {
+    if (!player1Name || !player2Name) return ""
+    const player1 = formatPlayerName(player1Name)
+    const player2 = formatPlayerName(player2Name)
+    return `${player1} / ${player2}`
+  }
 
   const checkZonesStatus = async () => {
     try {
@@ -368,6 +448,42 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
     setIsDialogOpen(true)
   }
 
+  const handleOpenMatchDetails = async (match: Match) => {
+    setSelectedMatchForDetails(match)
+    setIsDetailsDialogOpen(true)
+    setMatchDetailsLoading(true)
+    
+    // Obtener información detallada de todos los jugadores del partido
+    const playerIds = []
+    if (match.couple1?.player1_id) playerIds.push(match.couple1.player1_id)
+    if (match.couple1?.player2_id) playerIds.push(match.couple1.player2_id)
+    if (match.couple2?.player1_id) playerIds.push(match.couple2.player1_id)
+    if (match.couple2?.player2_id) playerIds.push(match.couple2.player2_id)
+    
+    const newPlayerDetails: Record<string, any> = {}
+    
+    try {
+      await Promise.all(
+        playerIds.map(async (playerId) => {
+          const profile = await getPlayerProfile(playerId)
+          if (profile) {
+            newPlayerDetails[playerId] = profile
+          }
+        })
+      )
+      setPlayerDetails(newPlayerDetails)
+    } catch (error) {
+      console.error("Error fetching player details:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron cargar los detalles de los jugadores"
+      })
+    } finally {
+      setMatchDetailsLoading(false)
+    }
+  }
+
   const handleResultSaved = () => {
     setIsDialogOpen(false)
     toast({
@@ -581,15 +697,18 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
 
   const activeRoundsForLayout = roundOrder.filter((round) => matchesByRound[round] && matchesByRound[round].length > 0)
 
-  const totalWidthForLayout = activeRoundsForLayout.length * columnWidth
+  // Dynamic width calculation to fit viewport
+  const baseWidth = activeRoundsForLayout.length * columnWidth
+  const totalWidthForLayout = Math.min(baseWidth, availableWidth - 40) // Ensure it fits with some margin
+  
   const allMatches = Object.values(matchesByRound).flat()
   const maxMatchesInRound = Math.max(...activeRoundsForLayout.map((round) => matchesByRound[round].length))
   const calculatedTotalHeightForLayout = Math.max(600, 60 + maxMatchesInRound * (matchHeight + matchSpacing) + 100)
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col">
       {/* Header con botón de regenerar */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center px-4 lg:px-8 py-4 border-b border-gray-200 bg-white">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Bracket Eliminatorio</h2>
           <p className="text-sm text-gray-600">
@@ -619,16 +738,25 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
 
       <div
         ref={bracketRef}
-        className="tournament-bracket overflow-x-auto overflow-y-auto border border-gray-200 rounded-lg bg-gray-50"
-        style={{ maxHeight: "70vh" }}
+        className="tournament-bracket overflow-x-auto overflow-y-auto bg-gray-50 p-2 lg:p-4"
+        style={{ 
+          height: 'calc(100vh - 280px)',
+          minHeight: '400px',
+          maxWidth: '100%',
+          WebkitOverflowScrolling: 'touch'
+        }}
       >
         <div
-          className="relative py-8"
-          style={{ width: totalWidthForLayout, minHeight: calculatedTotalHeightForLayout }}
+          className="relative py-4 lg:py-6"
+          style={{ 
+            width: Math.min(totalWidthForLayout, availableWidth), 
+            minHeight: calculatedTotalHeightForLayout,
+            minWidth: 'fit-content'
+          }}
         >
           <svg
             className="absolute top-0 left-0 pointer-events-none"
-            width={totalWidthForLayout}
+            width={Math.min(totalWidthForLayout, availableWidth)}
             height={calculatedTotalHeightForLayout}
             style={{ zIndex: 1 }}
           >
@@ -696,9 +824,9 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                     }`}
                   >
                     <div className="flex justify-between items-center min-h-6">
-                      <div className="font-medium text-slate-900 text-sm max-w-[240px]">
+                      <div className="font-medium text-slate-900 text-sm max-w-[170px] truncate">
                         {match.couple1_player1_name && match.couple1_player2_name
-                          ? `${match.couple1_player1_name} / ${match.couple1_player2_name}`
+                          ? formatCoupleNames(match.couple1_player1_name, match.couple1_player2_name)
                           : match.couple1_id === "BYE_MARKER"
                             ? "BYE"
                             : "Por determinar"}
@@ -723,9 +851,9 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                     }`}
                   >
                     <div className="flex justify-between items-center min-h-6">
-                      <div className="font-medium text-slate-900 text-sm max-w-[240px]">
+                      <div className="font-medium text-slate-900 text-sm max-w-[170px] truncate">
                         {match.couple2_player1_name && match.couple2_player2_name
-                          ? `${match.couple2_player1_name} / ${match.couple2_player2_name}`
+                          ? formatCoupleNames(match.couple2_player1_name, match.couple2_player2_name)
                           : match.couple2_id === "BYE_MARKER" || match.couple2_id === null
                             ? "BYE"
                             : "Por determinar"}
@@ -739,28 +867,41 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                   </div>
 
                   {/* Footer */}
-                  <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+                  <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 flex justify-between items-center min-h-[40px]">
                     <div className="flex items-center gap-2">
                       {isCompleted ? (
-                        <CheckCircle className="h-4 w-4 text-emerald-600" />
+                        <CheckCircle className="h-4 w-4 text-emerald-600 flex-shrink-0" />
                       ) : (
-                        <Clock className="h-4 w-4 text-amber-500" />
+                        <Clock className="h-4 w-4 text-amber-500 flex-shrink-0" />
                       )}
                       <span className={`text-xs font-medium ${isCompleted ? "text-emerald-700" : "text-amber-600"}`}>
                         {isCompleted ? "Completado" : "Pendiente"}
                       </span>
                     </div>
 
-                    {!isBye && (
+                    <div className="flex items-center gap-2">
+                      {!isBye && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7 px-2 bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 rounded flex-shrink-0"
+                          onClick={() => handleOpenResultDialog(match)}
+                        >
+                          {isCompleted ? "Editar" : "Cargar"}
+                        </Button>
+                      )}
+                      
+                      {/* Botón del ojo para ver detalles */}
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-xs h-6 px-2 bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 rounded"
-                        onClick={() => handleOpenResultDialog(match)}
+                        className="text-xs h-7 w-7 p-0 bg-white text-blue-600 border border-blue-300 hover:bg-blue-50 rounded flex-shrink-0"
+                        onClick={() => handleOpenMatchDetails(match)}
+                        title="Ver detalles del partido"
                       >
-                        {isCompleted ? "Editar" : "Cargar"}
+                        <Eye className="h-4 w-4" />
                       </Button>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -770,7 +911,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
       </div>
 
       {allCurrentRoundMatchesCompleted() && !isAdvancing && !isTournamentFinished && (
-        <div className="flex justify-center mt-8">
+        <div className="flex justify-center p-6 border-t border-gray-200 bg-white">
           <Button
             onClick={handleAdvanceToNextStage}
             className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-3 rounded-lg shadow-sm"
@@ -781,6 +922,207 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
             {!isAdvancing && <ArrowRight className="ml-2 h-5 w-5" />}
           </Button>
         </div>
+      )}
+
+      {selectedMatchForDetails && (
+        <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-center">
+                Detalles del Partido - {selectedMatchForDetails.round}
+              </DialogTitle>
+            </DialogHeader>
+            
+            {matchDetailsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <span className="ml-2">Cargando detalles...</span>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Header del resultado si está completado */}
+                {selectedMatchForDetails.status === "COMPLETED" && (
+                  <div className="text-center">
+                    <Badge variant="default" className="bg-emerald-600 text-white text-lg px-4 py-2">
+                      Resultado: {selectedMatchForDetails.result_couple1} - {selectedMatchForDetails.result_couple2}
+                    </Badge>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+                  {/* Pareja 1 */}
+                  <div className={`space-y-4 p-6 rounded-lg border-2 ${
+                    selectedMatchForDetails.status === "COMPLETED" && selectedMatchForDetails.winner_id === selectedMatchForDetails.couple1_id
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-gray-200 bg-white"
+                  }`}>
+                    <h3 className="text-lg font-semibold text-center text-gray-800">Pareja 1</h3>
+                    
+                    {/* Jugador 1 de la pareja 1 */}
+                    {selectedMatchForDetails.couple1?.player1_id && playerDetails[selectedMatchForDetails.couple1.player1_id] && (
+                      <Link 
+                        href={`/ranking/${selectedMatchForDetails.couple1.player1_id}`}
+                        className="block hover:bg-gray-50 p-3 rounded-lg transition-colors border border-gray-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage 
+                              src={playerDetails[selectedMatchForDetails.couple1.player1_id].profileImage} 
+                              alt={playerDetails[selectedMatchForDetails.couple1.player1_id].name}
+                            />
+                            <AvatarFallback>
+                              {playerDetails[selectedMatchForDetails.couple1.player1_id].name?.charAt(0) || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">
+                              {playerDetails[selectedMatchForDetails.couple1.player1_id].name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {playerDetails[selectedMatchForDetails.couple1.player1_id].club?.name || "Sin club"}
+                            </p>
+                            <p className="text-sm font-medium text-blue-600">
+                              {playerDetails[selectedMatchForDetails.couple1.player1_id].score || 0} pts
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+                    
+                    {/* Jugador 2 de la pareja 1 */}
+                    {selectedMatchForDetails.couple1?.player2_id && playerDetails[selectedMatchForDetails.couple1.player2_id] && (
+                      <Link 
+                        href={`/ranking/${selectedMatchForDetails.couple1.player2_id}`}
+                        className="block hover:bg-gray-50 p-3 rounded-lg transition-colors border border-gray-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage 
+                              src={playerDetails[selectedMatchForDetails.couple1.player2_id].profileImage} 
+                              alt={playerDetails[selectedMatchForDetails.couple1.player2_id].name}
+                            />
+                            <AvatarFallback>
+                              {playerDetails[selectedMatchForDetails.couple1.player2_id].name?.charAt(0) || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">
+                              {playerDetails[selectedMatchForDetails.couple1.player2_id].name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {playerDetails[selectedMatchForDetails.couple1.player2_id].club?.name || "Sin club"}
+                            </p>
+                            <p className="text-sm font-medium text-blue-600">
+                              {playerDetails[selectedMatchForDetails.couple1.player2_id].score || 0} pts
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+                  </div>
+                  
+                  {/* VS */}
+                  <div className="text-center">
+                    <div className="bg-slate-900 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto text-xl font-bold">
+                      VS
+                    </div>
+                  </div>
+                  
+                  {/* Pareja 2 */}
+                  <div className={`space-y-4 p-6 rounded-lg border-2 ${
+                    selectedMatchForDetails.status === "COMPLETED" && selectedMatchForDetails.winner_id === selectedMatchForDetails.couple2_id
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-gray-200 bg-white"
+                  }`}>
+                    <h3 className="text-lg font-semibold text-center text-gray-800">Pareja 2</h3>
+                    
+                    {/* Jugador 1 de la pareja 2 */}
+                    {selectedMatchForDetails.couple2?.player1_id && playerDetails[selectedMatchForDetails.couple2.player1_id] && (
+                      <Link 
+                        href={`/ranking/${selectedMatchForDetails.couple2.player1_id}`}
+                        className="block hover:bg-gray-50 p-3 rounded-lg transition-colors border border-gray-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage 
+                              src={playerDetails[selectedMatchForDetails.couple2.player1_id].profileImage} 
+                              alt={playerDetails[selectedMatchForDetails.couple2.player1_id].name}
+                            />
+                            <AvatarFallback>
+                              {playerDetails[selectedMatchForDetails.couple2.player1_id].name?.charAt(0) || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">
+                              {playerDetails[selectedMatchForDetails.couple2.player1_id].name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {playerDetails[selectedMatchForDetails.couple2.player1_id].club?.name || "Sin club"}
+                            </p>
+                            <p className="text-sm font-medium text-blue-600">
+                              {playerDetails[selectedMatchForDetails.couple2.player1_id].score || 0} pts
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+                    
+                    {/* Jugador 2 de la pareja 2 */}
+                    {selectedMatchForDetails.couple2?.player2_id && playerDetails[selectedMatchForDetails.couple2.player2_id] && (
+                      <Link 
+                        href={`/ranking/${selectedMatchForDetails.couple2.player2_id}`}
+                        className="block hover:bg-gray-50 p-3 rounded-lg transition-colors border border-gray-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage 
+                              src={playerDetails[selectedMatchForDetails.couple2.player2_id].profileImage} 
+                              alt={playerDetails[selectedMatchForDetails.couple2.player2_id].name}
+                            />
+                            <AvatarFallback>
+                              {playerDetails[selectedMatchForDetails.couple2.player2_id].name?.charAt(0) || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">
+                              {playerDetails[selectedMatchForDetails.couple2.player2_id].name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {playerDetails[selectedMatchForDetails.couple2.player2_id].club?.name || "Sin club"}
+                            </p>
+                            <p className="text-sm font-medium text-blue-600">
+                              {playerDetails[selectedMatchForDetails.couple2.player2_id].score || 0} pts
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Información adicional del partido */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Ronda</p>
+                    <p className="font-semibold">{selectedMatchForDetails.round}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Estado</p>
+                    <Badge variant={selectedMatchForDetails.status === "COMPLETED" ? "default" : "secondary"}>
+                      {selectedMatchForDetails.status === "COMPLETED" ? "Completado" : "Pendiente"}
+                    </Badge>
+                  </div>
+                  {selectedMatchForDetails.zone_name && (
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">Zona</p>
+                      <p className="font-semibold">{selectedMatchForDetails.zone_name}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       )}
 
       {selectedMatch && (

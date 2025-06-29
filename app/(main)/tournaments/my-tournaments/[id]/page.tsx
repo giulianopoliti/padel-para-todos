@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import TournamentDetailsTabs from "@/components/tournament/tournament-details-tab"
+import TournamentFullLayout from "@/components/tournament/tournament-full-layout"
 import { getAllPlayersDTO } from "@/app/api/players/actions"
 import { getTournamentDetailsWithInscriptions } from "@/app/api/tournaments/actions"
 import StartTournamentButton from "@/components/tournament/club/start-tournament"
@@ -115,11 +116,22 @@ async function getData(id: string) {
 
     const allPlayers = await getAllPlayersDTO()
 
+    // Obtener inscripciones pendientes (si las hay)
+    const pendingInscriptions = inscriptions
+      .filter((inscription: any) => inscription.status === 'PENDING')
+      .map((inscription: any) => ({
+        id: inscription.id,
+        couple_id: inscription.couple_id,
+        created_at: inscription.created_at,
+        couple: inscription.couple && inscription.couple.length > 0 ? inscription.couple[0] : null,
+      }))
+
     return {
       tournament,
       individualInscriptions,
       coupleInscriptions,
       allPlayers,
+      pendingInscriptions,
     }
   } catch (error) {
     console.error("Error fetching tournament data:", error)
@@ -190,205 +202,86 @@ function formatDate(dateString: string) {
 // Componente principal
 export default async function TournamentDetailsPage({ params }: { params: { id: string } }) {
   const resolvedParams = await params;
-  const { tournament, individualInscriptions, coupleInscriptions, allPlayers } = await getData(resolvedParams.id)
+  const { tournament, individualInscriptions, coupleInscriptions, allPlayers, pendingInscriptions } = await getData(resolvedParams.id)
 
   // Configurar el máximo de jugadores (podría venir del torneo en el futuro)
   const maxPlayers = tournament.max_participants || 32
 
+  // Preparar el status badge
+  const statusBadge = (
+    <span
+      className={`px-4 py-2 rounded-xl font-medium border ${getStatusColor(
+        tournament.status,
+      )} flex items-center gap-2`}
+    >
+      {getStatusIcon(tournament.status)}
+      {getStatusText(tournament.status)}
+    </span>
+  )
+
+  // Preparar los action buttons
+  const actionButtons = (
+    <>
+      {tournament.status === "NOT_STARTED" && (
+        <>
+          <StartTournamentButton 
+            tournamentId={resolvedParams.id}
+            tournament={tournament}
+            couplesCount={coupleInscriptions.length}
+            playersCount={individualInscriptions.length}
+          />
+          <CancelTournamentButton
+            tournamentId={resolvedParams.id}
+            tournament={tournament}
+            couplesCount={coupleInscriptions.length}
+            playersCount={individualInscriptions.length}
+          />
+        </>
+      )}
+      {(tournament.status === "IN_PROGRESS" || tournament.status === "PAIRING") && (
+        <CancelTournamentButton
+          tournamentId={resolvedParams.id}
+          tournament={tournament}
+          couplesCount={coupleInscriptions.length}
+          playersCount={individualInscriptions.length}
+        />
+      )}
+    </>
+  )
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="container mx-auto px-4 py-8">
-        <Suspense fallback={<TournamentDetailsLoading />}>
-          <div className="max-w-7xl mx-auto space-y-8">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <Button asChild variant="outline" className="border-gray-300 w-fit">
-                <Link href="/tournaments/my-tournaments" className="flex items-center gap-2">
-                  <ArrowLeft className="h-4 w-4" />
-                  Volver a Mis Torneos
-                </Link>
-              </Button>
-              <div className="flex items-center gap-3">
-                {tournament.status === "NOT_STARTED" && (
-                  <>
-                    <StartTournamentButton 
-                      tournamentId={resolvedParams.id}
-                      tournament={tournament}
-                      couplesCount={coupleInscriptions.length}
-                      playersCount={individualInscriptions.length}
-                    />
-                    <CancelTournamentButton
-                      tournamentId={resolvedParams.id}
-                      tournament={tournament}
-                      couplesCount={coupleInscriptions.length}
-                      playersCount={individualInscriptions.length}
-                    />
-                  </>
-                )}
-                {(tournament.status === "IN_PROGRESS" || tournament.status === "PAIRING") && (
-                  <CancelTournamentButton
-                    tournamentId={resolvedParams.id}
-                    tournament={tournament}
-                    couplesCount={coupleInscriptions.length}
-                    playersCount={individualInscriptions.length}
-                  />
-                )}
-                <span
-                  className={`px-4 py-2 rounded-xl font-medium border ${getStatusColor(
-                    tournament.status,
-                  )} flex items-center gap-2`}
-                >
-                  {getStatusIcon(tournament.status)}
-                  {getStatusText(tournament.status)}
-                </span>
-              </div>
-            </div>
+    <Suspense fallback={<TournamentDetailsLoading />}>
+      <TournamentFullLayout
+        tournament={tournament}
+        individualInscriptions={individualInscriptions}
+        coupleInscriptions={coupleInscriptions}
+        maxPlayers={maxPlayers}
+        allPlayers={allPlayers}
+        pendingInscriptions={pendingInscriptions}
+        backUrl="/tournaments/my-tournaments"
+        backLabel="Volver a Mis Torneos"
+        statusBadge={statusBadge}
+        actionButtons={actionButtons}
+      />
 
-            {/* Tournament Header */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-              <div className="p-8">
-                <div className="flex items-start gap-6">
-                  <div className="bg-slate-100 p-4 rounded-xl">
-                    <Trophy className="h-8 w-8 text-slate-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h1 className="text-3xl font-bold text-slate-900 mb-2">{tournament.name}</h1>
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <Building className="h-4 w-4" />
-                      <span>{tournament.clubes?.name || "Club no especificado"}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Tournament Info Card */}
-            <Card className="bg-white border-gray-200 shadow-sm">
-              <CardHeader className="border-b border-gray-200 bg-slate-50">
-                <CardTitle className="text-xl font-semibold text-slate-900 flex items-center gap-3">
-                  <div className="bg-slate-200 p-2 rounded-lg">
-                    <Trophy className="h-5 w-5 text-slate-600" />
-                  </div>
-                  Información del Torneo
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-6">
-                    <div className="flex items-start gap-4">
-                      <div className="bg-blue-100 p-2 rounded-lg mt-1">
-                        <Calendar className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-slate-900 mb-1">Fechas del torneo</h3>
-                        <p className="text-slate-600">
-                          {tournament.start_date ? formatDate(tournament.start_date) : "Fecha no especificada"} - {tournament.end_date ? formatDate(tournament.end_date) : "Fecha no especificada"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-4">
-                      <div className="bg-emerald-100 p-2 rounded-lg mt-1">
-                        <Trophy className="h-5 w-5 text-emerald-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-slate-900 mb-1">Categoría y tipo</h3>
-                        <p className="text-slate-600">{tournament.categories?.name || "No especificada"}</p>
-                        <p className="text-sm text-slate-500">
-                          {tournament.type === "AMERICAN" ? "Torneo Americano" : "Eliminación Directa"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="flex items-start gap-4">
-                      <div className="bg-slate-100 p-2 rounded-lg mt-1">
-                        <MapPin className="h-5 w-5 text-slate-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-slate-900 mb-1">Ubicación</h3>
-                        <p className="text-slate-600">{tournament.clubes?.address || "No especificada"}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex items-start gap-3">
-                        <div className="bg-amber-100 p-2 rounded-lg mt-1">
-                          <Phone className="h-4 w-4 text-amber-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-slate-900 text-sm">Teléfono</h4>
-                          <p className="text-slate-600 text-sm">{tournament.clubes?.phone || "No especificado"}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <div className="bg-teal-100 p-2 rounded-lg mt-1">
-                          <Mail className="h-4 w-4 text-teal-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-slate-900 text-sm">Email</h4>
-                          <p className="text-slate-600 text-sm">{tournament.clubes?.email || "No especificado"}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-8 pt-8 border-t border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 p-2 rounded-lg">
-                        <Users className="h-5 w-5 text-slate-600" />
-                      </div>
-                      <h3 className="font-semibold text-slate-900">Inscripciones</h3>
-                    </div>
-                    <div className="flex gap-8">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-slate-900">{individualInscriptions.length}</div>
-                        <div className="text-sm text-slate-500">Jugadores individuales</div>
-                        <div className="text-xs text-slate-400">de {maxPlayers} máximo</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-slate-900">{coupleInscriptions.length}</div>
-                        <div className="text-sm text-slate-500">Parejas</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Tournament Details Tabs */}
-            <TournamentDetailsTabs
-              individualInscriptions={individualInscriptions}
-              coupleInscriptions={coupleInscriptions}
-              tournamentId={resolvedParams.id}
-              tournamentStatus={tournament.status}
-              maxPlayers={maxPlayers}
-              allPlayers={allPlayers}
-            />
-
-            {/* Pre-Tournament Image Section - Show for not started tournaments */}
-            {tournament.status === "NOT_STARTED" && (
-              <PreTournamentImageSection
-                tournament={tournament}
-                tournamentId={resolvedParams.id}
-                clubCoverImageUrl={tournament.clubes?.cover_image_url}
-              />
-            )}
-
-            {/* Winner Image Section - Show for finished tournaments */}
-            {tournament.status === "FINISHED" && (
-              <WinnerImageSection
-                tournament={tournament}
-                tournamentId={resolvedParams.id}
-              />
-            )}
-          </div>
-        </Suspense>
-      </div>
-    </div>
+      {/* Pre-Tournament and Winner Image Sections - TODO: Integrate as modals */}
+      {tournament.status === "NOT_STARTED" && (
+        <div className="hidden">
+          <PreTournamentImageSection
+            tournament={tournament}
+            tournamentId={resolvedParams.id}
+            clubCoverImageUrl={tournament.clubes?.cover_image_url}
+          />
+        </div>
+      )}
+      {tournament.status === "FINISHED" && (
+        <div className="hidden">
+          <WinnerImageSection
+            tournament={tournament}
+            tournamentId={resolvedParams.id}
+          />
+        </div>
+      )}
+    </Suspense>
   )
 } 
