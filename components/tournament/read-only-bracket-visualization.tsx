@@ -1,8 +1,14 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { fetchTournamentMatches } from "@/app/api/tournaments/actions"
-import { Loader2, CheckCircle, Clock } from "lucide-react"
+import { getPlayerProfile } from "@/app/api/users"
+import { Loader2, CheckCircle, Clock, Eye } from "lucide-react"
+import Link from "next/link"
 
 interface ReadOnlyBracketVisualizationProps {
   tournamentId: string
@@ -23,6 +29,37 @@ interface Match {
   winner_id?: string | null
   zone_name?: string | null
   order?: number
+  // Additional detailed information from fetchTournamentMatches
+  couple1?: {
+    id: string
+    player1_id: string
+    player2_id: string
+    player1_details?: {
+      id: string
+      first_name: string
+      last_name: string
+    }
+    player2_details?: {
+      id: string
+      first_name: string
+      last_name: string
+    }
+  }
+  couple2?: {
+    id: string
+    player1_id: string
+    player2_id: string
+    player1_details?: {
+      id: string
+      first_name: string
+      last_name: string
+    }
+    player2_details?: {
+      id: string
+      first_name: string
+      last_name: string
+    }
+  }
 }
 
 interface MatchPosition {
@@ -47,6 +84,10 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
   const [error, setError] = useState<string | null>(null)
   const [matchPositions, setMatchPositions] = useState<MatchPosition[]>([])
   const [connectorLines, setConnectorLines] = useState<ConnectorLine[]>([])
+  const [selectedMatchForDetails, setSelectedMatchForDetails] = useState<Match | null>(null)
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
+  const [matchDetailsLoading, setMatchDetailsLoading] = useState(false)
+  const [playerDetails, setPlayerDetails] = useState<Record<string, any>>({})
   const bracketRef = useRef<HTMLDivElement>(null)
 
   const matchSpacing = 80
@@ -148,20 +189,20 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
       const roundMatches = matchesByRound[round]
       const x = roundIndex * columnWidth
 
-              if (roundIndex === 0) {
-          // First round: position matches from top to bottom (backend now generates in correct order)
-          const startY = 60
+      if (roundIndex === 0) {
+        // First round: position matches from top to bottom (backend now generates in correct order)
+        const startY = 60
 
-          roundMatches.forEach((match, matchIndex) => {
-            const y = startY + matchIndex * (matchHeight + matchSpacing)
-            positions.push({
-              match,
-              x,
-              y,
-              width: matchWidth,
-              height: matchHeight,
-            })
+        roundMatches.forEach((match, matchIndex) => {
+          const y = startY + matchIndex * (matchHeight + matchSpacing)
+          positions.push({
+            match,
+            x,
+            y,
+            width: matchWidth,
+            height: matchHeight,
           })
+        })
       } else {
         // Subsequent rounds: find parent matches by winner_id
         const prevRoundPositions = positions.filter(pos => {
@@ -199,36 +240,16 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
             lines.push(
               { x1: parent1.x + parent1.width, y1: parent1CenterY, x2: connectionX, y2: parent1CenterY, roundIndex },
               { x1: parent2.x + parent2.width, y1: parent2CenterY, x2: connectionX, y2: parent2CenterY, roundIndex },
-              { x1: connectionX, y1: parent1CenterY, x2: connectionX, y2: parent2CenterY, roundIndex },
-              { x1: connectionX, y1: midPointY, x2: currentMatchPos.x, y2: currentMatchCenterY, roundIndex },
+              { x1: connectionX, y1: midPointY, x2: currentMatchPos.x, y2: currentMatchCenterY, roundIndex }
             )
           } else if (parent1) {
-            // Only one parent case (BYE scenario)
+            // Single parent case
             const parent1CenterY = parent1.y + parent1.height / 2
             const currentMatchCenterY = currentMatchPos.y + currentMatchPos.height / 2
-            const connectionX = parent1.x + parent1.width + 30
-
-            lines.push({
-              x1: parent1.x + parent1.width,
-              y1: parent1CenterY,
-              x2: currentMatchPos.x,
-              y2: currentMatchCenterY,
-              roundIndex
-            })
-          } else if (parent2) {
-            // Only second parent case (rare BYE scenario)
-            const parent2CenterY = parent2.y + parent2.height / 2
-            const currentMatchCenterY = currentMatchPos.y + currentMatchPos.height / 2
-
-            lines.push({
-              x1: parent2.x + parent2.width,
-              y1: parent2CenterY,
-              x2: currentMatchPos.x,
-              y2: currentMatchCenterY,
-              roundIndex
-            })
+            lines.push(
+              { x1: parent1.x + parent1.width, y1: parent1CenterY, x2: currentMatchPos.x, y2: currentMatchCenterY, roundIndex }
+            )
           }
-          // If no parents found, no lines are drawn (which is correct for orphaned matches)
         })
       }
     })
@@ -237,7 +258,41 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
     setConnectorLines(lines)
   }
 
-  
+  const handleOpenMatchDetails = async (match: Match) => {
+    setSelectedMatchForDetails(match)
+    setIsDetailsDialogOpen(true)
+    setMatchDetailsLoading(true)
+
+    try {
+      const playerIds = [
+        match.couple1?.player1_id,
+        match.couple1?.player2_id,
+        match.couple2?.player1_id,
+        match.couple2?.player2_id,
+      ].filter(Boolean) as string[]
+
+      const playerData: Record<string, any> = {}
+      
+      await Promise.all(
+        playerIds.map(async (playerId) => {
+          try {
+            const player = await getPlayerProfile(playerId)
+            if (player) {
+              playerData[playerId] = player
+            }
+          } catch (error) {
+            console.error(`Error fetching player ${playerId}:`, error)
+          }
+        })
+      )
+
+      setPlayerDetails(playerData)
+    } catch (error) {
+      console.error("Error loading match details:", error)
+    } finally {
+      setMatchDetailsLoading(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -419,18 +474,31 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
                     </div>
                   </div>
 
-                  {/* Footer - SIN BOTONES DE EDICIÓN */}
-                  <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 flex justify-center items-center">
+                  {/* Footer con botón de ojo */}
+                  <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 flex justify-between items-center min-h-[40px]">
                     <div className="flex items-center gap-2">
                       {isCompleted ? (
-                        <CheckCircle className="h-4 w-4 text-emerald-600" />
+                        <CheckCircle className="h-4 w-4 text-emerald-600 flex-shrink-0" />
                       ) : (
-                        <Clock className="h-4 w-4 text-amber-500" />
+                        <Clock className="h-4 w-4 text-amber-500 flex-shrink-0" />
                       )}
                       <span className={`text-xs font-medium ${isCompleted ? "text-emerald-700" : "text-amber-600"}`}>
                         {isCompleted ? "Completado" : "Pendiente"}
                       </span>
                     </div>
+
+                    {/* Botón del ojo para ver detalles */}
+                    {match.couple1_id !== "BYE_MARKER" && match.couple2_id !== "BYE_MARKER" && match.couple2_id !== null && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs h-7 w-7 p-0 bg-white text-blue-600 border border-blue-300 hover:bg-blue-50 rounded flex-shrink-0"
+                        onClick={() => handleOpenMatchDetails(match)}
+                        title="Ver detalles del partido"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -438,6 +506,188 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
           })}
         </div>
       </div>
+
+      {/* Modal de detalles del partido */}
+      {selectedMatchForDetails && (
+        <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-center">
+                Detalles del Partido - {selectedMatchForDetails.round}
+              </DialogTitle>
+            </DialogHeader>
+            
+            {matchDetailsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <span className="ml-2">Cargando detalles...</span>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Header del resultado si está completado */}
+                {selectedMatchForDetails.status === "COMPLETED" && (
+                  <div className="text-center">
+                    <Badge variant="default" className="bg-emerald-600 text-white text-lg px-4 py-2">
+                      Resultado: {selectedMatchForDetails.result_couple1} - {selectedMatchForDetails.result_couple2}
+                    </Badge>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+                  {/* Pareja 1 */}
+                  <div className={`space-y-4 p-6 rounded-lg border-2 ${
+                    selectedMatchForDetails.status === "COMPLETED" && selectedMatchForDetails.winner_id === selectedMatchForDetails.couple1_id
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-gray-200 bg-white"
+                  }`}>
+                    <h3 className="text-lg font-semibold text-center text-gray-800">Pareja 1</h3>
+                    
+                    {/* Jugador 1 de la pareja 1 */}
+                    {selectedMatchForDetails.couple1?.player1_id && playerDetails[selectedMatchForDetails.couple1.player1_id] && (
+                      <Link 
+                        href={`/ranking/${selectedMatchForDetails.couple1.player1_id}`}
+                        className="block hover:bg-gray-50 p-3 rounded-lg transition-colors border border-gray-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage 
+                              src={playerDetails[selectedMatchForDetails.couple1.player1_id].profileImage} 
+                              alt={playerDetails[selectedMatchForDetails.couple1.player1_id].name}
+                            />
+                            <AvatarFallback>
+                              {playerDetails[selectedMatchForDetails.couple1.player1_id].name?.charAt(0) || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">
+                              {playerDetails[selectedMatchForDetails.couple1.player1_id].name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {playerDetails[selectedMatchForDetails.couple1.player1_id].club?.name || "Sin club"}
+                            </p>
+                            <p className="text-sm font-medium text-blue-600">
+                              {playerDetails[selectedMatchForDetails.couple1.player1_id].score || 0} pts
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+                    
+                    {/* Jugador 2 de la pareja 1 */}
+                    {selectedMatchForDetails.couple1?.player2_id && playerDetails[selectedMatchForDetails.couple1.player2_id] && (
+                      <Link 
+                        href={`/ranking/${selectedMatchForDetails.couple1.player2_id}`}
+                        className="block hover:bg-gray-50 p-3 rounded-lg transition-colors border border-gray-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage 
+                              src={playerDetails[selectedMatchForDetails.couple1.player2_id].profileImage} 
+                              alt={playerDetails[selectedMatchForDetails.couple1.player2_id].name}
+                            />
+                            <AvatarFallback>
+                              {playerDetails[selectedMatchForDetails.couple1.player2_id].name?.charAt(0) || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">
+                              {playerDetails[selectedMatchForDetails.couple1.player2_id].name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {playerDetails[selectedMatchForDetails.couple1.player2_id].club?.name || "Sin club"}
+                            </p>
+                            <p className="text-sm font-medium text-blue-600">
+                              {playerDetails[selectedMatchForDetails.couple1.player2_id].score || 0} pts
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+                  </div>
+                  
+                  {/* VS */}
+                  <div className="text-center">
+                    <div className="bg-slate-900 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto text-xl font-bold">
+                      VS
+                    </div>
+                  </div>
+                  
+                  {/* Pareja 2 */}
+                  <div className={`space-y-4 p-6 rounded-lg border-2 ${
+                    selectedMatchForDetails.status === "COMPLETED" && selectedMatchForDetails.winner_id === selectedMatchForDetails.couple2_id
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-gray-200 bg-white"
+                  }`}>
+                    <h3 className="text-lg font-semibold text-center text-gray-800">Pareja 2</h3>
+                    
+                    {/* Jugador 1 de la pareja 2 */}
+                    {selectedMatchForDetails.couple2?.player1_id && playerDetails[selectedMatchForDetails.couple2.player1_id] && (
+                      <Link 
+                        href={`/ranking/${selectedMatchForDetails.couple2.player1_id}`}
+                        className="block hover:bg-gray-50 p-3 rounded-lg transition-colors border border-gray-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage 
+                              src={playerDetails[selectedMatchForDetails.couple2.player1_id].profileImage} 
+                              alt={playerDetails[selectedMatchForDetails.couple2.player1_id].name}
+                            />
+                            <AvatarFallback>
+                              {playerDetails[selectedMatchForDetails.couple2.player1_id].name?.charAt(0) || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">
+                              {playerDetails[selectedMatchForDetails.couple2.player1_id].name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {playerDetails[selectedMatchForDetails.couple2.player1_id].club?.name || "Sin club"}
+                            </p>
+                            <p className="text-sm font-medium text-blue-600">
+                              {playerDetails[selectedMatchForDetails.couple2.player1_id].score || 0} pts
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+                    
+                    {/* Jugador 2 de la pareja 2 */}
+                    {selectedMatchForDetails.couple2?.player2_id && playerDetails[selectedMatchForDetails.couple2.player2_id] && (
+                      <Link 
+                        href={`/ranking/${selectedMatchForDetails.couple2.player2_id}`}
+                        className="block hover:bg-gray-50 p-3 rounded-lg transition-colors border border-gray-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage 
+                              src={playerDetails[selectedMatchForDetails.couple2.player2_id].profileImage} 
+                              alt={playerDetails[selectedMatchForDetails.couple2.player2_id].name}
+                            />
+                            <AvatarFallback>
+                              {playerDetails[selectedMatchForDetails.couple2.player2_id].name?.charAt(0) || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">
+                              {playerDetails[selectedMatchForDetails.couple2.player2_id].name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {playerDetails[selectedMatchForDetails.couple2.player2_id].club?.name || "Sin club"}
+                            </p>
+                            <p className="text-sm font-medium text-blue-600">
+                              {playerDetails[selectedMatchForDetails.couple2.player2_id].score || 0} pts
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
 
       <style>{`
         .tournament-bracket::-webkit-scrollbar {

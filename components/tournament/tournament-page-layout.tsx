@@ -7,7 +7,9 @@ import TournamentPlayersTab from "./tournament-players-tab"
 import TournamentCouplesTab from "./tournament-couples-tab"
 import TournamentZonesTab from "./tournament-zones-tab"
 import TournamentMatchesTab from "./tournament-matches-tab"
+import ReadOnlyMatchesTabNew from "./read-only-matches-tab-new"
 import TournamentBracketTab from "./tournament-bracket-tab"
+import ReadOnlyBracketTab from "./read-only-bracket-tab"
 
 interface PlayerInfo {
   id: string
@@ -85,11 +87,19 @@ export default function TournamentPageLayout({
       case "matches":
         return (
           <div className="p-4 lg:p-8 overflow-x-hidden">
-            <TournamentMatchesTab tournamentId={tournamentId} />
+            {isPublicView ? (
+              <ReadOnlyMatchesTabNew tournamentId={tournamentId} />
+            ) : (
+              <TournamentMatchesTab tournamentId={tournamentId} />
+            )}
           </div>
         )
       case "brackets":
-        return <TournamentBracketTab tournamentId={tournamentId} />
+        return isPublicView ? (
+          <ReadOnlyBracketTab tournamentId={tournamentId} />
+        ) : (
+          <TournamentBracketTab tournamentId={tournamentId} />
+        )
       default:
         return null
     }
