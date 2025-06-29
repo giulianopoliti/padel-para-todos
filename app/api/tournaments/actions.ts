@@ -49,7 +49,166 @@ interface CreateTournamentData {
   max_participants: number | null;
 }
 
+// Interface for couple with extended stats used in sorting (extends the imported CoupleWithStats)
+interface CoupleWithExtendedStats extends Omit<CoupleWithStats, 'stats'> {
+  stats?: {
+    points?: number;
+    scored?: number;
+    conceded?: number;
+    played?: number;
+    won?: number;
+    lost?: number;
+  };
+  player1_name?: string;
+  player2_name?: string;
+  [key: string]: any; // Allow additional properties
+}
+
+// Interface for match data used in head-to-head calculation
+interface MatchForHeadToHead {
+  couple1_id: string;
+  couple2_id: string;
+  winner_id: string | null;
+  status: string;
+}
+
 // --- HELPER FUNCTIONS (defined once, correctly placed) ---
+
+/**
+ * Determines the head-to-head result between two couples based on their direct match
+ * @param couple1Id - ID of the first couple
+ * @param couple2Id - ID of the second couple  
+ * @param matches - Array of matches to search for direct confrontation
+ * @returns -1 if couple1 won, 1 if couple2 won, 0 if no direct match or tie
+ */
+function getHeadToHeadResult(
+  couple1Id: string, 
+  couple2Id: string, 
+  matches: MatchForHeadToHead[]
+): number {
+  const directMatch = matches.find(m => 
+    m.status === 'COMPLETED' && (
+      (m.couple1_id === couple1Id && m.couple2_id === couple2Id) ||
+      (m.couple1_id === couple2Id && m.couple2_id === couple1Id)
+    )
+  );
+  
+  if (directMatch && directMatch.winner_id) {
+    if (directMatch.winner_id === couple1Id) return -1; // couple1 won (should be sorted first)
+    if (directMatch.winner_id === couple2Id) return 1;  // couple2 won (should be sorted first)
+  }
+  
+  return 0; // No direct match found or no winner determined
+}
+
+/**
+ * Unified sorting function for couples in a zone based on tournament criteria.
+ * 
+ * Sorting criteria (in order of priority):
+ * 1. Points: Higher points = better position
+ * 2. Set difference: Higher (scored - conceded) = better position  
+ * 3. Sets scored: Higher sets scored = better position
+ * 4. Head-to-head: Winner of direct match between tied couples
+ * 5. Couple ID: Lexicographical order for stable, consistent sorting
+ * 
+ * @param couples - Array of couples with their statistics
+ * @param matches - Array of zone matches for head-to-head calculation (optional)
+ * @returns Sorted array of couples (best to worst)
+ * 
+ * @example
+ * ```typescript
+ * const sortedCouples = sortCouplesInZone(
+ *   [coupleA, coupleB, coupleC],
+ *   zoneMatches
+ * );
+ * // Returns couples ordered by tournament ranking criteria
+ * ```
+ */
+function sortCouplesInZone(
+  couples: CoupleWithExtendedStats[], 
+  matches: MatchForHeadToHead[] = []
+): CoupleWithExtendedStats[] {
+  return [...couples].sort((a, b) => {
+    // 1st: Points (higher = better)
+    const pointsA = a.stats?.points || 0;
+    const pointsB = b.stats?.points || 0;
+    if (pointsB !== pointsA) return pointsB - pointsA;
+    
+    // 2nd: Set difference (higher = better) 
+    const diffA = (a.stats?.scored || 0) - (a.stats?.conceded || 0);
+    const diffB = (b.stats?.scored || 0) - (b.stats?.conceded || 0);
+    if (diffB !== diffA) return diffB - diffA;
+    
+    // 3rd: Sets scored (higher = better)
+    const scoredA = a.stats?.scored || 0;
+    const scoredB = b.stats?.scored || 0;
+    if (scoredB !== scoredA) return scoredB - scoredA;
+    
+    // 4th: Head-to-head result (if they played against each other)
+    if (matches.length > 0) {
+      const headToHead = getHeadToHeadResult(a.id, b.id, matches);
+      if (headToHead !== 0) return headToHead;
+    }
+    
+    // 5th: Couple ID for stable sort (lexicographically smaller = better for consistency)
+    return a.id.localeCompare(b.id);
+  });
+}
+
+/**
+ * Validates that couples are properly sorted according to tournament criteria.
+ * Useful for testing and debugging ranking issues.
+ * 
+ * @param couples - Array of sorted couples to validate
+ * @param matches - Array of matches for head-to-head validation
+ * @returns Object with validation results and any issues found
+ */
+function validateCouplesSorting(
+  couples: CoupleWithExtendedStats[], 
+  matches: MatchForHeadToHead[] = []
+): { isValid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  
+  for (let i = 0; i < couples.length - 1; i++) {
+    const current = couples[i];
+    const next = couples[i + 1];
+    
+    const currentPoints = current.stats?.points || 0;
+    const nextPoints = next.stats?.points || 0;
+    
+    // Check if points are properly ordered
+    if (currentPoints < nextPoints) {
+      issues.push(`Couple ${current.id} (${currentPoints} pts) should not be ranked higher than ${next.id} (${nextPoints} pts)`);
+      continue;
+    }
+    
+    // If points are equal, check set difference
+    if (currentPoints === nextPoints) {
+      const currentDiff = (current.stats?.scored || 0) - (current.stats?.conceded || 0);
+      const nextDiff = (next.stats?.scored || 0) - (next.stats?.conceded || 0);
+      
+      if (currentDiff < nextDiff) {
+        issues.push(`Couple ${current.id} (diff: ${currentDiff}) should not be ranked higher than ${next.id} (diff: ${nextDiff}) with same points`);
+        continue;
+      }
+      
+      // If set difference is equal, check sets scored
+      if (currentDiff === nextDiff) {
+        const currentScored = current.stats?.scored || 0;
+        const nextScored = next.stats?.scored || 0;
+        
+        if (currentScored < nextScored) {
+          issues.push(`Couple ${current.id} (scored: ${currentScored}) should not be ranked higher than ${next.id} (scored: ${nextScored}) with same points and difference`);
+        }
+      }
+    }
+  }
+  
+  return {
+    isValid: issues.length === 0,
+    issues
+  };
+}
 
 async function _createMatch(
   supabase: any,
@@ -1136,6 +1295,13 @@ export async function fetchTournamentZones(tournamentId: string) {
         const { data: couples, error: cError } = await supabase.from("couples").select(`*,player1:players!couples_player1_id_fkey(id,first_name,last_name,score),player2:players!couples_player2_id_fkey(id,first_name,last_name,score)`).in("id", coupleIds);
         if (cError || !couples) return { ...zone, couples: [] };
 
+        // Fetch all matches for this zone to use in head-to-head calculation
+        const { data: zoneMatches, error: zoneMatchesError } = await supabase
+          .from("matches")
+          .select("couple1_id, couple2_id, winner_id, status")
+          .eq("zone_id", zone.id)
+          .eq("status", "COMPLETED");
+
         const couplesWithStats = await Promise.all(
           couples.map(async (couple) => {
             const { data: matches, error: mError } = await supabase.from("matches").select("*").eq("zone_id", zone.id).or(`couple1_id.eq.${couple.id},couple2_id.eq.${couple.id}`).eq("status", "COMPLETED");
@@ -1143,15 +1309,35 @@ export async function fetchTournamentZones(tournamentId: string) {
             if (!mError && matches) {
               matches.forEach(m => {
                 p++;
-                if (m.couple1_id === couple.id) { s += m.score_couple1||0; c += m.score_couple2||0; if (m.winner_id === couple.id) w++; else l++; }
-                else { s += m.score_couple2||0; c += m.score_couple1||0; if (m.winner_id === couple.id) w++; else l++; }
+                const result1 = parseInt(m.result_couple1) || 0;
+                const result2 = parseInt(m.result_couple2) || 0;
+                if (m.couple1_id === couple.id) { 
+                  s += result1; 
+                  c += result2; 
+                  if (m.winner_id === couple.id) w++; else l++; 
+                }
+                else { 
+                  s += result2; 
+                  c += result1; 
+                  if (m.winner_id === couple.id) w++; else l++; 
+                }
               });
               pts = w * POINTS_FOR_WINNING_MATCH + l * POINTS_FOR_LOSING_MATCH; // Zone points based on constants
             }
-            return { ...couple, player1_name: `${couple.player1?.first_name||""} ${couple.player1?.last_name||""}`.trim(), player2_name: `${couple.player2?.first_name||""} ${couple.player2?.last_name||""}`.trim(), stats: { played:p, won:w, lost:l, scored:s, conceded:c, points:pts } };
+            return { 
+              ...couple, 
+              player1_name: `${couple.player1?.first_name||""} ${couple.player1?.last_name||""}`.trim(), 
+              player2_name: `${couple.player2?.first_name||""} ${couple.player2?.last_name||""}`.trim(), 
+              stats: { played:p, won:w, lost:l, scored:s, conceded:c, points:pts } 
+            } as CoupleWithExtendedStats;
           })
         );
-        const sortedCouples = couplesWithStats.sort((a,b) => (b.stats.points - a.stats.points) || ((b.stats.scored - b.stats.conceded) - (a.stats.scored - a.stats.conceded)) || (b.stats.scored - a.stats.scored));
+        
+        // Use unified sorting function with head-to-head support
+        const sortedCouples = sortCouplesInZone(
+          couplesWithStats, 
+          zoneMatchesError ? [] : (zoneMatches || [])
+        );
         return { ...zone, couples: sortedCouples };
       })
     );
@@ -1428,11 +1614,16 @@ export async function createKnockoutStageMatchesAction(tournamentId: string) {
     const matchesToInsertData: GenericMatchInsertData[] = [];
     let matchOrderInRound = 0;
 
-    // El emparejamiento estándar es (Slot 1 vs Slot N), (Slot 2 vs Slot N-1), etc.
-    // Donde N es bracketSize.
+    // Custom pairing using the specified distribution pattern
+    // This creates the desired bracket layout with second best seed at bottom
+    const customPairingIndices = getCustomPairingIndices(bracketSize);
+    
     for (let i = 0; i < bracketSize / 2; i++) {
-      const participant1Data = actualParticipantsForPairing[i]; // Corresponde al Slot (i+1)
-      const participant2Data = actualParticipantsForPairing[bracketSize - 1 - i]; // Corresponde al Slot (bracketSize - i)
+      const participant1Index = customPairingIndices[i * 2];
+      const participant2Index = customPairingIndices[i * 2 + 1];
+      
+      const participant1Data = actualParticipantsForPairing[participant1Index];
+      const participant2Data = actualParticipantsForPairing[participant2Index];
 
       // Asegurarse de que participant1Data y participant2Data no sean undefined
       if (!participant1Data || !participant2Data) {
@@ -1440,7 +1631,7 @@ export async function createKnockoutStageMatchesAction(tournamentId: string) {
           continue; // Saltar este par
       }
       
-      console.log(`[createKnockoutStageMatchesAction] Attempting to pair: Slot ${i+1} (Seed ${participant1Data.seed}) vs Slot ${bracketSize-i} (Seed ${participant2Data.seed})`);
+      console.log(`[createKnockoutStageMatchesAction] Attempting to pair: Index ${participant1Index} (Seed ${participant1Data.seed}) vs Index ${participant2Index} (Seed ${participant2Data.seed}) for Match ${i}`);
 
       let couple1_id: string | null = null;
       let couple2_id: string | null = null;
@@ -2050,28 +2241,31 @@ export async function populateTournamentSeedCouples(tournamentId: string): Promi
     }[] = [];
 
     // 2. Determine ranking within each zone and collect all qualifying couples
-    // For now, we assume top N from each zone qualify, or all if not specified.
-    // Let's assume the ranking is based on 'points' in 'stats', then other criteria.
+    // Use unified sorting function for consistent ranking across all zones
     for (const zone of zonesResult.zones) {
       if (!zone.couples || zone.couples.length === 0) {
         console.log(`[populateTournamentSeedCouples] Zone ${zone.name} has no couples.`);
         continue;
       }
 
-      const sortedCouplesInZone = [...zone.couples].sort((a, b) => {
-        const pointsA = a.stats?.points || 0;
-        const pointsB = b.stats?.points || 0;
-        if (pointsB !== pointsA) return pointsB - pointsA; // Higher points first
+      // Fetch zone matches for head-to-head calculation
+      const { data: zoneMatches, error: zoneMatchesError } = await supabase
+        .from("matches")
+        .select("couple1_id, couple2_id, winner_id, status")
+        .eq("zone_id", zone.id)
+        .eq("status", "COMPLETED");
 
-        // Add more tie-breaking criteria here if needed (e.g., sets difference, head-to-head)
-        const gamesWonA = a.stats?.scored || 0;
-        const gamesWonB = b.stats?.scored || 0;
-        if (gamesWonB !== gamesWonA) return gamesWonB - gamesWonA;
-        
-        const gamesConcededA = a.stats?.conceded || 0;
-        const gamesConcededB = b.stats?.conceded || 0;
-        return gamesConcededA - gamesConcededB; // Fewer games conceded is better
-      });
+      // Convert zone couples to CoupleWithExtendedStats format  
+      const couplesWithExtendedStats: CoupleWithExtendedStats[] = zone.couples.map((couple: any): CoupleWithExtendedStats => ({
+        ...couple,
+        stats: couple.stats || { played: 0, won: 0, lost: 0, scored: 0, conceded: 0, points: 0 }
+      }));
+
+      // Use unified sorting function with head-to-head support
+      const sortedCouplesInZone = sortCouplesInZone(
+        couplesWithExtendedStats,
+        zoneMatchesError ? [] : (zoneMatches || [])
+      );
 
       sortedCouplesInZone.forEach((couple, index) => {
         allRankedCouples.push({
@@ -3807,3 +4001,446 @@ export async function registerCoupleForTournamentAndRemoveIndividual(
     };
   }
 }
+
+// Helper function to get custom pairing indices for traditional bracket distribution
+// This creates the specific pairing pattern requested: best vs worst at top, second best vs second worst at bottom
+function getCustomPairingIndices(bracketSize: number): number[] {
+  const pairingMaps: Record<number, number[]> = {
+    // For 2 teams (1 match): [1v2] - single match
+    2: [0, 1],
+    
+    // For 4 teams (2 matches): [1v4, 2v3] with 2nd best (seed 2) at bottom
+    4: [0, 3, 1, 2],
+    
+    // For 8 teams (4 matches): [1v8, 4v6, 5v3, 7v2] with 2nd best (seed 2) at bottom  
+    8: [0, 7, 3, 5, 4, 2, 6, 1],
+    
+    // For 16 teams (8 matches): balanced distribution with proper seeding
+    16: [0, 15, 7, 8, 3, 12, 4, 11, 1, 14, 6, 9, 2, 13, 5, 10],
+    
+    // For 32 teams (16 matches): full bracket distribution
+    32: [0, 31, 15, 16, 7, 24, 8, 23, 3, 28, 12, 19, 4, 27, 11, 20, 1, 30, 14, 17, 6, 25, 9, 22, 2, 29, 13, 18, 5, 26, 10, 21],
+    
+    // For 64 teams (32 matches): extended bracket distribution  
+    64: [0, 63, 31, 32, 15, 48, 16, 47, 7, 56, 24, 39, 8, 55, 23, 40, 3, 60, 28, 35, 12, 51, 19, 44, 4, 59, 27, 36, 11, 52, 20, 43, 1, 62, 30, 33, 14, 49, 17, 46, 6, 57, 25, 38, 9, 54, 22, 41, 2, 61, 29, 34, 13, 50, 18, 45, 5, 58, 26, 37, 10, 53, 21, 42]
+  };
+  
+  // Return custom mapping or fall back to standard pairing for unsupported sizes
+  if (pairingMaps[bracketSize]) {
+    return pairingMaps[bracketSize];
+  }
+  
+  // Fallback to standard pairing (1vN, 2v(N-1), etc.) for unsupported bracket sizes
+  const standardIndices: number[] = [];
+  for (let i = 0; i < bracketSize / 2; i++) {
+    standardIndices.push(i, bracketSize - 1 - i);
+  }
+  return standardIndices;
+}
+
+// =============================================================================
+// NUEVO ALGORITMO DE SEEDING PARA BRACKETS ELIMINATORIOS
+// =============================================================================
+
+import { 
+  generateEliminationBracket, 
+  CoupleSeeded, 
+  BracketMatch,
+  validateCouplesData,
+  convertMatchesToDatabaseFormat,
+  debugSeeding,
+  assignGlobalSeeds
+} from '@/utils/bracket-generator';
+
+/**
+ * Extrae datos de parejas clasificadas desde la base de datos y los convierte al formato CoupleSeeded
+ */
+async function extractCouplesSeededFromDatabase(tournamentId: string, supabase: any): Promise<CoupleSeeded[]> {
+  console.log(`[extractCouplesSeeded] Extrayendo parejas clasificadas para torneo ${tournamentId}`);
+
+  // 1. Obtener todas las zonas del torneo con sus parejas y estadísticas
+  // IMPORTANTE: Ordenar por created_at para respetar el orden de creación
+  const { data: zones, error: zonesError } = await supabase
+    .from('zones')
+    .select(`
+      id,
+      name,
+      created_at,
+      zone_couples (
+        couple_id,
+        couples (
+          id,
+          player1_id,
+          player2_id,
+          player1_details:players!couples_player1_id_fkey(first_name, last_name),
+          player2_details:players!couples_player2_id_fkey(first_name, last_name)
+        )
+      )
+    `)
+    .eq('tournament_id', tournamentId)
+    .eq('es_prueba', false)
+    .order('created_at', { ascending: true }); // Ordenar por orden de creación
+
+  if (zonesError) {
+    console.error('[extractCouplesSeeded] Error fetching zones:', zonesError);
+    throw new Error(`Error obteniendo zonas: ${zonesError.message}`);
+  }
+
+  if (!zones || zones.length === 0) {
+    console.log('[extractCouplesSeeded] No se encontraron zonas para el torneo');
+    return [];
+  }
+
+  console.log('[extractCouplesSeeded] Zonas ordenadas por creación:', zones.map((z: any) => ({ name: z.name, created_at: z.created_at })));
+
+  // 2. Para cada zona, calcular las estadísticas de las parejas
+  const couplesSeeded: CoupleSeeded[] = [];
+
+  for (const zone of zones) {
+    const zoneName = zone.name;
+    const couples = zone.zone_couples?.map((zc: any) => zc.couples).filter(Boolean) || [];
+
+    if (couples.length === 0) continue;
+
+    console.log(`[extractCouplesSeeded] Procesando zona ${zoneName} con ${couples.length} parejas`);
+
+    // Obtener matches de esta zona para calcular estadísticas
+    const { data: zoneMatches, error: matchesError } = await supabase
+      .from('matches')
+      .select('couple1_id, couple2_id, winner_id, result_couple1, result_couple2, status')
+      .eq('tournament_id', tournamentId)
+      .eq('zone_id', zone.id)
+      .eq('status', 'COMPLETED');
+
+    if (matchesError) {
+      console.error(`[extractCouplesSeeded] Error fetching matches for zone ${zoneName}:`, matchesError);
+      continue;
+    }
+
+    // Calcular estadísticas para cada pareja en esta zona
+    const coupleStats: { [coupleId: string]: { points: number; scored: number; conceded: number; played: number; won: number; lost: number } } = {};
+
+    couples.forEach((couple: any) => {
+      coupleStats[couple.id] = { points: 0, scored: 0, conceded: 0, played: 0, won: 0, lost: 0 };
+    });
+
+    (zoneMatches || []).forEach((match: any) => {
+      const couple1Id = match.couple1_id;
+      const couple2Id = match.couple2_id;
+      const winnerId = match.winner_id;
+
+      if (couple1Id && coupleStats[couple1Id]) {
+        coupleStats[couple1Id].played++;
+        const games1 = parseInt(match.result_couple1 || '0');
+        const games2 = parseInt(match.result_couple2 || '0');
+        coupleStats[couple1Id].scored += games1;
+        coupleStats[couple1Id].conceded += games2;
+        
+        if (winnerId === couple1Id) {
+          coupleStats[couple1Id].won++;
+          coupleStats[couple1Id].points += 3; // Puntos por ganar
+        } else {
+          coupleStats[couple1Id].lost++;
+          coupleStats[couple1Id].points += 1; // Punto por perder
+        }
+      }
+
+      if (couple2Id && coupleStats[couple2Id]) {
+        coupleStats[couple2Id].played++;
+        const games1 = parseInt(match.result_couple1 || '0');
+        const games2 = parseInt(match.result_couple2 || '0');
+        coupleStats[couple2Id].scored += games2;
+        coupleStats[couple2Id].conceded += games1;
+        
+        if (winnerId === couple2Id) {
+          coupleStats[couple2Id].won++;
+          coupleStats[couple2Id].points += 3; // Puntos por ganar
+        } else {
+          coupleStats[couple2Id].lost++;
+          coupleStats[couple2Id].points += 1; // Punto por perder
+        }
+      }
+    });
+
+    // Ordenar parejas en la zona por puntos y diferencia de juegos
+    const sortedCouples = couples.sort((a: any, b: any) => {
+      const statsA = coupleStats[a.id];
+      const statsB = coupleStats[b.id];
+      
+      // Primero por puntos
+      if (statsB.points !== statsA.points) {
+        return statsB.points - statsA.points;
+      }
+      
+      // Luego por diferencia de juegos
+      const diffA = statsA.scored - statsA.conceded;
+      const diffB = statsB.scored - statsB.conceded;
+      if (diffB !== diffA) {
+        return diffB - diffA;
+      }
+      
+      // Finalmente por juegos a favor
+      return statsB.scored - statsA.scored;
+    });
+
+    // Convertir a formato CoupleSeeded
+    // IMPORTANTE: Incluir TODAS las parejas, no solo las ganadoras
+    sortedCouples.forEach((couple: any, index: number) => {
+      const stats = coupleStats[couple.id];
+      const player1Name = `${couple.player1_details?.first_name || ''} ${couple.player1_details?.last_name || ''}`.trim();
+      const player2Name = `${couple.player2_details?.first_name || ''} ${couple.player2_details?.last_name || ''}`.trim();
+      
+      couplesSeeded.push({
+        id: couple.id,
+        zona: zoneName,
+        puntos: stats.points,
+        posicionEnZona: index + 1, // 1-indexado
+        player1_id: couple.player1_id,
+        player2_id: couple.player2_id,
+        player1_name: player1Name || 'Jugador 1',
+        player2_name: player2Name || 'Jugador 2',
+        zone_id: zone.id,
+        // Incluir stats completas para referencia
+        games_scored: stats.scored,
+        games_conceded: stats.conceded,
+        matches_played: stats.played,
+        matches_won: stats.won,
+        matches_lost: stats.lost
+      });
+    });
+  }
+
+  console.log(`[extractCouplesSeeded] Extraídas ${couplesSeeded.length} parejas clasificadas de ${zones.length} zonas`);
+  
+  // Mostrar resumen por zona
+  const zonesSummary = zones.map((z: any) => {
+    const couplesInZone = couplesSeeded.filter(c => c.zona === z.name);
+    return `${z.name}: ${couplesInZone.length} parejas`;
+  });
+  console.log(`[extractCouplesSeeded] Resumen: ${zonesSummary.join(', ')}`);
+  
+  return couplesSeeded;
+}
+
+/**
+ * Función principal mejorada que genera las seeds y los matches eliminatorios
+ * Reemplaza a populateTournamentSeedCouples y createKnockoutStageMatchesAction
+ */
+export async function generateEliminationBracketAction(tournamentId: string): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+  seededCouples?: any[];
+  matches?: any[];
+}> {
+  try {
+    const supabase = await createClient();
+    console.log(`[generateEliminationBracket] Iniciando generación de bracket para torneo ${tournamentId}`);
+
+    // Paso 1: Extraer parejas clasificadas
+    const couplesData = await extractCouplesSeededFromDatabase(tournamentId, supabase);
+    
+    if (couplesData.length === 0) {
+      return { success: false, error: "No hay parejas clasificadas para generar el bracket eliminatorio." };
+    }
+
+    // Paso 2: Validar datos
+    const validation = validateCouplesData(couplesData);
+    if (!validation.valid) {
+      console.error('[generateEliminationBracket] Datos inválidos:', validation.errors);
+      return { success: false, error: `Datos inválidos: ${validation.errors.join(', ')}` };
+    }
+
+    // Paso 3: Debug del proceso (opcional, remover en producción)
+    console.log('[generateEliminationBracket] Datos de entrada:');
+    couplesData.forEach(couple => {
+      console.log(`  ${couple.id}: Zona ${couple.zona}, Pos ${couple.posicionEnZona}, ${couple.puntos} pts`);
+    });
+
+    // Paso 4: Generar bracket
+    const bracketMatches = generateEliminationBracket(couplesData);
+    
+    if (bracketMatches.length === 0) {
+      return { success: false, error: "No se pudieron generar matches para el bracket." };
+    }
+
+    // Paso 5: Asignar seeds globales y guardar en tournament_couple_seeds
+    const seededCouples = assignGlobalSeeds(couplesData);
+    
+    // Limpiar seeds antiguos
+    const { error: deleteOldSeedsError } = await supabase
+      .from('tournament_couple_seeds')
+      .delete()
+      .eq('tournament_id', tournamentId);
+
+    if (deleteOldSeedsError) {
+      console.error('[generateEliminationBracket] Error eliminando seeds antiguos:', deleteOldSeedsError);
+      return { success: false, error: `Error limpiando datos antiguos: ${deleteOldSeedsError.message}` };
+    }
+
+    // Insertar nuevos seeds
+    const seedInserts = seededCouples.map(couple => ({
+      tournament_id: tournamentId,
+      couple_id: couple.id,
+      seed: couple.seed,
+      zone_id: couple.zone_id,
+      es_prueba: false
+    }));
+
+    const { data: insertedSeeds, error: insertSeedsError } = await supabase
+      .from('tournament_couple_seeds')
+      .insert(seedInserts)
+      .select();
+
+    if (insertSeedsError) {
+      console.error('[generateEliminationBracket] Error insertando seeds:', insertSeedsError);
+      return { success: false, error: `Error guardando seeds: ${insertSeedsError.message}` };
+    }
+
+    // Paso 6: Limpiar matches eliminatorios antiguos
+    const { error: deleteOldMatchesError } = await supabase
+      .from('matches')
+      .delete()
+      .eq('tournament_id', tournamentId)
+      .neq('round', 'ZONE');
+
+    if (deleteOldMatchesError) {
+      console.error('[generateEliminationBracket] Error eliminando matches antiguos:', deleteOldMatchesError);
+      return { success: false, error: `Error limpiando matches antiguos: ${deleteOldMatchesError.message}` };
+    }
+
+    // Paso 7: Convertir matches a formato de base de datos e insertar
+    const matchesForDb = convertMatchesToDatabaseFormat(bracketMatches, tournamentId);
+    
+    const { data: insertedMatches, error: insertMatchesError } = await supabase
+      .from('matches')
+      .insert(matchesForDb)
+      .select();
+
+    if (insertMatchesError) {
+      console.error('[generateEliminationBracket] Error insertando matches:', insertMatchesError);
+      return { success: false, error: `Error guardando matches: ${insertMatchesError.message}` };
+    }
+
+    // Paso 8: Actualizar estado del torneo
+    const { error: updateTournamentError } = await supabase
+      .from('tournaments')
+      .update({ status: 'IN_PROGRESS' })
+      .eq('id', tournamentId);
+
+    if (updateTournamentError) {
+      console.error('[generateEliminationBracket] Error actualizando torneo:', updateTournamentError);
+      // No fallar por esto, el bracket ya se generó correctamente
+    }
+
+    // Paso 9: Limpiar la caché
+    revalidatePath(`/tournaments/${tournamentId}`);
+    revalidatePath('/tournaments');
+
+    console.log(`[generateEliminationBracket] ✅ Bracket generado exitosamente:`);
+    console.log(`  - ${seededCouples.length} parejas sembradas`);
+    console.log(`  - ${bracketMatches.length} matches creados`);
+    console.log(`  - Ronda inicial: ${bracketMatches[0]?.round}`);
+
+    return {
+      success: true,
+      message: `Bracket eliminatorio generado exitosamente. ${seededCouples.length} parejas sembradas, ${bracketMatches.length} matches creados.`,
+      seededCouples: insertedSeeds,
+      matches: insertedMatches
+    };
+
+  } catch (error: any) {
+    console.error('[generateEliminationBracket] Error inesperado:', error);
+    return { 
+      success: false, 
+      error: `Error inesperado al generar bracket: ${error.message}` 
+    };
+  }
+}
+
+/**
+ * Función de utilidad para verificar el estado de las zonas antes de generar brackets
+ */
+export async function checkZonesReadyForElimination(tournamentId: string): Promise<{
+  ready: boolean;
+  message: string;
+  zones?: any[];
+  totalCouples?: number;
+}> {
+  try {
+    const supabase = await createClient();
+
+    // Obtener zonas con matches
+    const { data: zones, error: zonesError } = await supabase
+      .from('zones')
+      .select(`
+        id,
+        name,
+        zone_couples (count),
+        matches (
+          id,
+          status
+        )
+      `)
+      .eq('tournament_id', tournamentId)
+      .eq('es_prueba', false);
+
+    if (zonesError) {
+      return { ready: false, message: `Error verificando zonas: ${zonesError.message}` };
+    }
+
+    if (!zones || zones.length === 0) {
+      return { ready: false, message: "No hay zonas configuradas en el torneo." };
+    }
+
+    let totalCouples = 0;
+    const zonesStatus = zones.map(zone => {
+      const couplesCount = zone.zone_couples?.[0]?.count || 0;
+      const matches = zone.matches || [];
+      const completedMatches = matches.filter(m => m.status === 'COMPLETED').length;
+      const totalMatches = matches.length;
+      
+      totalCouples += couplesCount;
+      
+      return {
+        name: zone.name,
+        couples: couplesCount,
+        matches: `${completedMatches}/${totalMatches}`,
+        completed: totalMatches > 0 && completedMatches === totalMatches
+      };
+    });
+
+    const allZonesCompleted = zonesStatus.every(z => z.completed);
+
+    if (!allZonesCompleted) {
+      const incompleteZones = zonesStatus.filter(z => !z.completed).map(z => z.name);
+      return {
+        ready: false,
+        message: `Las siguientes zonas no han completado todos sus matches: ${incompleteZones.join(', ')}`,
+        zones: zonesStatus,
+        totalCouples
+      };
+    }
+
+    if (totalCouples < 2) {
+      return {
+        ready: false,
+        message: `Se necesitan al menos 2 parejas para generar brackets. Encontradas: ${totalCouples}`,
+        zones: zonesStatus,
+        totalCouples
+      };
+    }
+
+    return {
+      ready: true,
+      message: `✅ Todas las zonas están listas. ${totalCouples} parejas clasificadas.`,
+      zones: zonesStatus,
+      totalCouples
+    };
+
+  } catch (error: any) {
+    return { ready: false, message: `Error inesperado: ${error.message}` };
+  }
+}
+
+// Helper function to get custom pairing indices for traditional bracket distribution

@@ -7,8 +7,10 @@ import { fetchTournamentMatches } from "@/app/api/tournaments/actions"
 import { getTournamentById } from "@/app/api/tournaments/actions"
 import { advanceToNextStageAction } from "@/app/api/tournaments/actions"
 import { updateMatchResult } from "@/app/api/tournaments/actions"
-import { Loader2, GitFork, CheckCircle, Clock, Trophy, ArrowRight } from "lucide-react"
+import { generateEliminationBracketAction, checkZonesReadyForElimination } from "@/app/api/tournaments/actions"
+import { Loader2, GitFork, CheckCircle, Clock, Trophy, ArrowRight, Settings, Users } from "lucide-react"
 import MatchResultDialog from "@/components/tournament/match-result-dialog"
+import SeedingExampleDemo from "@/components/tournament/seeding-example-demo"
 
 interface TournamentBracketVisualizationProps {
   tournamentId: string
@@ -47,9 +49,12 @@ interface ConnectorLine {
   roundIndex: number
 }
 
+
+
 export default function TournamentBracketVisualization({ tournamentId }: TournamentBracketVisualizationProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isAdvancing, setIsAdvancing] = useState(false)
+  const [isGeneratingBracket, setIsGeneratingBracket] = useState(false)
   const [matches, setMatches] = useState<Match[]>([])
   const [error, setError] = useState<string | null>(null)
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
@@ -58,6 +63,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
   const [currentTournamentRound, setCurrentTournamentRound] = useState<string>("")
   const [matchPositions, setMatchPositions] = useState<MatchPosition[]>([])
   const [connectorLines, setConnectorLines] = useState<ConnectorLine[]>([])
+  const [zonesReady, setZonesReady] = useState<{ready: boolean; message: string; totalCouples?: number} | null>(null)
   const bracketRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
 
@@ -65,6 +71,16 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
   const matchHeight = 130
   const columnWidth = 380
   const matchWidth = 320
+
+  const checkZonesStatus = async () => {
+    try {
+      const zonesStatus = await checkZonesReadyForElimination(tournamentId)
+      setZonesReady(zonesStatus)
+    } catch (error) {
+      console.error("Error checking zones status:", error)
+      setZonesReady({ ready: false, message: "Error al verificar el estado de las zonas" })
+    }
+  }
 
   const loadTournamentData = async () => {
     try {
@@ -113,14 +129,65 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
             setIsTournamentFinished(true)
           }
         }
+
+        // Si no hay matches eliminatorios, verificar estado de las zonas
+        if (knockoutMatches.length === 0) {
+          await checkZonesStatus()
+        }
       } else {
         setError(result.error || "Error al cargar los partidos de llaves")
+        // También verificar zonas si hay error cargando matches
+        await checkZonesStatus()
       }
     } catch (err) {
       console.error("Error al cargar datos del torneo y partidos:", err)
       setError("Ocurrió un error inesperado al cargar las llaves.")
+      await checkZonesStatus()
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleGenerateBracket = async () => {
+    if (!zonesReady?.ready) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: zonesReady?.message || "Las zonas no están listas para generar el bracket"
+      })
+      return
+    }
+
+    try {
+      setIsGeneratingBracket(true)
+      
+      console.log("Generando bracket eliminatorio...")
+      const result = await generateEliminationBracketAction(tournamentId)
+      
+      if (result.success) {
+        toast({
+          title: "¡Bracket generado exitosamente!",
+          description: `Se crearon ${result.matches?.length || 0} matches eliminatorios con ${result.seededCouples?.length || 0} parejas clasificadas.`
+        })
+        
+        // Recargar los datos para mostrar el nuevo bracket
+        await loadTournamentData()
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error generando bracket",
+          description: result.error || "Error desconocido al generar el bracket"
+        })
+      }
+    } catch (error) {
+      console.error("Error generating bracket:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error inesperado al generar el bracket eliminatorio"
+      })
+    } finally {
+      setIsGeneratingBracket(false)
     }
   }
 
@@ -151,11 +218,76 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
     const positions: MatchPosition[] = []
     const lines: ConnectorLine[] = []
 
+    // Helper function to find parent match by winner_id
+    const findParentMatchByWinner = (coupleId: string | null, previousRoundPositions: MatchPosition[]): MatchPosition | null => {
+      if (!coupleId) return null
+      return previousRoundPositions.find(pos => pos.match.winner_id === coupleId) || null
+    }
+
+    // Helper function to calculate center Y between two parents
+    const calculateCenterY = (parent1: MatchPosition | null, parent2: MatchPosition | null): number => {
+      if (parent1 && parent2) {
+        const parent1CenterY = parent1.y + parent1.height / 2
+        const parent2CenterY = parent2.y + parent2.height / 2
+        return (parent1CenterY + parent2CenterY) / 2 - matchHeight / 2
+      } else if (parent1) {
+        return parent1.y + (parent1.height - matchHeight) / 2
+      } else if (parent2) {
+        return parent2.y + (parent2.height - matchHeight) / 2
+      }
+      // Fallback to default positioning if no parents found
+      return 60
+    }
+
+    // Helper function to create connector lines from parent to current match
+    const createConnectorLines = (
+      parent: MatchPosition,
+      currentMatch: MatchPosition,
+      roundIndex: number,
+      midPointY?: number
+    ) => {
+      const parentCenterY = parent.y + parent.height / 2
+      const currentMatchCenterY = currentMatch.y + currentMatch.height / 2
+      const connectionX = parent.x + parent.width + 30
+
+      if (parent.match.status === "COMPLETED") {
+        // Line from parent to connection point
+        lines.push({
+          x1: parent.x + parent.width,
+          y1: parentCenterY,
+          x2: connectionX,
+          y2: parentCenterY,
+          roundIndex: roundIndex - 1,
+        })
+
+        if (midPointY !== undefined) {
+          // Vertical line to midpoint (when there are two parents)
+          lines.push({
+            x1: connectionX,
+            y1: parentCenterY,
+            x2: connectionX,
+            y2: midPointY,
+            roundIndex: roundIndex - 1,
+          })
+        } else {
+          // Direct line to current match (when there's only one parent)
+          lines.push({
+            x1: connectionX,
+            y1: parentCenterY,
+            x2: currentMatch.x,
+            y2: currentMatchCenterY,
+            roundIndex: roundIndex - 1,
+          })
+        }
+      }
+    }
+
     activeRounds.forEach((round, roundIndex) => {
       const roundMatches = matchesByRound[round]
       const x = roundIndex * columnWidth
 
       if (roundIndex === 0) {
+        // First round: position matches from top to bottom (backend now generates in correct order)
         const startY = 60
 
         roundMatches.forEach((match, matchIndex) => {
@@ -169,75 +301,44 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
           })
         })
       } else {
-        const prevRoundMatches = matchesByRound[activeRounds[roundIndex - 1]]
+        // Subsequent rounds: find parent matches by winner_id
+        const prevRoundPositions = positions.filter(pos => {
+          const prevRound = activeRounds[roundIndex - 1]
+          return matchesByRound[prevRound].some(m => m.id === pos.match.id)
+        })
 
         roundMatches.forEach((match, matchIndex) => {
-          const startParentIndex = matchIndex * 2
-          const endParentIndex = startParentIndex + 1
+          // Find parent matches by winner_id instead of assuming position
+          const parent1 = findParentMatchByWinner(match.couple1_id || null, prevRoundPositions)
+          const parent2 = findParentMatchByWinner(match.couple2_id || null, prevRoundPositions)
 
-          const startParent = positions.find((p) => p.match.id === prevRoundMatches[startParentIndex]?.id)
-          const endParent = positions.find((p) => p.match.id === prevRoundMatches[endParentIndex]?.id)
+          // Calculate position based on actual parent positions
+          const centerY = calculateCenterY(parent1, parent2)
 
-          if (startParent && endParent) {
-            const centerY =
-              (startParent.y + startParent.height / 2 + endParent.y + endParent.height / 2) / 2 - matchHeight / 2
+          // Add current match position
+          const currentMatchPos: MatchPosition = {
+            match,
+            x,
+            y: centerY,
+            width: matchWidth,
+            height: matchHeight,
+          }
+          positions.push(currentMatchPos)
 
-            positions.push({
-              match,
-              x,
-              y: centerY,
-              width: matchWidth,
-              height: matchHeight,
-            })
-
-            const currentMatchPos = positions[positions.length - 1]
+          // Create connector lines from actual parents
+          if (parent1 && parent2) {
+            // Two parents case: draw lines meeting at midpoint
+            const parent1CenterY = parent1.y + parent1.height / 2
+            const parent2CenterY = parent2.y + parent2.height / 2
+            const midPointY = (parent1CenterY + parent2CenterY) / 2
             const currentMatchCenterY = currentMatchPos.y + currentMatchPos.height / 2
-            const startParentCenterY = startParent.y + startParent.height / 2
-            const endParentCenterY = endParent.y + endParent.height / 2
+            const connectionX = Math.max(parent1.x + parent1.width, parent2.x + parent2.width) + 30
 
-            const connectionX = startParent.x + startParent.width + 30
-            const midPointY = (startParentCenterY + endParentCenterY) / 2
+            createConnectorLines(parent1, currentMatchPos, roundIndex, midPointY)
+            createConnectorLines(parent2, currentMatchPos, roundIndex, midPointY)
 
-            if (prevRoundMatches[startParentIndex]?.status === "COMPLETED") {
-              lines.push({
-                x1: startParent.x + startParent.width,
-                y1: startParentCenterY,
-                x2: connectionX,
-                y2: startParentCenterY,
-                roundIndex: roundIndex - 1,
-              })
-              
-              lines.push({
-                x1: connectionX,
-                y1: startParentCenterY,
-                x2: connectionX,
-                y2: midPointY,
-                roundIndex: roundIndex - 1,
-              })
-            }
-
-            if (prevRoundMatches[endParentIndex]?.status === "COMPLETED") {
-              lines.push({
-                x1: endParent.x + endParent.width,
-                y1: endParentCenterY,
-                x2: connectionX,
-                y2: endParentCenterY,
-                roundIndex: roundIndex - 1,
-              })
-              
-              lines.push({
-                x1: connectionX,
-                y1: endParentCenterY,
-                x2: connectionX,
-                y2: midPointY,
-                roundIndex: roundIndex - 1,
-              })
-            }
-
-            if (
-              prevRoundMatches[startParentIndex]?.status === "COMPLETED" ||
-              prevRoundMatches[endParentIndex]?.status === "COMPLETED"
-            ) {
+            // Final line from midpoint to current match
+            if (parent1.match.status === "COMPLETED" || parent2.match.status === "COMPLETED") {
               lines.push({
                 x1: connectionX,
                 y1: midPointY,
@@ -246,31 +347,14 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                 roundIndex: roundIndex - 1,
               })
             }
-          } else if (startParent && !endParent) {
-            const centerY = startParent.y + (startParent.height - matchHeight) / 2
-
-            positions.push({
-              match,
-              x,
-              y: centerY,
-              width: matchWidth,
-              height: matchHeight,
-            })
-
-            const currentMatchPos = positions[positions.length - 1]
-            const currentMatchCenterY = currentMatchPos.y + currentMatchPos.height / 2
-            const startParentCenterY = startParent.y + startParent.height / 2
-
-            if (prevRoundMatches[startParentIndex]?.status === "COMPLETED") {
-              lines.push({
-                x1: startParent.x + startParent.width,
-                y1: startParentCenterY,
-                x2: currentMatchPos.x,
-                y2: currentMatchCenterY,
-                roundIndex: roundIndex - 1,
-              })
-            }
+          } else if (parent1) {
+            // Only one parent case (BYE scenario)
+            createConnectorLines(parent1, currentMatchPos, roundIndex)
+          } else if (parent2) {
+            // Only second parent case (rare BYE scenario)
+            createConnectorLines(parent2, currentMatchPos, roundIndex)
           }
+          // If no parents found, no lines are drawn (which is correct for orphaned matches)
         })
       }
     })
@@ -368,15 +452,110 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
 
   if (matches.length === 0) {
     return (
-      <div className="text-center py-16">
-        <div className="bg-slate-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-          <GitFork className="h-10 w-10 text-slate-400" />
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center py-16">
+          <div className="bg-slate-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <GitFork className="h-10 w-10 text-slate-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-slate-900 mb-2">Generar Bracket Eliminatorio</h3>
+          <p className="text-slate-500 max-w-md mx-auto mb-8">
+            Las llaves eliminatorias se generarán con todos los participantes de las zonas usando nuestro algoritmo de seeding optimizado.
+          </p>
+
+          {/* Estado de las zonas */}
+          {zonesReady && (
+            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 text-left">
+              <div className="flex items-center gap-3 mb-4">
+                <Users className="h-5 w-5 text-blue-600" />
+                <h4 className="font-medium text-gray-900">Estado de las Zonas</h4>
+              </div>
+              
+              <div className="flex items-center gap-2 mb-4">
+                {zonesReady.ready ? (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                ) : (
+                  <Clock className="h-4 w-4 text-amber-500" />
+                )}
+                <span className={`text-sm ${zonesReady.ready ? 'text-green-700' : 'text-amber-600'}`}>
+                  {zonesReady.message}
+                </span>
+              </div>
+
+              {zonesReady.totalCouples && zonesReady.totalCouples > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                  <div className="text-sm text-blue-800">
+                    <strong>{zonesReady.totalCouples} parejas</strong> participarán en el bracket eliminatorio
+                  </div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    Tamaño del bracket: <strong>{Math.pow(2, Math.ceil(Math.log2(Math.max(2, zonesReady.totalCouples))))}</strong> posiciones
+                    {Math.pow(2, Math.ceil(Math.log2(Math.max(2, zonesReady.totalCouples)))) - zonesReady.totalCouples > 0 && (
+                      <span className="ml-2">
+                        ({Math.pow(2, Math.ceil(Math.log2(Math.max(2, zonesReady.totalCouples)))) - zonesReady.totalCouples} BYEs automáticos)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Características del algoritmo */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8 text-left">
+            <div className="flex items-center gap-3 mb-4">
+              <Settings className="h-5 w-5 text-gray-600" />
+              <h4 className="font-medium text-gray-900">Algoritmo de Seeding</h4>
+            </div>
+            <ul className="text-sm text-gray-700 space-y-2">
+              <li className="flex items-start gap-2">
+                <div className="h-1.5 w-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span><strong>Agrupamiento por posición:</strong> Todos los primeros de zona juntos, luego segundos, etc.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="h-1.5 w-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span><strong>Ordenamiento inteligente:</strong> Por zona alfabética y puntos obtenidos</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="h-1.5 w-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span><strong>Emparejamiento tradicional:</strong> Seed 1 vs Seed N, Seed 2 vs Seed N-1</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="h-1.5 w-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span><strong>BYEs automáticos:</strong> Para números no potencia de 2</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Ejemplo del algoritmo */}
+          <div className="flex justify-center">
+            <SeedingExampleDemo totalCouples={zonesReady?.totalCouples || 21} />
+          </div>
+
+          {/* Botón de generar */}
+          <Button
+            onClick={handleGenerateBracket}
+            disabled={!zonesReady?.ready || isGeneratingBracket}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg shadow-sm"
+            size="lg"
+          >
+            {isGeneratingBracket ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                Generando Bracket...
+              </>
+            ) : (
+              <>
+                <Trophy className="h-5 w-5 mr-2" />
+                Generar Bracket Eliminatorio
+              </>
+            )}
+          </Button>
+
+          {!zonesReady?.ready && zonesReady && (
+            <p className="text-sm text-amber-600 mt-4">
+              Complete todos los matches de zona antes de generar el bracket
+            </p>
+          )}
         </div>
-        <h3 className="text-xl font-semibold text-slate-900 mb-2">No hay llaves generadas</h3>
-        <p className="text-slate-500 max-w-md mx-auto">
-          Aún no se han generado las llaves para la etapa de eliminación directa. Las llaves se crearán automáticamente
-          cuando termine la fase de grupos.
-        </p>
       </div>
     )
   }
@@ -409,6 +588,35 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
 
   return (
     <div className="space-y-6">
+      {/* Header con botón de regenerar */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Bracket Eliminatorio</h2>
+          <p className="text-sm text-gray-600">
+            {matches.length} matches • Algoritmo de seeding avanzado
+          </p>
+        </div>
+        <Button
+          onClick={handleGenerateBracket}
+          disabled={isGeneratingBracket}
+          variant="outline"
+          size="sm"
+          className="text-blue-600 border-blue-600 hover:bg-blue-50"
+        >
+          {isGeneratingBracket ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Regenerando...
+            </>
+          ) : (
+            <>
+              <Settings className="h-4 w-4 mr-2" />
+              Regenerar Bracket
+            </>
+          )}
+        </Button>
+      </div>
+
       <div
         ref={bracketRef}
         className="tournament-bracket overflow-x-auto overflow-y-auto border border-gray-200 rounded-lg bg-gray-50"

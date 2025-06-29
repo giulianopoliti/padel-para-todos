@@ -123,60 +123,112 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
     const positions: MatchPosition[] = []
     const lines: ConnectorLine[] = []
 
+    // Helper function to find parent match by winner_id
+    const findParentMatchByWinner = (coupleId: string | null, previousRoundPositions: MatchPosition[]): MatchPosition | null => {
+      if (!coupleId) return null
+      return previousRoundPositions.find(pos => pos.match.winner_id === coupleId) || null
+    }
+
+    // Helper function to calculate center Y between two parents
+    const calculateCenterY = (parent1: MatchPosition | null, parent2: MatchPosition | null): number => {
+      if (parent1 && parent2) {
+        const parent1CenterY = parent1.y + parent1.height / 2
+        const parent2CenterY = parent2.y + parent2.height / 2
+        return (parent1CenterY + parent2CenterY) / 2 - matchHeight / 2
+      } else if (parent1) {
+        return parent1.y + (parent1.height - matchHeight) / 2
+      } else if (parent2) {
+        return parent2.y + (parent2.height - matchHeight) / 2
+      }
+      // Fallback to default positioning if no parents found
+      return 60
+    }
+
     activeRounds.forEach((round, roundIndex) => {
       const roundMatches = matchesByRound[round]
       const x = roundIndex * columnWidth
 
-      if (roundIndex === 0) {
-        const startY = 60
+              if (roundIndex === 0) {
+          // First round: position matches from top to bottom (backend now generates in correct order)
+          const startY = 60
 
-        roundMatches.forEach((match, matchIndex) => {
-          const y = startY + matchIndex * (matchHeight + matchSpacing)
-          positions.push({
-            match,
-            x,
-            y,
-            width: matchWidth,
-            height: matchHeight,
-          })
-        })
-      } else {
-        const prevRoundMatches = matchesByRound[activeRounds[roundIndex - 1]]
-
-        roundMatches.forEach((match, matchIndex) => {
-          const startParentIndex = matchIndex * 2
-          const endParentIndex = startParentIndex + 1
-
-          const startParent = positions.find((p) => p.match.id === prevRoundMatches[startParentIndex]?.id)
-          const endParent = positions.find((p) => p.match.id === prevRoundMatches[endParentIndex]?.id)
-
-          if (startParent && endParent) {
-            const centerY =
-              (startParent.y + startParent.height / 2 + endParent.y + endParent.height / 2) / 2 - matchHeight / 2
-
+          roundMatches.forEach((match, matchIndex) => {
+            const y = startY + matchIndex * (matchHeight + matchSpacing)
             positions.push({
               match,
               x,
-              y: centerY,
+              y,
               width: matchWidth,
               height: matchHeight,
             })
+          })
+      } else {
+        // Subsequent rounds: find parent matches by winner_id
+        const prevRoundPositions = positions.filter(pos => {
+          const prevRound = activeRounds[roundIndex - 1]
+          return matchesByRound[prevRound].some(m => m.id === pos.match.id)
+        })
 
-            const currentMatchPos = positions[positions.length - 1]
+        roundMatches.forEach((match, matchIndex) => {
+          // Find parent matches by winner_id instead of assuming position
+          const parent1 = findParentMatchByWinner(match.couple1_id || null, prevRoundPositions)
+          const parent2 = findParentMatchByWinner(match.couple2_id || null, prevRoundPositions)
+
+          // Calculate position based on actual parent positions
+          const centerY = calculateCenterY(parent1, parent2)
+
+          // Add current match position
+          const currentMatchPos: MatchPosition = {
+            match,
+            x,
+            y: centerY,
+            width: matchWidth,
+            height: matchHeight,
+          }
+          positions.push(currentMatchPos)
+
+          // Create connector lines from actual parents (simplified for read-only)
+          if (parent1 && parent2) {
+            // Two parents case: draw lines meeting at midpoint
+            const parent1CenterY = parent1.y + parent1.height / 2
+            const parent2CenterY = parent2.y + parent2.height / 2
             const currentMatchCenterY = currentMatchPos.y + currentMatchPos.height / 2
-            const startParentCenterY = startParent.y + startParent.height / 2
-            const endParentCenterY = endParent.y + endParent.height / 2
-
-            const connectionX = startParent.x + startParent.width + 30
-            const midPointY = (startParentCenterY + endParentCenterY) / 2
+            const connectionX = Math.max(parent1.x + parent1.width, parent2.x + parent2.width) + 30
+            const midPointY = (parent1CenterY + parent2CenterY) / 2
 
             lines.push(
-              { x1: startParent.x + startParent.width, y1: startParentCenterY, x2: connectionX, y2: startParentCenterY, roundIndex },
-              { x1: endParent.x + endParent.width, y1: endParentCenterY, x2: connectionX, y2: endParentCenterY, roundIndex },
-              { x1: connectionX, y1: startParentCenterY, x2: connectionX, y2: endParentCenterY, roundIndex },
+              { x1: parent1.x + parent1.width, y1: parent1CenterY, x2: connectionX, y2: parent1CenterY, roundIndex },
+              { x1: parent2.x + parent2.width, y1: parent2CenterY, x2: connectionX, y2: parent2CenterY, roundIndex },
+              { x1: connectionX, y1: parent1CenterY, x2: connectionX, y2: parent2CenterY, roundIndex },
               { x1: connectionX, y1: midPointY, x2: currentMatchPos.x, y2: currentMatchCenterY, roundIndex },
             )
+          } else if (parent1) {
+            // Only one parent case (BYE scenario)
+            const parent1CenterY = parent1.y + parent1.height / 2
+            const currentMatchCenterY = currentMatchPos.y + currentMatchPos.height / 2
+            const connectionX = parent1.x + parent1.width + 30
+
+            lines.push({
+              x1: parent1.x + parent1.width,
+              y1: parent1CenterY,
+              x2: currentMatchPos.x,
+              y2: currentMatchCenterY,
+              roundIndex
+            })
+          } else if (parent2) {
+            // Only second parent case (rare BYE scenario)
+            const parent2CenterY = parent2.y + parent2.height / 2
+            const currentMatchCenterY = currentMatchPos.y + currentMatchPos.height / 2
+
+            lines.push({
+              x1: parent2.x + parent2.width,
+              y1: parent2CenterY,
+              x2: currentMatchPos.x,
+              y2: currentMatchCenterY,
+              roundIndex
+            })
           }
+          // If no parents found, no lines are drawn (which is correct for orphaned matches)
         })
       }
     })
@@ -184,6 +236,8 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
     setMatchPositions(positions)
     setConnectorLines(lines)
   }
+
+  
 
   if (isLoading) {
     return (

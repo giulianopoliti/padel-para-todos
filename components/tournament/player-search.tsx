@@ -13,6 +13,7 @@ export interface PlayerInfo {
   first_name: string | null; 
   last_name: string | null;
   dni?: string | null;
+  es_prueba?: boolean;
 }
 
 interface PlayerSearchProps {
@@ -100,9 +101,16 @@ export default function PlayerSearch({
             {searchResults.map(player => (
               <div key={player.id} className="flex justify-between items-center p-2 border-b last:border-b-0">
                 <div>
-                  <span className="font-medium">{player.first_name} {player.last_name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{player.first_name} {player.last_name}</span>
+                    {player.es_prueba && (
+                      <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full border border-orange-200">
+                        PRUEBA
+                      </span>
+                    )}
+                  </div>
                   {player.dni && (
-                    <span className="text-xs text-gray-500 ml-2">DNI: {player.dni}</span>
+                    <span className="text-xs text-gray-500">DNI: {player.dni}</span>
                   )}
                 </div>
                 <Button 

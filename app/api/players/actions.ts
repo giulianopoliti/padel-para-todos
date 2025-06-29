@@ -26,11 +26,12 @@ export async function searchPlayer(searchTerm: string) {
     }
     
     // Buscar jugadores por nombre, apellido o DNI que coincida con el término de búsqueda
+    // Incluir TODOS los jugadores (reales y de prueba) para facilitar testing
     const { data, error } = await supabase
       .from('players')
-      .select('id, first_name, last_name, dni')
+      .select('id, first_name, last_name, dni, es_prueba')
       .or(`first_name.ilike.%${cleanTerm}%,last_name.ilike.%${cleanTerm}%,dni.ilike.%${cleanTerm}%`)
-      .limit(10);
+      .limit(20);
     
     if (error) {
       console.error("[searchPlayer] Error en la consulta:", error);
@@ -46,8 +47,8 @@ export async function searchPlayer(searchTerm: string) {
       // Intentar buscar todos los jugadores
       const { data: allPlayers, error: allPlayersError } = await supabase
         .from('players')
-        .select('id, first_name, last_name, dni')
-        .limit(10);
+        .select('id, first_name, last_name, dni, es_prueba')
+        .limit(20);
       
       if (allPlayersError) {
         console.error("[searchPlayer] Error obteniendo todos los jugadores:", allPlayersError);
