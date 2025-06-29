@@ -85,6 +85,17 @@ export async function completeUserProfile(prevState: FormState, formData: FormDa
 
   try {
     if (avatarFile && avatarFile.size > 0) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(avatarFile.type)) {
+        return { success: false, message: "Tipo de archivo no permitido. Solo se permiten imágenes (JPEG, JPG, PNG, WEBP).", errors: { general: ["Formato de imagen no válido."] } };
+      }
+
+      // Validate file size (2MB max for avatars)
+      if (avatarFile.size > 2 * 1024 * 1024) {
+        return { success: false, message: "El archivo es demasiado grande. Máximo 2MB para avatares.", errors: { general: ["Archivo muy grande."] } };
+      }
+
       const fileExtension = avatarFile.name.split('.').pop();
       const avatarFileName = `avatars/${user.id}-${Date.now()}.${fileExtension}`;
       console.log("Attempting to upload with filename:", avatarFileName);

@@ -91,11 +91,11 @@ export function PersonalDataSection({ defaultValues }: PersonalDataSectionProps)
                 id="avatar_file"
                 name="avatar_file"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
                 onChange={handleAvatarChange}
                 className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
-              <p className="text-xs text-gray-500">JPG, PNG, GIF. Máximo 2MB.</p>
+              <p className="text-xs text-gray-500">JPEG, JPG, PNG, WEBP. Máximo 2MB.</p>
             </div>
           </div>
           <input

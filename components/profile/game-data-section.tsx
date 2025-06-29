@@ -69,6 +69,28 @@ export function GameDataSection({ defaultValues, allClubs }: GameDataSectionProp
           </RadioGroup>
         </div>
 
+        <div className="space-y-3">
+          <Label className="text-sm font-medium text-gray-700">Mano Preferida</Label>
+          <RadioGroup
+            name="preferred_hand"
+            defaultValue={defaultValues.preferred_hand}
+            className="flex flex-col space-y-2"
+          >
+            <div className="flex items-center space-x-3 bg-white p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+              <RadioGroupItem value="RIGHT" id="hand-right" className="text-blue-600 border-gray-300" />
+              <Label htmlFor="hand-right" className="text-gray-700">
+                Diestro
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3 bg-white p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+              <RadioGroupItem value="LEFT" id="hand-left" className="text-blue-600 border-gray-300" />
+              <Label htmlFor="hand-left" className="text-gray-700">
+                Zurdo
+              </Label>
+            </div>
+          </RadioGroup>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="racket" className="text-sm font-medium text-gray-700">
             Paleta

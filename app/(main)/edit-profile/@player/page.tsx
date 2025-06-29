@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useActionState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ProfileSidebar } from "@/components/profile/profile-sidebar"
@@ -33,9 +34,11 @@ interface UserProfile {
   score?: number | null
   preferred_hand?: string | null
   racket?: string | null
+  description?: string | null
   gender?: string | null
   preferred_side?: string | null
   club_id?: string | null
+  profile_image_url?: string | null
 }
 
 const initialFormState: FormState = {
@@ -45,6 +48,7 @@ const initialFormState: FormState = {
 }
 
 export default function EditProfilePage() {
+  const router = useRouter()
   const [activeSection, setActiveSection] = useState<string>("personal")
   const [userProfileData, setUserProfileData] = useState<UserProfile | null>(null)
   const [allClubsData, setAllClubsData] = useState<Club[]>([])
@@ -95,8 +99,15 @@ export default function EditProfilePage() {
         description: formState.message,
         variant: formState.success ? "default" : "destructive",
       })
+      
+      // Redirect to dashboard on successful update
+      if (formState.success) {
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 1500) // Wait 1.5 seconds to show the success message
+      }
     }
-  }, [formState, toast])
+  }, [formState, toast, router])
 
   const renderActiveSection = () => {
     if (isFetchingData || !userProfileData) {
