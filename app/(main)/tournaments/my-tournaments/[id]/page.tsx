@@ -264,9 +264,9 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
         actionButtons={actionButtons}
       />
 
-      {/* Pre-Tournament and Winner Image Sections - TODO: Integrate as modals */}
+      {/* Pre-Tournament and Winner Image Sections */}
       {tournament.status === "NOT_STARTED" && (
-        <div className="hidden">
+        <div className="mt-6">
           <PreTournamentImageSection
             tournament={tournament}
             tournamentId={resolvedParams.id}
@@ -275,7 +275,7 @@ export default async function TournamentDetailsPage({ params }: { params: { id: 
         </div>
       )}
       {tournament.status === "FINISHED" && (
-        <div className="hidden">
+        <div className="mt-6">
           <WinnerImageSection
             tournament={tournament}
             tournamentId={resolvedParams.id}

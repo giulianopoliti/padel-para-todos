@@ -1,8 +1,9 @@
-import { supabase } from "@/utils/supabase/client";
+import { createClient } from "@/utils/supabase/server";
 import { Category, Tournament } from "@/types";
 
 export async function getTournaments() {
     try {
+        const supabase = await createClient();
         const { data, error } = await supabase
             .from("tournaments")
             .select(`
@@ -35,37 +36,34 @@ export async function getTournaments() {
 
                 const currentParticipants = inscriptions ? inscriptions.length : 0;
 
-                // Map the raw data to the format expected by TournamentsClient
+                // Create a plain object with properly serialized data
                 const tournament = {
                     id: rawTournament.id,
                     name: rawTournament.name,
-                    club: {
-                        id: rawTournament.club?.id,
-                        name: rawTournament.club?.name,
-                        image: rawTournament.club?.cover_image_url // Map cover_image_url to image for compatibility
-                    },
-                    createdAt: rawTournament.created_at,
-                    startDate: rawTournament.start_date,
-                    endDate: rawTournament.end_date,
-                    category: rawTournament.category_name,
+                    club: rawTournament.club ? {
+                        id: rawTournament.club.id,
+                        name: rawTournament.club.name,
+                        image: rawTournament.club.cover_image_url
+                    } : null,
+                    createdAt: rawTournament.created_at || null,
+                    startDate: rawTournament.start_date || null,
+                    endDate: rawTournament.end_date || null,
+                    category: rawTournament.category_name || null,
                     gender: rawTournament.gender || "MALE",
                     status: rawTournament.status || "NOT_STARTED",
                     type: rawTournament.type || "AMERICAN",
-                    pre_tournament_image_url: rawTournament.pre_tournament_image_url,
-                    price: rawTournament.price,
-                    description: rawTournament.description,
-                    maxParticipants: rawTournament.max_participants,
+                    pre_tournament_image_url: rawTournament.pre_tournament_image_url || null,
+                    price: rawTournament.price || null,
+                    description: rawTournament.description || null,
+                    maxParticipants: rawTournament.max_participants || null,
                     currentParticipants: currentParticipants,
-                    // Additional fields for TournamentsClient compatibility
-                    address: rawTournament.club?.address,
-                    time: rawTournament.start_date ? new Date(rawTournament.start_date).toLocaleTimeString('es-AR', { 
-                        hour: '2-digit', 
-                        minute: '2-digit',
-                        timeZone: 'America/Argentina/Buenos_Aires'
-                    }) : undefined,
-                    prize: rawTournament.description?.includes('premio') || rawTournament.description?.includes('$') 
+                    address: rawTournament.club?.address || null,
+                    // Convert time to string on client side instead of server side
+                    time: null,
+                    prize: (rawTournament.description && 
+                           (rawTournament.description.includes('premio') || rawTournament.description.includes('$'))) 
                         ? rawTournament.description 
-                        : undefined
+                        : null
                 };
 
                 tournamentsWithParticipants.push(tournament);
@@ -80,21 +78,33 @@ export async function getTournaments() {
 }
 
 export async function getCategories() {
-    const { data, error } = await supabase
-      .from("categories")
-      .select("*")
-      .order("name")
-  
-    if (error) {
-      console.error("Error fetching categories:", error)
-      return []
+    try {
+        const supabase = await createClient();
+        const { data, error } = await supabase
+            .from("categories")
+            .select("*")
+            .order("name")
+    
+        if (error) {
+            console.error("Error fetching categories:", error)
+            return []
+        }
+
+        // Ensure we return plain objects
+        return (data || []).map(category => ({
+            name: category.name,
+            lower_range: category.lower_range,
+            upper_range: category.upper_range
+        })) as Category[]
+    } catch (error) {
+        console.error("Error in getCategories:", error);
+        return [];
     }
-  
-    return data as Category[]
 }
 
 export async function getWeeklyWinners() {
     try {
+        const supabase = await createClient();
         // Calculate date 7 days ago
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
@@ -132,6 +142,7 @@ export async function getWeeklyWinners() {
                 const player1 = Array.isArray(couple.player1) ? couple.player1[0] : couple.player1;
                 const player2 = Array.isArray(couple.player2) ? couple.player2[0] : couple.player2;
 
+                // Create plain object for serialization
                 winnersWithDetails.push({
                     id: tournament.id,
                     tournamentName: tournament.name,
@@ -155,6 +166,7 @@ export async function getWeeklyWinners() {
 
 export async function getTournamentById(id: string) {
     try {
+        const supabase = await createClient();
         const { data: tournamentData, error: tournamentError } = await supabase
         .from('tournaments')
         .select(`
@@ -168,24 +180,29 @@ export async function getTournamentById(id: string) {
         .eq('id', id)
         .single()
     
-            // Map the raw data to our Tournament type
-            const tournament: Tournament = {
-                id: tournamentData.id,
-                name: tournamentData.name,
-                club: tournamentData.club,
-                createdAt: tournamentData.created_at,
-                startDate: tournamentData.start_date,
-                endDate: tournamentData.end_date,
-                category: tournamentData.category,
-                gender: tournamentData.gender || "MALE",
-                status: tournamentData.status || "NOT_STARTED",
-                type: tournamentData.type || "AMERICAN"
-            };
-    
-            return tournament;
-        } catch (error) {
-            console.error("Error in getTournamentById:", error);
+        if (tournamentError || !tournamentData) {
+            console.error("Error fetching tournament:", tournamentError);
             return null;
         }
+
+        // Create plain object for serialization
+        const tournament: Tournament = {
+            id: tournamentData.id,
+            name: tournamentData.name,
+            club: tournamentData.club,
+            createdAt: tournamentData.created_at,
+            startDate: tournamentData.start_date,
+            endDate: tournamentData.end_date,
+            category: tournamentData.category,
+            gender: tournamentData.gender || "MALE",
+            status: tournamentData.status || "NOT_STARTED",
+            type: tournamentData.type || "AMERICAN"
+        };
+
+        return tournament;
+    } catch (error) {
+        console.error("Error in getTournamentById:", error);
+        return null;
     }
+}
     

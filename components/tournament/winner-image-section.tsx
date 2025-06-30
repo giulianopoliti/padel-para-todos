@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import UploadWinnerImage from "./upload-winner-image"
 import WinnerImageDisplay from "./winner-image-display"
@@ -13,13 +13,25 @@ interface WinnerImageSectionProps {
 export default function WinnerImageSection({ tournament, tournamentId }: WinnerImageSectionProps) {
   const [winnerImageUrl, setWinnerImageUrl] = useState(tournament.winner_image_url)
   const [isEditing, setIsEditing] = useState(!tournament.winner_image_url) // Start in edit mode if no image
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const router = useRouter()
 
-  const handleImageUploaded = (url: string) => {
+  // Update local state if tournament prop changes
+  useEffect(() => {
+    setWinnerImageUrl(tournament.winner_image_url)
+  }, [tournament.winner_image_url])
+
+  const handleImageUploaded = async (url: string) => {
+    // Immediately update local state with the new URL
     setWinnerImageUrl(url)
     setIsEditing(false) // Switch to display mode after successful upload
-    // Refresh the page to show the updated data
-    router.refresh()
+    
+    // Add a small delay and then refresh to ensure server state is updated
+    setIsRefreshing(true)
+    setTimeout(async () => {
+      router.refresh()
+      setIsRefreshing(false)
+    }, 1000)
   }
 
   const handleEditClick = () => {
@@ -49,6 +61,7 @@ export default function WinnerImageSection({ tournament, tournamentId }: WinnerI
       winnerImageUrl={winnerImageUrl}
       showEditOption={true}
       onEditClick={handleEditClick}
+      isRefreshing={isRefreshing}
     />
   )
 } 
