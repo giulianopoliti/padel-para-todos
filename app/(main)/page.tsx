@@ -27,8 +27,17 @@ import {
 import Link from "next/link"
 import Image from "next/image"
 import { Suspense } from "react"
+import dynamic from "next/dynamic"
 import { LOGOS } from "@/lib/supabase-storage"
-import EnhancedBracketDemo from "@/components/home/enhance-bracket-demo"
+
+// OPTIMIZED: Lazy load the heavy bracket demo component
+const EnhancedBracketDemo = dynamic(
+  () => import("@/components/home/enhance-bracket-demo"),
+  { 
+    ssr: false, // Don't render on server for better performance
+    loading: () => <BracketDemoSkeleton />
+  }
+)
 
 // Componentes optimizados
 import { HeroSection } from "@/components/home/HeroSection"
@@ -47,6 +56,7 @@ import { RankingSkeleton } from "@/components/skeletons/RankingSkeleton"
 import { ClubsSkeleton } from "@/components/skeletons/ClubsSkeleton"
 import { TournamentsSkeleton } from "@/components/skeletons/TournamentsSkeleton"
 import { WeeklyWinnersSkeleton } from "@/components/skeletons/WeeklyWinnersSkeleton"
+import { BracketDemoSkeleton } from "@/components/skeletons/BracketDemoSkeleton"
 
 export default function HomePage() {
   return (
@@ -67,7 +77,7 @@ export default function HomePage() {
         <ClubsSection />
       </Suspense>
 
-      {/* Sistema de Gestión Profesional - Bracket Demo */}
+      {/* Sistema de Gestión Profesional - Bracket Demo (OPTIMIZED: Lazy loaded) */}
       <EnhancedBracketDemo />
 
       {/* Información para Nuevos Usuarios - Estático */}

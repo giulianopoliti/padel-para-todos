@@ -1,5 +1,6 @@
 import type React from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -99,14 +100,19 @@ export default function TournamentCard({
   return (
     <Card className="overflow-hidden hover:shadow-md transition-all duration-300 border-gray-200 h-full flex flex-col">
       <div className="relative h-48 overflow-hidden">
-        <img
+        <Image
           src={
             tournament.pre_tournament_image_url ||
             tournament.club?.image || 
             "/placeholder.svg?height=200&width=300"
           }
           alt={tournament.club?.name || tournament.name}
+          width={300}
+          height={200}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+          loading="lazy"
+          placeholder="blur"
+          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
         />
         <div className="absolute top-4 right-4">
           <Badge className={`${getStatusColor(tournament.status)} px-3 py-1`}>{getStatusText(tournament.status)}</Badge>

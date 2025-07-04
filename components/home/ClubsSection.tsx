@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Users, Clock, Star, Award, MapPin, ArrowRight, Building2 } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { getTopClubsForHome } from "@/app/api/users"
 
 export async function ClubsSection() {
@@ -19,20 +20,25 @@ export async function ClubsSection() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {topClubs.length > 0 ? (
-            topClubs.map((club) => (
+            topClubs.map((club: any) => (
               <Card
                 key={club.id}
                 className="bg-white border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden"
               >
                 <div className="relative">
-                  <img
+                  <Image
                     src={
                       club.coverImage ||
                       "https://vulusxqgknaejdxnhiex.supabase.co/storage/v1/object/public/imagenes/prueba/cancha%20prueba.jpg?height=250&width=400" ||
                       "/placeholder.svg"
                     }
                     alt={club.name || "Club de pádel"}
+                    width={400}
+                    height={250}
                     className="w-full h-48 object-cover transition-transform duration-500 hover:scale-105"
+                    loading="lazy"
+                    placeholder="blur"
+                    blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
 
