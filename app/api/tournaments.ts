@@ -205,4 +205,100 @@ export async function getTournamentById(id: string) {
         return null;
     }
 }
+
+/**
+ * OPTIMIZED: Get upcoming tournaments for home page - only fetches the next 3 tournaments
+ * This reduces DB queries from ~20+ to just 4 queries total
+ */
+export async function getUpcomingTournamentsForHome(limit: number = 3) {
+    try {
+        const supabase = await createClient();
+        
+        // Single query to get upcoming tournaments with club info, filtered and limited
+        const { data: tournaments, error } = await supabase
+            .from("tournaments")
+            .select(`
+                id,
+                name,
+                start_date,
+                end_date,
+                category_name,
+                gender,
+                status,
+                type,
+                pre_tournament_image_url,
+                price,
+                description,
+                max_participants,
+                club:clubes (
+                    id,
+                    name,
+                    address,
+                    cover_image_url
+                )
+            `)
+            .eq("status", "NOT_STARTED")
+            .order("start_date", { ascending: true })
+            .limit(limit);
+
+        if (error) {
+            console.error("Error fetching upcoming tournaments for home:", error);
+            return [];
+        }
+
+        if (!tournaments || tournaments.length === 0) {
+            return [];
+        }
+
+        // Get inscriptions count for all tournaments in one query
+        const tournamentIds = tournaments.map(t => t.id);
+        const { data: allInscriptions, error: inscriptionsError } = await supabase
+            .from("inscriptions")
+            .select("tournament_id")
+            .in("tournament_id", tournamentIds);
+
+        if (inscriptionsError) {
+            console.error("Error fetching inscriptions for home tournaments:", inscriptionsError);
+        }
+
+        // Build final tournament objects with participants count
+        const tournamentsWithParticipants = tournaments.map(rawTournament => {
+            const inscriptions = allInscriptions?.filter(i => i.tournament_id === rawTournament.id) || [];
+            const currentParticipants = inscriptions.length;
+
+            return {
+                id: rawTournament.id,
+                name: rawTournament.name,
+                club: rawTournament.club ? {
+                    id: rawTournament.club.id,
+                    name: rawTournament.club.name,
+                    image: rawTournament.club.cover_image_url
+                } : null,
+                createdAt: rawTournament.created_at || null,
+                startDate: rawTournament.start_date || null,
+                endDate: rawTournament.end_date || null,
+                category: rawTournament.category_name || null,
+                gender: rawTournament.gender || "MALE",
+                status: rawTournament.status || "NOT_STARTED",
+                type: rawTournament.type || "AMERICAN",
+                pre_tournament_image_url: rawTournament.pre_tournament_image_url || null,
+                price: rawTournament.price || null,
+                description: rawTournament.description || null,
+                maxParticipants: rawTournament.max_participants || null,
+                currentParticipants: currentParticipants,
+                address: rawTournament.club?.address || null,
+                time: null,
+                prize: (rawTournament.description && 
+                       (rawTournament.description.includes('premio') || rawTournament.description.includes('$'))) 
+                    ? rawTournament.description 
+                    : null
+            };
+        });
+
+        return tournamentsWithParticipants;
+    } catch (error) {
+        console.error("Error in getUpcomingTournamentsForHome:", error);
+        return [];
+    }
+}
     

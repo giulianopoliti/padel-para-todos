@@ -23,7 +23,8 @@ export async function getTop5MalePlayers() {
 
 
 export async function getPlayersMale(limit?: number) {
-    const query = supabase
+    // OPTIMIZED: Sort directly in DB and apply limit in query
+    let query = supabase
         .from("players")
         .select(`
             *,
@@ -31,7 +32,13 @@ export async function getPlayersMale(limit?: number) {
                 name
             )
         `)
-        .eq("gender", "MALE");
+        .eq("gender", "MALE")
+        .order("score", { ascending: false }); // Sort in DB instead of frontend
+
+    // Apply limit in query if specified
+    if (limit) {
+        query = query.limit(limit);
+    }
 
     const { data, error } = await query;
 
@@ -40,19 +47,8 @@ export async function getPlayersMale(limit?: number) {
         return [];
     }
 
-    // Sort the data exactly like in ranking-client (score descending)
-    const sortedData = data?.sort((a, b) => {
-        const scoreA = a.score || 0;
-        const scoreB = b.score || 0;
-        
-        // Standard descending order comparison (like ranking-client)
-        if (scoreA < scoreB) return 1;
-        if (scoreA > scoreB) return -1;
-        return 0;
-    }) || [];
-
-    // Apply limit after sorting if specified
-    const finalData = limit ? sortedData.slice(0, limit) : sortedData;
+    // Data is already sorted and limited from DB
+    const finalData = data || [];
 
     // Map the raw data to our Player type
     const players = finalData?.map((rawPlayer): Player => {
@@ -1292,5 +1288,82 @@ export const getUser = async (): Promise<User | null> => {
     } catch (error) {
       console.error('Error getting current user club ID:', error)
       return null
+    }
+  }
+
+  /**
+   * OPTIMIZED: Get top clubs for home page - only fetches the top 3 clubs
+   * This reduces DB queries from ~20+ to just 3 queries total
+   */
+  export async function getTopClubsForHome(limit: number = 3) {
+    const supabase = await createClient();
+    
+    try {
+      // Single query to get clubs with their average ratings, sorted by rating
+      const { data: clubsWithRatings, error: clubsError } = await supabase
+        .from("clubes")
+        .select(`
+          id,
+          name,
+          address,
+          courts,
+          opens_at,
+          closes_at,
+          cover_image_url,
+          gallery_images
+        `)
+        .order("name")
+        .limit(limit * 3); // Get more clubs to calculate ratings properly
+
+      if (clubsError) {
+        console.error("Error fetching clubs for home:", clubsError);
+        return [];
+      }
+
+      if (!clubsWithRatings || clubsWithRatings.length === 0) {
+        return [];
+      }
+
+      // Get all reviews for these clubs in one query
+      const clubIds = clubsWithRatings.map(club => club.id);
+      const { data: allReviews, error: reviewsError } = await supabase
+        .from("reviews")
+        .select("club_id, score")
+        .in("club_id", clubIds);
+
+      if (reviewsError) {
+        console.error("Error fetching reviews for home clubs:", reviewsError);
+      }
+
+      // Calculate ratings and prepare final data
+      const clubsWithCalculatedRatings = clubsWithRatings.map(club => {
+        const clubReviews = allReviews?.filter(review => review.club_id === club.id) || [];
+        const reviewCount = clubReviews.length;
+        const averageRating = reviewCount > 0 
+          ? clubReviews.reduce((sum, review) => sum + (review.score || 0), 0) / reviewCount 
+          : 0;
+
+        return {
+          id: club.id,
+          name: club.name || null,
+          address: club.address || null,
+          courts: club.courts || 0,
+          opens_at: club.opens_at || null,
+          closes_at: club.closes_at || null,
+          rating: Math.round(averageRating * 10) / 10,
+          reviewCount: reviewCount,
+          coverImage: club.cover_image_url || null,
+          galleryImages: Array.isArray(club.gallery_images) ? club.gallery_images : []
+        };
+      });
+
+          // Sort by rating descending and return top clubs
+    return clubsWithCalculatedRatings
+      .sort((a: any, b: any) => b.rating - a.rating)
+      .slice(0, limit);
+
+    } catch (error) {
+      console.error("Error in getTopClubsForHome:", error);
+      return [];
     }
   }

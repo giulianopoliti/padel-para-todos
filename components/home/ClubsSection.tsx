@@ -3,13 +3,11 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Users, Clock, Star, Award, MapPin, ArrowRight, Building2 } from "lucide-react"
 import Link from "next/link"
-import { getClubesWithServices } from "@/app/api/users"
+import { getTopClubsForHome } from "@/app/api/users"
 
 export async function ClubsSection() {
-  const allClubs = await getClubesWithServices()
-  
-  // Get top 3 clubs by rating
-  const topClubs = allClubs.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 3)
+  // OPTIMIZED: Get only top 3 clubs directly from DB
+  const topClubs = await getTopClubsForHome(3)
 
   return (
     <section className="py-24 bg-white">

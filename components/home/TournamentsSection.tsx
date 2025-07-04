@@ -1,17 +1,16 @@
 import { Button } from "@/components/ui/button"
 import { Calendar, ArrowRight } from "lucide-react"
 import Link from "next/link"
-import { getTournaments, getCategories } from "@/app/api/tournaments"
+import { getUpcomingTournamentsForHome, getCategories } from "@/app/api/tournaments"
 import TournamentCard from "@/components/tournament-card"
 
 export async function TournamentsSection() {
-  const [allTournaments, categories] = await Promise.all([
-    getTournaments(),
+  const [upcomingTournaments, categories] = await Promise.all([
+    getUpcomingTournamentsForHome(3), // OPTIMIZED: Get only 3 upcoming tournaments directly from DB
     getCategories(),
   ])
 
-  // Filter for upcoming tournaments (NOT_STARTED status) and limit to 3
-  const upcomingTournaments = allTournaments.filter((tournament) => tournament.status === "NOT_STARTED").slice(0, 3)
+  // Data is already filtered and limited from DB
 
   return (
     <section className="py-24 bg-gradient-to-br from-gray-50 to-gray-100">
