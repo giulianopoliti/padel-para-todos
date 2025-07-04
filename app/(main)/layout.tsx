@@ -5,7 +5,8 @@ import '../globals.css'
 import { UserProvider } from '@/contexts/user-context'
 // import AuthProvider from '@/components/auth-provider' // Eliminamos la importación
 import { Toaster } from '@/components/ui/toaster'
-import Navbar from '@/components/navbar' // 👈 Asegurate de importar la navbar
+import Navbar from '@/components/navbar'
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export const metadata = {
   title: 'Sistema de Torneos de Pádel',
@@ -32,6 +33,7 @@ export default async function MainLayout({
           <Navbar /> {/* ✅ Navbar se muestra en todas las páginas */}
           {children}
           <Toaster />
+          <SpeedInsights />
         </UserProvider> 
       </ThemeProvider>
     </SupabaseProvider>
