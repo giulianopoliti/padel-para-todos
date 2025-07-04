@@ -34,7 +34,6 @@ import { LOGOS } from "@/lib/supabase-storage"
 const EnhancedBracketDemo = dynamic(
   () => import("@/components/home/enhance-bracket-demo"),
   { 
-    ssr: false, // Don't render on server for better performance
     loading: () => <BracketDemoSkeleton />
   }
 )
@@ -77,7 +76,7 @@ export default function HomePage() {
         <ClubsSection />
       </Suspense>
 
-      {/* Sistema de Gestión Profesional - Bracket Demo (OPTIMIZED: Lazy loaded) */}
+      {/* Sistema de Gestión Profesional - Bracket Demo (OPTIMIZED: Lazy loaded, Next.js 15 compatible) */}
       <EnhancedBracketDemo />
 
       {/* Información para Nuevos Usuarios - Estático */}
