@@ -77,7 +77,8 @@ export async function signout() {
     const userId = sessionBefore.session?.user?.id;
     console.log("[ServerAction] Session before logout:", sessionBefore.session ? `User: ${userId}` : 'none');
     
-    const { error } = await supabase.auth.signOut();
+    // Sign out from Supabase (this should clear cookies)
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
     
     if (error) {
       console.error("[ServerAction] Signout error:", error);
@@ -96,16 +97,23 @@ export async function signout() {
       }
     }
     
-    // Verify logout worked
+    // Verify logout worked by checking session again
     const { data: sessionAfter } = await supabase.auth.getSession();
-    console.log("[ServerAction] Session after logout:", sessionAfter.session ? 'still exists' : 'cleared');
+    console.log("[ServerAction] Session after logout:", sessionAfter.session ? 'still exists - forcing cleanup' : 'cleared');
+    
+    // If session still exists, force clear it
+    if (sessionAfter.session) {
+      console.log("[ServerAction] Forcing additional session cleanup...");
+      await supabase.auth.signOut({ scope: 'global' });
+    }
     
     console.log("[ServerAction] Signout successful");
     
-    // Force clear all paths to ensure fresh data
+    // Force clear all cached paths
     revalidatePath("/", "layout");
     revalidatePath("/dashboard");
     revalidatePath("/login");
+    revalidatePath("/edit-profile");
     
     return { success: true };
   } catch (unexpectedError) {

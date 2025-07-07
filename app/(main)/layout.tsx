@@ -20,11 +20,21 @@ export default async function MainLayout({
 }) {
   const supabase = await createClient()
 
+  // Get user session with additional verification
   const {
     data: { user },
+    error: userError
   } = await supabase.auth.getUser()
 
-  const initialUser = user || null
+  // Double-check session validity
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+  // Only pass user if both user exists and session is valid
+  const initialUser = (user && session && !userError && !sessionError) ? user : null
+
+  if (userError || sessionError) {
+    console.log("[Layout] Auth error detected, not passing initialUser:", userError?.message || sessionError?.message)
+  }
 
   return (
     <SupabaseProvider initialUser={initialUser}>

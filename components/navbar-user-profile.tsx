@@ -36,6 +36,11 @@ export default function NavbarUserProfile({ profileLinks = [], params }: NavbarU
   const { toast } = useToast();
 
   const handleLogout = async () => {
+    if (isLoggingOut) {
+      console.log("[NavbarUserProfile] Logout already in progress, ignoring...");
+      return; // Prevent double logout
+    }
+    
     console.log("[NavbarUserProfile] Starting optimistic logout...");
     setIsLoggingOut(true);
     

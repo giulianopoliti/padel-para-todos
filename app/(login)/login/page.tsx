@@ -19,20 +19,38 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [formData, setFormData] = useState({
+    email: "",
+    password: ""
+  })
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  const handleLogin = async (formData: FormData) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault() // Prevent default form submission
     if (isSubmitting) return // Prevent double submission
     
     try {
       setIsSubmitting(true)
-      formData.append("role", role)
+
+      // Create FormData from state
+      const data = new FormData()
+      data.append("email", formData.email)
+      data.append("password", formData.password)
+      data.append("role", role)
 
       console.log("[CLIENT] Submitting login with role:", role)
-      const result = await login(formData)
+      const result = await login(data)
       console.log("[CLIENT] Login result:", result)
 
       if (result?.error) {
@@ -70,7 +88,11 @@ export default function LoginPage() {
         variant: "destructive",
       })
     } finally {
-      setIsSubmitting(false)
+      // Only reset form and isSubmitting if there was an error
+      // Success case will redirect, so no need to reset
+      if (document.location.pathname === "/login") {
+        setIsSubmitting(false)
+      }
     }
   }
 
@@ -108,7 +130,7 @@ export default function LoginPage() {
 
         <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center">
           <div className="w-full max-w-md">
-            <Card className="border-0 shadow-2xl rounded-3xl overflow-hidden bg-white/80 backdrop-blur-sm">
+            <Card className={`border-0 shadow-2xl rounded-3xl overflow-hidden bg-white/80 backdrop-blur-sm transition-opacity duration-200 ${isSubmitting ? 'opacity-70' : ''}`}>
               <div className="h-2 bg-gradient-to-r from-slate-600 to-slate-800"></div>
 
               <CardHeader className="pt-8 pb-6 text-center">
@@ -124,7 +146,7 @@ export default function LoginPage() {
               </CardHeader>
 
               <CardContent className="px-8">
-                <form action={handleLogin} className="space-y-6">
+                <form onSubmit={handleLogin} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-slate-700 font-medium">
                       Correo Electrónico
@@ -133,10 +155,12 @@ export default function LoginPage() {
                       id="email"
                       name="email"
                       type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
                       placeholder="tu@email.com"
                       required
                       disabled={isSubmitting}
-                      className="border-slate-200 focus:border-slate-500 focus:ring-slate-500 rounded-xl h-12 text-base"
+                      className="border-slate-200 focus:border-slate-500 focus:ring-slate-500 rounded-xl h-12 text-base disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-200"
                     />
                   </div>
 
@@ -149,15 +173,17 @@ export default function LoginPage() {
                         id="password"
                         name="password"
                         type={showPassword ? "text" : "password"}
+                        value={formData.password}
+                        onChange={handleInputChange}
                         required
                         disabled={isSubmitting}
-                        className="border-slate-200 focus:border-slate-500 focus:ring-slate-500 rounded-xl h-12 text-base pr-12"
+                        className="border-slate-200 focus:border-slate-500 focus:ring-slate-500 rounded-xl h-12 text-base pr-12 disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-200"
                       />
                       <button
                         type="button"
                         onClick={handleTogglePassword}
                         disabled={isSubmitting}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 disabled:opacity-50"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                       </button>
@@ -165,23 +191,26 @@ export default function LoginPage() {
                   </div>
 
                   <div className="flex justify-end">
-                    <Link href="/forgot-password" className="text-slate-600 hover:text-slate-800 text-sm font-medium">
+                    <Link 
+                      href="/forgot-password" 
+                      className={`text-slate-600 hover:text-slate-800 text-sm font-medium transition-colors ${isSubmitting ? 'pointer-events-none opacity-70' : ''}`}
+                    >
                       ¿Olvidaste tu contraseña?
                     </Link>
                   </div>
 
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-800 hover:to-slate-950 text-white rounded-xl h-12 text-base font-medium shadow-lg disabled:opacity-70"
+                    className="w-full bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-800 hover:to-slate-950 text-white rounded-xl h-12 text-base font-medium shadow-lg disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-200 relative overflow-hidden group"
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Iniciando sesión...
-                      </>
-                    ) : (
-                      "Iniciar Sesión"
+                    <span className={`inline-flex items-center transition-opacity duration-200 ${isSubmitting ? 'opacity-0' : 'opacity-100'}`}>
+                      Iniciar Sesión
+                    </span>
+                    {isSubmitting && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      </div>
                     )}
                   </Button>
                 </form>
@@ -195,14 +224,14 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => setRole("PLAYER")}
                       disabled={isSubmitting}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all disabled:opacity-50 ${
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                         role === "PLAYER"
                           ? "bg-slate-100 border-2 border-slate-300 shadow-sm"
                           : "bg-white border border-slate-200 hover:border-slate-300"
                       }`}
                     >
                       <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 transition-colors ${
                           role === "PLAYER"
                             ? "bg-gradient-to-r from-slate-600 to-slate-800 text-white"
                             : "bg-slate-100 text-slate-500"
@@ -221,14 +250,14 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => setRole("CLUB")}
                       disabled={isSubmitting}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all disabled:opacity-50 ${
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                         role === "CLUB"
                           ? "bg-slate-100 border-2 border-slate-300 shadow-sm"
                           : "bg-white border border-slate-200 hover:border-slate-300"
                       }`}
                     >
                       <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 transition-colors ${
                           role === "CLUB"
                             ? "bg-gradient-to-r from-slate-600 to-slate-800 text-white"
                             : "bg-slate-100 text-slate-500"
@@ -245,14 +274,14 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => setRole("COACH")}
                       disabled={isSubmitting}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all disabled:opacity-50 ${
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                         role === "COACH"
                           ? "bg-slate-100 border-2 border-slate-300 shadow-sm"
                           : "bg-white border border-slate-200 hover:border-slate-300"
                       }`}
                     >
                       <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 transition-colors ${
                           role === "COACH"
                             ? "bg-gradient-to-r from-slate-600 to-slate-800 text-white"
                             : "bg-slate-100 text-slate-500"
@@ -269,7 +298,10 @@ export default function LoginPage() {
 
                 <div className="text-center pt-2">
                   <span className="text-slate-500 text-sm">¿No tienes una cuenta? </span>
-                  <Link href="/register" className="font-medium text-slate-700 hover:text-slate-900 text-sm">
+                  <Link 
+                    href="/register" 
+                    className={`font-medium text-slate-700 hover:text-slate-900 text-sm transition-colors ${isSubmitting ? 'pointer-events-none opacity-70' : ''}`}
+                  >
                     Regístrate
                   </Link>
                 </div>

@@ -131,8 +131,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       if (result.success) {
         console.log("[UserContext] Server signout successful");
         
-        // Refresh to ensure all server state is cleared
-        router.refresh();
+        // DON'T call router.refresh() - it causes re-login loop
+        // The server action already revalidates paths
         
         console.log("[UserContext] Optimistic logout completed successfully");
         return; // Exit successfully
@@ -142,13 +142,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         // Special case: if session is already missing, treat as successful logout
         if (result.error === 'Auth session missing!') {
           console.log("[UserContext] Session already missing, logout successful");
-          router.refresh();
-          return; // Exit successfully
+          return; // Exit successfully - don't refresh
         }
         
         // For other errors, try direct supabase logout as fallback
         console.log("[UserContext] Attempting direct Supabase logout...");
-        const { error: directLogoutError } = await supabase.auth.signOut();
+        const { error: directLogoutError } = await supabase.auth.signOut({ scope: 'local' });
         
         if (directLogoutError) {
           console.error("[UserContext] Direct logout also failed:", directLogoutError);
@@ -158,7 +157,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         }
         
         console.log("[UserContext] Direct logout successful");
-        router.refresh();
+        // Don't call router.refresh() here either
       }
     } catch (err: any) {
       console.error("[UserContext] Logout error:", err);
