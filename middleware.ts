@@ -2,29 +2,39 @@ import { type NextRequest } from 'next/server'
 import { updateSession } from '@/utils/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-  // Run the Supabase session update and auth check
+  // Skip middleware for static files and API routes that don't need auth
+  const path = request.nextUrl.pathname;
+  
+  // Skip completely for these patterns
+  if (
+    path.startsWith('/_next/') ||
+    path.startsWith('/api/auth/') ||
+    path.includes('.') ||
+    path === '/favicon.ico'
+  ) {
+    return;
+  }
+
   return await updateSession(request)
 }
 
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - / (the root path, often public)
-     * - /login (the login page)
-     * - /auth/ (authentication routes)
-     * Feel free to modify this pattern to include more public routes.
+     * Optimized matcher - only run on paths that actually need auth checking
+     * Excludes:
+     * - Static files (_next/static, _next/image)
+     * - Image optimization files
+     * - All file extensions (images, fonts, etc.)
+     * - Auth callback routes (handled separately)
+     * - Prefetch requests (performance optimization)
      */
-    '/((?!_next/static|_next/image|favicon.ico|login|auth).*)',
-    // Apply middleware to specific protected top-level routes if needed
-    // Example: Apply only to /home and /profile
-    // '/home/:path*',
-    // '/profile/:path*',
-    // '/tournaments/:path*',
-    // '/settings/:path*',
-    // Add other protected paths here
+    {
+      source: '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot)$).*)',
+      missing: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ]
+    }
   ],
 }

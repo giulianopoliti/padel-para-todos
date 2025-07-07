@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
-import { User, Building2, GraduationCap, ArrowLeft, Eye, EyeOff } from "lucide-react"
+import { User, Building2, GraduationCap, ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react"
 import CPALogo from "@/components/ui/cpa-logo"
 
 export default function LoginPage() {
@@ -17,75 +17,65 @@ export default function LoginPage() {
   const router = useRouter()
   const [role, setRole] = useState<"PLAYER" | "CLUB" | "COACH">("PLAYER")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [retryCount, setRetryCount] = useState(0)
   const [showPassword, setShowPassword] = useState(false)
-  const MAX_RETRIES = 2
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  useEffect(() => {
-    if (isSubmitting && retryCount > 0) {
-      const timer = setTimeout(() => {
-        setIsSubmitting(false)
-      }, 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [isSubmitting, retryCount])
-
-  async function handleLogin(formData: FormData) {
+  const handleLogin = async (formData: FormData) => {
+    if (isSubmitting) return // Prevent double submission
+    
     try {
-      setError(null)
       setIsSubmitting(true)
       formData.append("role", role)
 
-      if (retryCount >= MAX_RETRIES) {
-        toast({
-          title: "Demasiados intentos",
-          description: "Por favor, intenta de nuevo más tarde.",
-          variant: "destructive",
-        })
-        setError("Demasiados intentos. Por favor, intenta de nuevo más tarde.")
-        setIsSubmitting(false)
-        return
-      }
-
+      console.log("[CLIENT] Submitting login with role:", role)
       const result = await login(formData)
+      console.log("[CLIENT] Login result:", result)
 
       if (result?.error) {
+        console.log("[CLIENT] Showing error toast:", result.error)
         toast({
           title: "Error de acceso",
           description: result.error,
           variant: "destructive",
         })
-        setError(result.error)
-        setRetryCount((prev) => prev + 1)
       } else if (result?.success) {
+        console.log("[CLIENT] Login successful, redirecting to:", result.redirectUrl)
         toast({
           title: "Acceso exitoso",
-          description: "Redirigiendo al panel de control...",
+          description: result.message || "Redirigiendo...",
         })
-        router.push("/dashboard")
+        
+        // Use the redirectUrl from the server response
+        const redirectTo = result.redirectUrl || "/dashboard"
+        
+        // Use window.location for a full page refresh to ensure proper auth state
+        window.location.href = redirectTo
+      } else {
+        console.log("[CLIENT] Unexpected result format:", result)
+        toast({
+          title: "Error inesperado",
+          description: "Respuesta inesperada del servidor. Intenta de nuevo.",
+          variant: "destructive",
+        })
       }
     } catch (e) {
-      const errorMessage =
-        typeof e === "object" && e !== null && "message" in e
-          ? `Error de conexión: ${(e as Error).message}`
-          : "Error de conexión. Por favor intenta de nuevo más tarde."
-
+      console.error("[CLIENT] Login failed with exception:", e)
       toast({
         title: "Error de red",
-        description: errorMessage,
+        description: "Error de conexión. Por favor intenta de nuevo más tarde.",
         variant: "destructive",
       })
-      setError(errorMessage)
-      setRetryCount((prev) => prev + 1)
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleTogglePassword = () => {
+    setShowPassword(prev => !prev)
   }
 
   if (!mounted) {
@@ -134,12 +124,6 @@ export default function LoginPage() {
               </CardHeader>
 
               <CardContent className="px-8">
-                {error && (
-                  <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
-                    {error}
-                  </div>
-                )}
-
                 <form action={handleLogin} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-slate-700 font-medium">
@@ -151,6 +135,7 @@ export default function LoginPage() {
                       type="email"
                       placeholder="tu@email.com"
                       required
+                      disabled={isSubmitting}
                       className="border-slate-200 focus:border-slate-500 focus:ring-slate-500 rounded-xl h-12 text-base"
                     />
                   </div>
@@ -165,12 +150,14 @@ export default function LoginPage() {
                         name="password"
                         type={showPassword ? "text" : "password"}
                         required
+                        disabled={isSubmitting}
                         className="border-slate-200 focus:border-slate-500 focus:ring-slate-500 rounded-xl h-12 text-base pr-12"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        onClick={handleTogglePassword}
+                        disabled={isSubmitting}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 disabled:opacity-50"
                       >
                         {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                       </button>
@@ -185,10 +172,17 @@ export default function LoginPage() {
 
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-800 hover:to-slate-950 text-white rounded-xl h-12 text-base font-medium shadow-lg"
+                    className="w-full bg-gradient-to-r from-slate-700 to-slate-900 hover:from-slate-800 hover:to-slate-950 text-white rounded-xl h-12 text-base font-medium shadow-lg disabled:opacity-70"
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? "Iniciando sesión..." : "Iniciar Sesión"}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Iniciando sesión...
+                      </>
+                    ) : (
+                      "Iniciar Sesión"
+                    )}
                   </Button>
                 </form>
               </CardContent>
@@ -200,7 +194,8 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setRole("PLAYER")}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all ${
+                      disabled={isSubmitting}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all disabled:opacity-50 ${
                         role === "PLAYER"
                           ? "bg-slate-100 border-2 border-slate-300 shadow-sm"
                           : "bg-white border border-slate-200 hover:border-slate-300"
@@ -225,7 +220,8 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setRole("CLUB")}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all ${
+                      disabled={isSubmitting}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all disabled:opacity-50 ${
                         role === "CLUB"
                           ? "bg-slate-100 border-2 border-slate-300 shadow-sm"
                           : "bg-white border border-slate-200 hover:border-slate-300"
@@ -248,7 +244,8 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setRole("COACH")}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all ${
+                      disabled={isSubmitting}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all disabled:opacity-50 ${
                         role === "COACH"
                           ? "bg-slate-100 border-2 border-slate-300 shadow-sm"
                           : "bg-white border border-slate-200 hover:border-slate-300"
