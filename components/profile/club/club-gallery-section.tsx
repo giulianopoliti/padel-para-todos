@@ -11,7 +11,7 @@ import {
   uploadClubGalleryAction,
   removeClubGalleryAction,
 } from "@/app/(main)/edit-profile/actions"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 
 interface ClubGallerySectionProps {
   defaultValues?: {
