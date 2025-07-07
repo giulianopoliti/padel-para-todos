@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Loader2 } from "lucide-react";
 import { useUser } from "@/contexts/user-context";
+import { useToast } from "@/components/ui/use-toast";
 import type { User as AuthUser } from "@supabase/supabase-js";
 import { getIcon, IconName } from "@/components/icons";
 
@@ -32,49 +33,79 @@ export default function NavbarUserProfile({ profileLinks = [], params }: NavbarU
   const { user, logout, userDetails } = useUser();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
+  const { toast } = useToast();
+
   const handleLogout = async () => {
-    console.log("[NavbarUserProfile] Starting logout...");
+    console.log("[NavbarUserProfile] Starting optimistic logout...");
     setIsLoggingOut(true);
+    
+    // Show immediate feedback
+    toast({
+      title: "Cerrando sesión...",
+      description: "Un momento por favor",
+    });
     
     try {
       console.log("[NavbarUserProfile] Calling logout function...");
       await logout();
       
-      console.log("[NavbarUserProfile] Logout successful, redirecting...");
+      console.log("[NavbarUserProfile] Logout successful, showing success message...");
       
-      // Force navigation
+      // Show success message
+      toast({
+        title: "Sesión cerrada",
+        description: "Has cerrado sesión exitosamente",
+      });
+      
+      // Use smooth navigation instead of hard redirect
       router.push("/login");
-      
-      // Fallback: Force page reload if navigation doesn't work
-      setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          console.log("[NavbarUserProfile] Force redirecting with window.location...");
-          window.location.href = "/login";
-        }
-      }, 1000);
       
     } catch (error) {
       console.error("[NavbarUserProfile] Error logging out:", error);
       
-      // Even if logout failed, try to redirect
-      console.log("[NavbarUserProfile] Logout failed, but redirecting anyway...");
-      router.push("/login");
+      // Show error message
+      toast({
+        title: "Error al cerrar sesión",
+        description: "Intenta de nuevo o recarga la página",
+        variant: "destructive",
+      });
       
-      // Force page reload as fallback
+      // Fallback to hard redirect only if needed
       setTimeout(() => {
         if (typeof window !== 'undefined') {
-          console.log("[NavbarUserProfile] Force redirecting after error...");
+          console.log("[NavbarUserProfile] Fallback redirect after error...");
           window.location.href = "/login";
         }
-      }, 500);
+      }, 2000);
       
     } finally {
-      setIsLoggingOut(false);
+      // Keep loading state briefly for smooth transition
+      setTimeout(() => {
+        setIsLoggingOut(false);
+      }, 500);
     }
   };
-  if (!user) {
+
+  if (!user || isLoggingOut) {
+    // Show loading state during logout
+    if (isLoggingOut) {
+      return (
+        <Button 
+          variant="ghost" 
+          className="relative rounded-full p-0 h-10 w-10 text-white hover:bg-gray-800 focus-visible:ring-white focus-visible:ring-offset-0 focus-visible:ring-offset-gray-900"
+          disabled
+        >
+          <Avatar className="h-9 w-9 opacity-50">
+            <AvatarFallback className="bg-gray-600 text-white">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+      );
+    }
     return null;
   }
+
   const getInitials = () => {
     const UDetails = userDetails as any;
     if (UDetails && typeof UDetails.first_name === 'string' && UDetails.first_name && typeof UDetails.last_name === 'string' && UDetails.last_name) {
@@ -86,13 +117,16 @@ export default function NavbarUserProfile({ profileLinks = [], params }: NavbarU
     if (user?.email) return user.email.substring(0, 2).toUpperCase();
     return "U";
   };
+
   const displayName = 
     (userDetails && typeof (userDetails as any).first_name === 'string' && (userDetails as any).first_name) ||
     (userDetails && typeof (userDetails as any).name === 'string' && (userDetails as any).name) ||
     user.email?.split('@')[0] || 
     "Usuario";
+
   const userEmail = user.email || "No email available";
   const userIdShort = user.id.substring(0, 8);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -127,12 +161,16 @@ export default function NavbarUserProfile({ profileLinks = [], params }: NavbarU
         
         {profileLinks.length > 0 && <DropdownMenuSeparator className="bg-gray-100"/>}
         
-        <DropdownMenuItem 
+        <DropdownMenuItem
           className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer flex items-center px-3 py-2 text-sm rounded-sm"
           onClick={handleLogout}
           disabled={isLoggingOut}
         >
-          <LogOut className="mr-2.5 h-4 w-4" />
+          {isLoggingOut ? (
+            <Loader2 className="mr-2.5 h-4 w-4 animate-spin" />
+          ) : (
+            <LogOut className="mr-2.5 h-4 w-4" />
+          )}
           <span>{isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

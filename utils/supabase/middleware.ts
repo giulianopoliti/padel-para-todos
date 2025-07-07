@@ -9,6 +9,20 @@ type Role = "PLAYER" | "CLUB" | "COACH" | "ADMIN"
 const sessionCache = new Map<string, { user: any; role: Role | null; timestamp: number }>()
 const CACHE_DURATION = 30 * 1000 // 30 seconds
 
+// Function to clear cache for a specific user (for logout)
+export function clearUserCache(userId: string) {
+  if (sessionCache.has(userId)) {
+    sessionCache.delete(userId)
+    console.log(`[Middleware] Cleared cache for user: ${userId}`)
+  }
+}
+
+// Function to clear all cache (for complete cleanup)
+export function clearAllCache() {
+  sessionCache.clear()
+  console.log("[Middleware] Cleared all cache")
+}
+
 // Protected routes that require authentication
 const PROTECTED_ROUTES = ["/dashboard", "/edit-profile", "/profile"]
 
@@ -57,6 +71,12 @@ export async function updateSession(request: NextRequest) {
     }
 
     const user = session?.user
+    const userId = user?.id
+    
+    // If no session/user, clear any cached data for this user
+    if (!user && userId) {
+      clearUserCache(userId)
+    }
     
     // Early return for public routes when no user
     if (!user && !PROTECTED_ROUTES.some(route => currentPath.startsWith(route))) {
@@ -72,7 +92,6 @@ export async function updateSession(request: NextRequest) {
 
     // If user exists, check cache first for role
     let userRole: Role | null = null
-    const userId = user?.id
     const cacheKey = userId || ""
     const now = Date.now()
     
@@ -83,6 +102,7 @@ export async function updateSession(request: NextRequest) {
         console.log(`[Middleware] Using cached role for user ${userId}: ${userRole}`)
       } else {
         sessionCache.delete(cacheKey)
+        console.log(`[Middleware] Cache expired for user ${userId}, fetching fresh data`)
       }
     }
 
@@ -127,16 +147,20 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(redirectUrl, { headers })
     }
 
-    // Redirect authenticated users away from auth pages
+    // Redirect authenticated users away from auth pages (with extra safety check)
     if (
       user &&
       (currentPath === "/login" ||
         currentPath === "/register" ||
         currentPath === "/forgot-password")
     ) {
-      const url = request.nextUrl.clone()
-      url.pathname = "/dashboard"
-      return NextResponse.redirect(url, { headers })
+      // Double-check that user is actually authenticated by verifying session exists
+      if (session) {
+        const url = request.nextUrl.clone()
+        url.pathname = "/dashboard"
+        console.log(`[Middleware] Redirecting authenticated user from auth page to dashboard`)
+        return NextResponse.redirect(url, { headers })
+      }
     }
 
     return response

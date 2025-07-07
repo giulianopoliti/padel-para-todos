@@ -88,20 +88,22 @@ export default function NavbarClient({ mainLinks, profileLinks, user }: NavbarCl
           {/* Desktop Actions */}
           <div className="hidden lg:flex items-center space-x-3">
             {user ? (
-              <NavbarUserProfile profileLinks={profileLinks} />
+              <div className="transition-all duration-300 ease-in-out">
+                <NavbarUserProfile profileLinks={profileLinks} />
+              </div>
             ) : (
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 transition-all duration-300 ease-in-out">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-gray-300 hover:text-white hover:bg-gray-800 px-4 py-2 text-base"
+                  className="text-gray-300 hover:text-white hover:bg-gray-800 px-4 py-2 text-base transition-all duration-200"
                   asChild
                 >
                   <Link href="/login">Iniciar Sesión</Link>
                 </Button>
                 <Button 
                   size="sm" 
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-base"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-base transition-all duration-200"
                   asChild
                 >
                   <Link href="/register">Registrarse</Link>
@@ -149,27 +151,28 @@ export default function NavbarClient({ mainLinks, profileLinks, user }: NavbarCl
                 })}
               </nav>
 
-              <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-gray-800">
+              {/* Mobile Actions */}
+              <div className="mt-4 pt-4 border-t border-gray-800">
                 {user ? (
-                  <div className="px-4">
+                  <div className="px-4 transition-all duration-300 ease-in-out">
                     <NavbarUserProfile profileLinks={profileLinks} />
                   </div>
                 ) : (
-                  <>
+                  <div className="space-y-2 px-4 transition-all duration-300 ease-in-out">
                     <Button
                       variant="ghost"
-                      className="justify-start text-gray-300 hover:text-white hover:bg-gray-800 text-base"
+                      className="w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800 text-base transition-all duration-200"
                       asChild
                     >
                       <Link href="/login">Iniciar Sesión</Link>
                     </Button>
                     <Button 
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-base"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white text-base transition-all duration-200"
                       asChild
                     >
                       <Link href="/register">Registrarse</Link>
                     </Button>
-                  </>
+                  </div>
                 )}
               </div>
             </motion.div>

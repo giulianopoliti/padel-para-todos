@@ -72,9 +72,10 @@ export async function signout() {
     console.log("[ServerAction] Performing signout");
     const supabase = await createClient();
     
-    // Get current session before logout for debugging
+    // Get current session before logout for debugging and cache clearing
     const { data: sessionBefore } = await supabase.auth.getSession();
-    console.log("[ServerAction] Session before logout:", sessionBefore.session ? 'exists' : 'none');
+    const userId = sessionBefore.session?.user?.id;
+    console.log("[ServerAction] Session before logout:", sessionBefore.session ? `User: ${userId}` : 'none');
     
     const { error } = await supabase.auth.signOut();
     
@@ -83,16 +84,28 @@ export async function signout() {
       return { success: false, error: error.message };
     }
     
+    // Clear middleware cache if we have a userId
+    if (userId) {
+      try {
+        // Import and call cache clearing function
+        const { clearUserCache } = await import("@/utils/supabase/middleware");
+        clearUserCache(userId);
+      } catch (cacheError) {
+        console.warn("[ServerAction] Could not clear middleware cache:", cacheError);
+        // Don't fail logout for cache clearing issues
+      }
+    }
+    
     // Verify logout worked
     const { data: sessionAfter } = await supabase.auth.getSession();
     console.log("[ServerAction] Session after logout:", sessionAfter.session ? 'still exists' : 'cleared');
     
     console.log("[ServerAction] Signout successful");
     
-    // Force clear all paths
+    // Force clear all paths to ensure fresh data
     revalidatePath("/", "layout");
-    revalidatePath("/home");
-    revalidatePath("/tournaments");
+    revalidatePath("/dashboard");
+    revalidatePath("/login");
     
     return { success: true };
   } catch (unexpectedError) {
