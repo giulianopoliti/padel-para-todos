@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge"
 import { MapPin, Star, ChevronRight, Users, Clock, Search, Filter, Award, Building2 } from "lucide-react"
 import { getClubesOptimized, getUserRoleOptimized } from "@/app/api/clubes/actions"
 import ClubesClientComponent from "./clubes-client"
+
+
 interface Club {
   id: string
   name: string

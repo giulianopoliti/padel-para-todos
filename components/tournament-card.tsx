@@ -154,7 +154,7 @@ export default function TournamentCard({
         <div className="flex items-center text-sm text-gray-600">
           <Users className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
           <span>
-            {tournament.currentParticipants || 0}/{tournament.maxParticipants || "∞"} participantes
+            {tournament.currentParticipants || 0}/{tournament.maxParticipants || "∞"} parejas
           </span>
         </div>
 
