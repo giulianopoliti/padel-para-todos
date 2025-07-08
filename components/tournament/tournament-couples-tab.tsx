@@ -155,7 +155,8 @@ export default function TournamentCouplesTab({
           {!isTournamentActive && (
             <Button
               onClick={handleRegisterCoupleClick}
-              className="bg-slate-900 hover:bg-slate-800 text-white"
+              className="bg-slate-900 hover:bg-slate-800 text-white py-3 sm:py-2"
+              size="default"
             >
               <PlusCircle className="mr-2 h-4 w-4" />
               Inscribir Pareja
@@ -249,15 +250,7 @@ export default function TournamentCouplesTab({
             <p className="text-slate-500 max-w-md mx-auto mb-6">
               Aún no hay parejas inscritas en este torneo. Comienza agregando la primera pareja.
             </p>
-            {!isTournamentActive && (
-              <Button
-                onClick={handleRegisterCoupleClick}
-                className="bg-slate-900 hover:bg-slate-800 text-white"
-              >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Inscribir Primera Pareja
-              </Button>
-            )}
+
           </div>
         )}
       </div>

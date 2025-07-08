@@ -7,7 +7,7 @@ import { getCategories } from "@/app/api/users"
 import { getClubById } from "@/app/api/users"
 import { getCouplesByTournamentId } from "@/app/api/couples/actions"
 import { getPlayersByTournamentId } from "@/app/api/tournaments/actions"
-import { getPlayersMale } from "@/app/api/users"
+import { getRankedPlayers } from "@/app/api/users"
 
 function TournamentLoading() {
   return (
@@ -31,7 +31,10 @@ function TournamentLoading() {
   )
 }
 
-export default async function PlayerTournamentPage({ params: { id: tournamentId } }: { params: { id: string } }) {
+export default async function PlayerTournamentPage({ params }: { params: { id: string } }) {
+  // Await params before using its properties
+  const { id: tournamentId } = await params
+  
   // Obtener datos del torneo desde Supabase
   const tournamentData = await getTournamentById(tournamentId)
   if (!tournamentData) {
@@ -51,11 +54,11 @@ export default async function PlayerTournamentPage({ params: { id: tournamentId 
     // Obtener parejas del torneo
     getCouplesByTournamentId(tournamentId),
     // Obtener todos los jugadores para el buscador
-    getPlayersMale()
+    getRankedPlayers({ pageSize: 1000 }) // Obtener una cantidad grande de jugadores
   ])
 
   // Transformar Player a PlayerDTO para el componente
-  const playersDTO = allPlayers.map(player => ({
+  const playersDTO = allPlayers.players.map((player: any) => ({
     id: player.id,
     first_name: player.firstName,
     last_name: player.lastName,

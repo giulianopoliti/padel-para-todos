@@ -346,44 +346,44 @@ export default function TournamentPlayersTab({
                   <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <Button
                       onClick={handleRegisterMyselfClick}
-                      className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none"
-                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none py-3 sm:py-2"
+                      size="default"
                       disabled={isMaxPlayersReached}
                     >
                       <UserPlus className="mr-2 h-4 w-4" />
                       <span className="hidden sm:inline">Inscribirme solo</span>
-                      <span className="sm:hidden">Individual</span>
+                      <span className="sm:hidden">Inscribir jugador</span>
                     </Button>
                     <Button
                       onClick={handleRegisterCoupleClick}
-                      className="bg-slate-900 hover:bg-slate-800 text-white flex-1 sm:flex-none"
-                      size="sm"
+                      className="bg-slate-900 hover:bg-slate-800 text-white flex-1 sm:flex-none py-3 sm:py-2"
+                      size="default"
                     >
                       <Users className="mr-2 h-4 w-4" />
                       <span className="hidden sm:inline">Inscribir pareja</span>
-                      <span className="sm:hidden">Pareja</span>
+                      <span className="sm:hidden">Inscribir pareja</span>
                     </Button>
                   </div>
                 ) : !user ? (
                   <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <Button
                       onClick={handleRegisterMyselfClick}
-                      className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none"
-                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none py-3 sm:py-2"
+                      size="default"
                       disabled={isMaxPlayersReached}
                     >
                       <UserPlus className="mr-2 h-4 w-4" />
                       <span className="hidden sm:inline">Inscribirme solo</span>
-                      <span className="sm:hidden">Individual</span>
+                      <span className="sm:hidden">Inscribir jugador</span>
                     </Button>
                     <Button
                       onClick={handleRegisterCoupleClick}
-                      className="bg-slate-900 hover:bg-slate-800 text-white flex-1 sm:flex-none"
-                      size="sm"
+                      className="bg-slate-900 hover:bg-slate-800 text-white flex-1 sm:flex-none py-3 sm:py-2"
+                      size="default"
                     >
                       <Users className="mr-2 h-4 w-4" />
                       <span className="hidden sm:inline">Inscribir pareja</span>
-                      <span className="sm:hidden">Pareja</span>
+                      <span className="sm:hidden">Inscribir pareja</span>
                     </Button>
                   </div>
                 ) : isPlayer && isPlayerAlreadyRegistered ? (
@@ -396,8 +396,8 @@ export default function TournamentPlayersTab({
                     <Button
                       onClick={() => setShowCancelConfirmation(true)}
                       variant="outline"
-                      size="sm"
-                      className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                      size="default"
+                      className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 py-3 sm:py-2"
                     >
                       <span className="hidden sm:inline">Cancelar inscripción</span>
                       <span className="sm:hidden">Cancelar</span>
@@ -406,13 +406,13 @@ export default function TournamentPlayersTab({
                 ) : !isPlayer ? (
                   <Button
                     onClick={() => setRegisterPlayerDialogOpen(true)}
-                    className="bg-slate-900 hover:bg-slate-800 text-white w-full sm:w-auto"
-                    size="sm"
+                    className="bg-slate-900 hover:bg-slate-800 text-white w-full sm:w-auto py-3 sm:py-2"
+                    size="default"
                     disabled={isMaxPlayersReached}
                   >
                     <UserPlus className="mr-2 h-4 w-4" />
                     <span className="hidden sm:inline">Inscribir Jugador</span>
-                    <span className="sm:hidden">Inscribir</span>
+                    <span className="sm:hidden">Inscribir jugador</span>
                   </Button>
                 ) : null}
               </>
@@ -557,66 +557,7 @@ export default function TournamentPlayersTab({
                 : "Aún no hay jugadores individuales inscritos en este torneo. Comienza agregando el primer jugador."
               }
             </p>
-            {!isTournamentActive && (
-              <>
-                {isPlayer && !isPlayerAlreadyRegistered ? (
-                  <div className="flex flex-col sm:flex-row gap-2 justify-center max-w-sm mx-auto">
-                    <Button
-                      onClick={handleRegisterMyselfClick}
-                      className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none"
-                      size="sm"
-                      disabled={isMaxPlayersReached}
-                    >
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      <span className="hidden sm:inline">Inscribirme solo</span>
-                      <span className="sm:hidden">Individual</span>
-                    </Button>
-                    <Button
-                      onClick={handleRegisterCoupleClick}
-                      className="bg-slate-900 hover:bg-slate-800 text-white flex-1 sm:flex-none"
-                      size="sm"
-                    >
-                      <Users className="mr-2 h-4 w-4" />
-                      <span className="hidden sm:inline">Inscribir pareja</span>
-                      <span className="sm:hidden">Pareja</span>
-                    </Button>
-                  </div>
-                ) : !user ? (
-                  <div className="flex flex-col sm:flex-row gap-2 justify-center max-w-sm mx-auto">
-                    <Button
-                      onClick={handleRegisterMyselfClick}
-                      className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-none"
-                      size="sm"
-                      disabled={isMaxPlayersReached}
-                    >
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      <span className="hidden sm:inline">Inscribirme solo</span>
-                      <span className="sm:hidden">Individual</span>
-                    </Button>
-                    <Button
-                      onClick={handleRegisterCoupleClick}
-                      className="bg-slate-900 hover:bg-slate-800 text-white flex-1 sm:flex-none"
-                      size="sm"
-                    >
-                      <Users className="mr-2 h-4 w-4" />
-                      <span className="hidden sm:inline">Inscribir pareja</span>
-                      <span className="sm:hidden">Pareja</span>
-                    </Button>
-                  </div>
-                ) : !isPlayer ? (
-                  <Button
-                    onClick={() => setRegisterPlayerDialogOpen(true)}
-                    className="bg-slate-900 hover:bg-slate-800 text-white"
-                    size="sm"
-                    disabled={isMaxPlayersReached}
-                  >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    <span className="hidden sm:inline">Inscribir Primer Jugador</span>
-                    <span className="sm:hidden">Inscribir Jugador</span>
-                  </Button>
-                ) : null}
-              </>
-            )}
+
           </div>
         )}
       </div>
