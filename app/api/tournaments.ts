@@ -91,7 +91,7 @@ export async function getCategories() {
         }
 
         // Ensure we return plain objects
-        return (data || []).map(category => ({
+        return (data || []).map((category: any) => ({
             name: category.name,
             lower_range: category.lower_range,
             upper_range: category.upper_range
@@ -251,7 +251,7 @@ export async function getUpcomingTournamentsForHome(limit: number = 3) {
         }
 
         // Get inscriptions count for all tournaments in one query
-        const tournamentIds = tournaments.map(t => t.id);
+        const tournamentIds = tournaments.map((t: any) => t.id);
         const { data: allInscriptions, error: inscriptionsError } = await supabase
             .from("inscriptions")
             .select("tournament_id")
@@ -262,8 +262,8 @@ export async function getUpcomingTournamentsForHome(limit: number = 3) {
         }
 
         // Build final tournament objects with participants count
-        const tournamentsWithParticipants = tournaments.map(rawTournament => {
-            const inscriptions = allInscriptions?.filter(i => i.tournament_id === rawTournament.id) || [];
+        const tournamentsWithParticipants = tournaments.map((rawTournament: any) => {
+            const inscriptions = allInscriptions?.filter((i: any) => i.tournament_id === rawTournament.id) || [];
             const currentParticipants = inscriptions.length;
 
             return {

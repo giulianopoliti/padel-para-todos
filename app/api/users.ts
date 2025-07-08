@@ -21,10 +21,8 @@ export async function getTop5MalePlayers() {
     return data;
 }
 
-
-export async function getPlayersMale(limit?: number) {
-    // OPTIMIZED: Sort directly in DB and apply limit in query
-    let query = supabase
+export async function getTopPlayers(limit: number = 5) {
+    const query = supabase
         .from("players")
         .select(`
             *,
@@ -33,32 +31,20 @@ export async function getPlayersMale(limit?: number) {
             )
         `)
         .eq("gender", "MALE")
-        .order("score", { ascending: false }); // Sort in DB instead of frontend
-
-    // Apply limit in query if specified
-    if (limit) {
-        query = query.limit(limit);
-    }
+        .order("score", { ascending: false })
+        .limit(limit);
 
     const { data, error } = await query;
 
     if (error) {
-        console.error("Error fetching players:", error);
+        console.error("Error fetching top players:", error);
         return [];
     }
 
-    // Data is already sorted and limited from DB
-    const finalData = data || [];
-
-    // Map the raw data to our Player type
-    const players = finalData?.map((rawPlayer): Player => {
-        
-        // Get profile image - use profile_image_url first, then default
+    return data?.map((rawPlayer: any): Player => {
         let profileImageUrl = rawPlayer.profile_image_url;
         
-        // If we have a profile image, make sure it's a full URL
         if (profileImageUrl) {
-            // If it's not a full URL (doesn't start with http), get the public URL from Supabase
             if (!profileImageUrl.startsWith('http')) {
                 const { data: { publicUrl } } = supabase.storage
                     .from('avatars')
@@ -66,7 +52,6 @@ export async function getPlayersMale(limit?: number) {
                 profileImageUrl = publicUrl;
             }
         } else {
-            // If no profile image, use default image from avatars bucket
             const { data: { publicUrl } } = supabase.storage
                 .from('avatars')
                 .getPublicUrl('avatars/foto predeterminada.jpg');
@@ -75,53 +60,146 @@ export async function getPlayersMale(limit?: number) {
         
         return {
             id: rawPlayer.id,
-            firstName: rawPlayer.first_name,    // DB: first_name -> TS: firstName
-            lastName: rawPlayer.last_name,      // DB: last_name -> TS: lastName
+            firstName: rawPlayer.first_name,
+            lastName: rawPlayer.last_name,
             score: rawPlayer.score,
-            category: rawPlayer.category_name || rawPlayer.category || "Sin categoría",  // DB: category_name -> TS: category
-            preferredHand: rawPlayer.preferred_hand,  // DB: preferred_hand -> TS: preferredHand
+            category: rawPlayer.category_name || rawPlayer.category || "Sin categoría",
+            preferredHand: rawPlayer.preferred_hand,
             racket: rawPlayer.racket,
-            preferredSide: rawPlayer.preferred_side,  // DB: preferred_side -> TS: preferredSide
-            createdAt: rawPlayer.created_at,    // DB: created_at -> TS: createdAt
-            club_name: rawPlayer.clubes?.name || "Sin club",  // Usamos el nombre del club del join
+            preferredSide: rawPlayer.preferred_side,
+            createdAt: rawPlayer.created_at,
+            club_name: rawPlayer.clubes?.name || "Sin club",
             gender: rawPlayer.gender || "MALE",
-            profileImage: profileImageUrl  // Add profile image
+            profileImage: profileImageUrl
         };
     }) || [];
-    
-    return players;
 }
-/*
-export async function getPlayersFemale() {
-    const { data, error } = await supabase
-        .from("players")
-        .select("*")
-        .eq("gender", "FEMALE")
-        .order("score", { ascending: false });
 
-    if (error) {
-        console.error("Error fetching players:", error);
-        return [];
+/**
+ * Obtiene una lista paginada de jugadores ordenados por puntaje
+ * @param options Opciones de filtrado y paginación
+ * @returns Objeto con la lista de jugadores y el conteo total
+ */
+export async function getRankedPlayers({ 
+    page = 1, 
+    pageSize = 50, 
+    category = null, 
+    clubId = null 
+}: { 
+    page?: number; 
+    pageSize?: number; 
+    category?: string | null; 
+    clubId?: string | null; 
+} = {}) {
+    try {
+        // Validar parámetros de entrada
+        const validatedPage = Math.max(1, page);
+        const validatedPageSize = Math.min(100, Math.max(1, pageSize)); // Limitar tamaño de página
+        const offset = (validatedPage - 1) * validatedPageSize;
+
+        // Construir la consulta base para jugadores
+        const baseQuery = supabase
+            .from("players")
+            .select(`
+                *,
+                clubes (
+                    name
+                )
+            `)
+            .eq("gender", "MALE");
+
+        // Construir la consulta base para el conteo
+        const countQuery = supabase
+            .from("players")
+            .select("*", { count: "exact" })
+            .eq("gender", "MALE");
+
+        // Aplicar filtros si existen
+        if (category) {
+            baseQuery.eq("category_name", category);
+            countQuery.eq("category_name", category);
+        }
+        if (clubId) {
+            baseQuery.eq("club_id", clubId);
+            countQuery.eq("club_id", clubId);
+        }
+
+        // Ejecutar ambas consultas en paralelo
+        const [countResult, playersResult] = await Promise.all([
+            countQuery,
+            baseQuery
+                .order("score", { ascending: false })
+                .range(offset, offset + validatedPageSize - 1)
+        ]);
+
+        // Verificar errores en las consultas
+        if (countResult.error) {
+            console.error("Error al obtener el conteo total:", countResult.error);
+            throw new Error("Error al obtener el conteo total de jugadores");
+        }
+
+        if (playersResult.error) {
+            console.error("Error al obtener los jugadores:", playersResult.error);
+            throw new Error("Error al obtener la lista de jugadores");
+        }
+
+        // Procesar y mapear los resultados
+        const mappedPlayers = playersResult.data?.map((rawPlayer: any): Player => {
+            // Procesar la URL de la imagen de perfil
+            let profileImageUrl = rawPlayer.profile_image_url;
+            
+            if (profileImageUrl) {
+                if (!profileImageUrl.startsWith('http')) {
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('avatars')
+                        .getPublicUrl(profileImageUrl);
+                    profileImageUrl = publicUrl;
+                }
+            } else {
+                const { data: { publicUrl } } = supabase.storage
+                    .from('avatars')
+                    .getPublicUrl('avatars/foto predeterminada.jpg');
+                profileImageUrl = publicUrl;
+            }
+            
+            // Mapear los datos del jugador
+            return {
+                id: rawPlayer.id,
+                firstName: rawPlayer.first_name,
+                lastName: rawPlayer.last_name,
+                score: rawPlayer.score,
+                category: rawPlayer.category_name || rawPlayer.category || "Sin categoría",
+                preferredHand: rawPlayer.preferred_hand,
+                racket: rawPlayer.racket,
+                preferredSide: rawPlayer.preferred_side,
+                createdAt: rawPlayer.created_at,
+                club_name: rawPlayer.clubes?.name || "Sin club",
+                gender: rawPlayer.gender || "MALE",
+                profileImage: profileImageUrl
+            };
+        }) || [];
+        
+        // Retornar resultados con metadata
+        return {
+            players: mappedPlayers,
+            totalCount: countResult.count || 0,
+            currentPage: validatedPage,
+            pageSize: validatedPageSize,
+            totalPages: Math.ceil((countResult.count || 0) / validatedPageSize)
+        };
+    } catch (error) {
+        console.error("Error en getRankedPlayers:", error);
+        return {
+            players: [],
+            totalCount: 0,
+            currentPage: page,
+            pageSize: pageSize,
+            totalPages: 0,
+            error: "Error al obtener el ranking de jugadores"
+        };
     }
-
-    // Map the raw data to our Player type
-    const players = data?.map((rawPlayer): Player => ({
-        id: rawPlayer.id,
-        firstName: rawPlayer.first_name,
-        lastName: rawPlayer.last_name,
-        score: rawPlayer.score,
-        category: rawPlayer.category,
-        preferredHand: rawPlayer.preferred_hand,
-        racket: rawPlayer.racket,
-        preferredSide: rawPlayer.preferred_side,
-        createdAt: rawPlayer.created_at,
-        club_id: rawPlayer.club_id,
-        gender: rawPlayer.gender || "FEMALE"
-    })) || [];
-
-    return players;
 }
-*/
+
 export async function getCouples() {
     const { data, error } = await supabase
         .from("couples")
@@ -307,7 +385,7 @@ export const getUser = async (): Promise<User | null> => {
     }
 
     // Transform the data to match the ranking UI format
-    const players = data?.map((rawPlayer, index) => {
+    const players = data?.map((rawPlayer: any, index: number) => {
       // Handle profile image URL
       let profileImageUrl = rawPlayer.profile_image_url;
       
@@ -373,7 +451,7 @@ export const getUser = async (): Promise<User | null> => {
 
       // Get services for each club
       const clubsWithServices = await Promise.all(
-        clubs.map(async (club) => {
+        clubs.map(async (club: any) => {
           try {
             const { data: services, error: servicesError } = await supabase
               .from("services_clubes")
@@ -401,7 +479,7 @@ export const getUser = async (): Promise<User | null> => {
 
             const reviewCount = reviews?.length || 0;
             const averageRating = reviewCount > 0 && reviews
-              ? reviews.reduce((sum, review) => sum + (review.score || 0), 0) / reviewCount 
+              ? reviews.reduce((sum: number, review: any) => sum + (review.score || 0), 0) / reviewCount 
               : 0;
 
             // Return plain object with only serializable data
@@ -413,7 +491,7 @@ export const getUser = async (): Promise<User | null> => {
               courts: club.courts || 0,
               opens_at: club.opens_at || null,
               closes_at: club.closes_at || null,
-              services: services?.map(s => s.services).filter(Boolean) || [],
+              services: services?.map((s: any) => s.services).filter(Boolean) || [],
               rating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
               reviewCount: reviewCount,
               coverImage: club.cover_image_url || null,
@@ -505,7 +583,7 @@ export const getUser = async (): Promise<User | null> => {
     // Calculate ratings
     const reviewCount = reviews?.length || 0;
     const averageRating = reviewCount > 0 && reviews
-      ? reviews.reduce((sum, review) => sum + (review.score || 0), 0) / reviewCount 
+      ? reviews.reduce((sum: number, review: any) => sum + (review.score || 0), 0) / reviewCount 
       : 0;
 
     // Get upcoming tournaments for this club
@@ -556,14 +634,14 @@ export const getUser = async (): Promise<User | null> => {
 
     return {
       ...club,
-      services: services?.map(s => s.services).filter(Boolean) || [],
+      services: services?.map((s: any) => s.services).filter(Boolean) || [],
       rating: Number(averageRating.toFixed(1)),
       reviewCount,
-      reviews: reviews?.map(review => ({
+      reviews: reviews?.map((review: any) => ({
         score: review.score,
         description: review.review_description,
-        playerName: (review as any).players 
-          ? `${(review as any).players.first_name} ${(review as any).players.last_name}`
+        playerName: (review).players 
+          ? `${(review).players.first_name} ${(review).players.last_name}`
           : "Usuario anónimo",
         date: new Date().toISOString() // Placeholder since no date in reviews table
       })) || [],
@@ -660,11 +738,11 @@ export const getUser = async (): Promise<User | null> => {
       return [];
     }
 
-    return data?.map(review => ({
+    return data?.map((review: any) => ({
       score: review.score,
       description: review.review_description,
-      playerName: (review as any).players 
-        ? `${(review as any).players.first_name} ${(review as any).players.last_name}`
+        playerName: (review).players 
+        ? `${(review).players.first_name} ${(review).players.last_name}`
         : "Usuario anónimo",
       date: new Date().toISOString() // Placeholder since no date in reviews table
     })) || [];
@@ -1135,7 +1213,7 @@ export const getUser = async (): Promise<User | null> => {
         return { totalMatches: 0, wins: 0, winRate: 0 };
       }
 
-      const coupleIds = couples.map(couple => couple.id);
+      const coupleIds = couples.map((couple: any) => couple.id);
 
       if (coupleIds.length === 0) {
         return { totalMatches: 0, wins: 0, winRate: 0 };
@@ -1160,7 +1238,7 @@ export const getUser = async (): Promise<User | null> => {
       }
 
       const totalMatches = matches?.length || 0;
-      const wins = matches?.filter(match => 
+      const wins = matches?.filter((match: any) => 
         coupleIds.includes(match.winner_id)
       ).length || 0;
 
@@ -1244,7 +1322,7 @@ export const getUser = async (): Promise<User | null> => {
       }
 
       // Find player's ranking position
-      const playerIndex = categoryPlayers.findIndex(p => p.id === playerId);
+      const playerIndex = categoryPlayers.findIndex((p: any) => p.id === playerId);
       const ranking = playerIndex + 1; // Convert to 1-based ranking
 
       // For variation, we'd need to track historical rankings
@@ -1325,7 +1403,7 @@ export const getUser = async (): Promise<User | null> => {
       }
 
       // Get all reviews for these clubs in one query
-      const clubIds = clubsWithRatings.map(club => club.id);
+      const clubIds = clubsWithRatings.map((club: any) => club.id);
       const { data: allReviews, error: reviewsError } = await supabase
         .from("reviews")
         .select("club_id, score")
@@ -1336,11 +1414,11 @@ export const getUser = async (): Promise<User | null> => {
       }
 
       // Calculate ratings and prepare final data
-      const clubsWithCalculatedRatings = clubsWithRatings.map(club => {
-        const clubReviews = allReviews?.filter(review => review.club_id === club.id) || [];
+      const clubsWithCalculatedRatings = clubsWithRatings.map((club: any) => {
+        const clubReviews = allReviews?.filter((review: any) => review.club_id === club.id) || [];
         const reviewCount = clubReviews.length;
         const averageRating = reviewCount > 0 
-          ? clubReviews.reduce((sum, review) => sum + (review.score || 0), 0) / reviewCount 
+          ? clubReviews.reduce((sum: number, review: any) => sum + (review.score || 0), 0) / reviewCount 
           : 0;
 
         return {

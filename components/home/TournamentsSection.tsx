@@ -22,7 +22,7 @@ export async function TournamentsSection() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {upcomingTournaments.length > 0 ? (
-            upcomingTournaments.map((tournament) => (
+            upcomingTournaments.map((tournament: any) => (
               <TournamentCard key={tournament.id} tournament={tournament} categories={categories} />
             ))
           ) : (

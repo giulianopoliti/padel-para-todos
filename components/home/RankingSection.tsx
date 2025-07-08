@@ -1,23 +1,34 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { Trophy, TrendingUp, ArrowRight } from "lucide-react"
+import { Trophy, ArrowRight } from "lucide-react"
 import Link from "next/link"
-import { getPlayersMale } from "@/app/api/users"
+import { getTopPlayers } from "@/app/api/users"
 import PlayerAvatar from "@/components/player-avatar"
+import { Player } from "@/types"
+
+interface TopPlayer {
+  id: string
+  name: string
+  points: number
+  category: string
+  club: string
+  position: number
+  profileImage?: string
+}
 
 export async function RankingSection() {
-  const topPlayersData = await getPlayersMale(5) // Solo traer los 5 mejores
+  const players = await getTopPlayers(5) // Solo traer los 5 mejores
 
   // Ya vienen ordenados y limitados a 5 desde la DB, solo mapeamos
-  const topPlayers = topPlayersData.map((player, index) => ({
+  const topPlayers: TopPlayer[] = players.map((player: Player, index: number) => ({
     id: player.id,
     name: `${player.firstName} ${player.lastName}`,
     points: player.score,
     category: player.category,
     club: player.club_name || "Sin Club",
-    trend: Math.floor(Math.random() * 10) - 2, // Random trend for demo
     position: index + 1,
+    profileImage: player.profileImage
   }))
 
   return (
@@ -40,7 +51,7 @@ export async function RankingSection() {
               </div>
 
               <div className="divide-y divide-slate-100">
-                {topPlayers.map((player, index) => (
+                {topPlayers.map((player: TopPlayer, index: number) => (
                   <Link key={player.id} href={`/ranking/${player.id}`} className="block">
                     <div
                       className={`p-4 flex items-center justify-between hover:bg-slate-50 transition-all duration-300 cursor-pointer ${
@@ -63,7 +74,7 @@ export async function RankingSection() {
                         </div>
 
                         <PlayerAvatar
-                          src={topPlayersData.find((p) => p.id === player.id)?.profileImage}
+                          src={player.profileImage}
                           alt={player.name}
                           className={`w-10 h-10 ${index < 3 ? "ring-2 ring-blue-200" : ""}`}
                         />
@@ -87,13 +98,6 @@ export async function RankingSection() {
                           <div className="font-bold text-slate-900">{player.points}</div>
                           <div className="text-xs text-slate-500">puntos</div>
                         </div>
-                        <Badge
-                          className={`${player.trend >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"} border-0`}
-                        >
-                          <TrendingUp className={`h-3 w-3 mr-1 ${player.trend < 0 ? "rotate-180" : ""}`} />
-                          {player.trend >= 0 ? "+" : ""}
-                          {player.trend}
-                        </Badge>
                       </div>
                     </div>
                   </Link>
