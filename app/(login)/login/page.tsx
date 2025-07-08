@@ -61,7 +61,7 @@ export default function LoginPage() {
           variant: "destructive",
         })
       } else if (result?.success) {
-        console.log("[CLIENT] Login successful, redirecting to:", result.redirectUrl)
+        console.log("[CLIENT] Login successful, redirect to:", result.redirectUrl)
         toast({
           title: "Acceso exitoso",
           description: result.message || "Redirigiendo...",
