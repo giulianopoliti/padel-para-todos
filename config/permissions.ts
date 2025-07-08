@@ -122,6 +122,11 @@ export function checkRoutePermission(
     return true;
   }
 
+  // Special case: pending-approval page is only accessible to authenticated CLUB users
+  if (path === "/pending-approval") {
+    return role === "CLUB";
+  }
+
   // If no role is provided (user not logged in), deny access to non-public routes
   if (!role) {
     return false;

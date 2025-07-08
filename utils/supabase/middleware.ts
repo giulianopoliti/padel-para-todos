@@ -6,7 +6,7 @@ import { checkRoutePermission, getRedirectPath } from "@/config/permissions"
 type Role = "PLAYER" | "CLUB" | "COACH" | "ADMIN"
 
 // Simple in-memory cache for session data (cleared on restart)
-const sessionCache = new Map<string, { user: any; role: Role | null; timestamp: number }>()
+const sessionCache = new Map<string, { user: any; role: Role | null; isActive: boolean; timestamp: number }>()
 const CACHE_DURATION = 30 * 1000 // 30 seconds
 
 // Function to clear cache for a specific user (for logout)
@@ -90,8 +90,9 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url, { headers })
     }
 
-    // If user exists, check cache first for role
+    // If user exists, check cache first for role and active status
     let userRole: Role | null = null
+    let isActiveClub: boolean = true // Default to true for non-club users
     const cacheKey = userId || ""
     const now = Date.now()
     
@@ -99,14 +100,15 @@ export async function updateSession(request: NextRequest) {
       const cached = sessionCache.get(cacheKey)!
       if (now - cached.timestamp < CACHE_DURATION) {
         userRole = cached.role
-        console.log(`[Middleware] Using cached role for user ${userId}: ${userRole}`)
+        isActiveClub = cached.isActive
+        console.log(`[Middleware] Using cached role for user ${userId}: ${userRole}, isActive: ${isActiveClub}`)
       } else {
         sessionCache.delete(cacheKey)
         console.log(`[Middleware] Cache expired for user ${userId}, fetching fresh data`)
       }
     }
 
-    // If not in cache or cache expired, fetch role
+    // If not in cache or cache expired, fetch role and club status
     if (userId && userRole === null) {
       try {
         const { data: userData, error: userError } = await supabase
@@ -117,13 +119,33 @@ export async function updateSession(request: NextRequest) {
 
         if (!userError && userData) {
           userRole = userData.role as Role
+          isActiveClub = true // Default to true for non-club users
+          
+          // If user is a club, check if they are active
+          if (userRole === "CLUB") {
+            const { data: clubData, error: clubError } = await supabase
+              .from("clubes")
+              .select("is_active")
+              .eq("user_id", userId)
+              .maybeSingle()
+
+            if (!clubError && clubData) {
+              isActiveClub = clubData.is_active
+              console.log(`[Middleware] Club active status for user ${userId}: ${isActiveClub}`)
+            } else if (clubError) {
+              console.error("[Middleware] Error fetching club active status:", clubError.message)
+              isActiveClub = false // Default to false if error
+            }
+          }
+          
           // Cache the result
           sessionCache.set(cacheKey, {
             user,
             role: userRole,
+            isActive: isActiveClub,
             timestamp: now
           })
-          console.log(`[Middleware] Cached role for user ${userId}: ${userRole}`)
+          console.log(`[Middleware] Cached role for user ${userId}: ${userRole}, isActive: ${isActiveClub}`)
         } else if (userError) {
           console.error("[Middleware] Error fetching user role:", userError.message)
         }
@@ -132,11 +154,19 @@ export async function updateSession(request: NextRequest) {
       }
     }
 
+    // Check if club is inactive and redirect to pending approval page
+    if (userRole === "CLUB" && !isActiveClub && currentPath !== "/pending-approval") {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = "/pending-approval"
+      console.log(`[Middleware] Redirecting inactive club to pending approval page`)
+      return NextResponse.redirect(redirectUrl, { headers })
+    }
+
     // Check route permission using existing function
     const hasPermission = checkRoutePermission(currentPath, userRole)
     const isAuthenticated = !!user
 
-    console.log(`[Middleware] Path: ${currentPath}, User: ${userId || 'None'}, Role: ${userRole || 'None'}, HasPermission: ${hasPermission}`)
+    console.log(`[Middleware] Path: ${currentPath}, User: ${userId || 'None'}, Role: ${userRole || 'None'}, IsActiveClub: ${isActiveClub}, HasPermission: ${hasPermission}`)
 
     // Redirect if user lacks permission or isn't authenticated for a protected route
     if (!hasPermission) {

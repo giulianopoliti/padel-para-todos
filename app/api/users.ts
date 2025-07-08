@@ -301,19 +301,40 @@ export const getUser = async (): Promise<User | null> => {
   }
 
 
-  export async function getClubById(clubId: string) {
+    export async function getClubById(clubId: string) {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("clubes")
+      .select("*")
+      .eq("id", clubId)
+      .eq("is_active", true)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      console.error("Error fetching club by ID:", error);
+      return null;
+    }
+
+    return data;
+  }
+
+  // Internal function for admin/system use - gets club regardless of active status
+  export async function getClubByIdInternal(clubId: string) {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("clubes")
       .select("*")
       .eq("id", clubId)
       .single();
-  
+
     if (error) {
       if (error.code === 'PGRST116') {
         return null;
       }
-      console.error("Error fetching club by ID:", error);
+      console.error("Error fetching club by ID (internal):", error);
       return null;
     }
 
@@ -434,10 +455,11 @@ export const getUser = async (): Promise<User | null> => {
     const supabase = await createClient();
     
     try {
-      // First get all clubs
+      // First get all active clubs
       const { data: clubs, error: clubsError } = await supabase
         .from("clubes")
         .select("id, name, address, instagram, courts, opens_at, closes_at, cover_image_url, gallery_images")
+        .eq("is_active", true)
         .order("name");
 
       if (clubsError) {
@@ -531,11 +553,12 @@ export const getUser = async (): Promise<User | null> => {
   export async function getClubDetails(clubId: string) {
     const supabase = await createClient();
     
-    // Get club basic info including images and contact info
+    // Get club basic info including images and contact info (only if active)
     const { data: club, error: clubError } = await supabase
       .from("clubes")
       .select("*, cover_image_url, gallery_images, phone, email, website, description")
       .eq("id", clubId)
+      .eq("is_active", true)
       .single();
 
     if (clubError) {
@@ -1377,7 +1400,7 @@ export const getUser = async (): Promise<User | null> => {
     const supabase = await createClient();
     
     try {
-      // Single query to get clubs with their average ratings, sorted by rating
+      // Single query to get active clubs with their average ratings, sorted by rating
       const { data: clubsWithRatings, error: clubsError } = await supabase
         .from("clubes")
         .select(`
@@ -1390,6 +1413,7 @@ export const getUser = async (): Promise<User | null> => {
           cover_image_url,
           gallery_images
         `)
+        .eq("is_active", true)
         .order("name")
         .limit(limit * 3); // Get more clubs to calculate ratings properly
 

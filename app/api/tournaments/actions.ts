@@ -2991,7 +2991,7 @@ export async function getClubTournaments(): Promise<GetClubTournamentsResult> {
   // Create Supabase client
   const supabase = await createClient();
   
-  // Find the club ID associated with the user
+  // Find the club ID associated with the user (no is_active filter for internal club operations)
   const { data: clubData, error: clubError } = await supabase
     .from('clubes')
     .select('id, name, address')
