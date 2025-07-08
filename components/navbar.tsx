@@ -1,18 +1,16 @@
 "use client";
 
-import { useUser } from "@/contexts/user-context"; // Updated context hook
-import { Suspense } from "react";
-import { getLinksForRole } from "@/config/permissions"; // Import link generator
+import { useUser } from "@/contexts/user-context";
+import { Suspense, useMemo } from "react";
+import { getLinksForRole } from "@/config/permissions";
 import type { User as AuthUser } from "@supabase/supabase-js";
 
-// Type for roles used in this component, ensure consistency with permissions.ts
 type Role = "PLAYER" | "CLUB" | "COACH" | "ADMIN"; 
 
-// Import the actual components directly for type safety
 import NavbarClient from './navbar-client';
 import SkeletonNavbar from './skeleton-navbar';
 
-// Define the public links that should always be visible (when not logged in)
+// 🔧 OPTIMIZACIÓN FASE 1.3: Links públicos memoizados
 const publicLinks = [
   { 
     path: "/", 
@@ -36,56 +34,67 @@ const publicLinks = [
   },
 ];
 
-// Define the expected props for NavbarClient explicitly
+const profileLinkPaths = ["/edit-profile", "/dashboard"];
+
 interface NavbarClientProps {
   mainLinks: { label: string; icon: string; path: string; }[];
   profileLinks: { label: string; icon: string; path: string; }[];
-  user: AuthUser | null; // Expecting Supabase Auth User
+  user: AuthUser | null;
 }
 
-// Use direct import instead of dynamic import to avoid server rendering issues
+// 🚀 OPTIMIZACIÓN FASE 1.5: Hook personalizado para links optimizados
+const useNavbarLinks = (userRole: Role | null) => {
+  return useMemo(() => {
+    const allAuthLinks = userRole ? getLinksForRole(userRole) : [];
+    
+    const mainLinks = userRole 
+      ? allAuthLinks.filter(link => !profileLinkPaths.includes(link.path))
+      : publicLinks;
+    
+    const profileLinks = userRole 
+      ? allAuthLinks.filter(link => profileLinkPaths.includes(link.path))
+      : [];
+
+    return { mainLinks, profileLinks };
+  }, [userRole]);
+};
 
 export default function Navbar() {
-  // Use the updated user context hook
-  // user = Supabase Auth User | null
-  // userDetails = Your DB User Info | null (contains role)
-  // loading = context loading state
-  // error = context error state
-  const { user, userDetails, loading, error } = useUser();
+  // 🚀 OPTIMIZACIÓN FASE 1.3: Usar nuevos estados de loading
+  const { user, userDetails, loading, authLoading, error } = useUser();
 
-  // Determine the role based on userDetails, default to null if no details
-  // We need userDetails to determine the links.
+  // 🔧 OPTIMIZACIÓN FASE 1.3: Lógica de loading mejorada
+  const isInitialAuthLoading = authLoading;
+  const isUserDetailsLoading = user && loading;
+  const isUserDetailsWaiting = user && !userDetails && !error && !loading;
+  
+  const showSkeleton = isInitialAuthLoading || isUserDetailsLoading || isUserDetailsWaiting;
+
+  // 🔧 OPTIMIZACIÓN FASE 1.5: Usar hook optimizado para links
   const userRole = userDetails?.role as Role | null;
+  const { mainLinks, profileLinks } = useNavbarLinks(userRole);
 
-  // Generate links based on the role from userDetails. 
-  // If no role (not logged in, or details not loaded), generate links for a "PUBLIC" or default state.
-  // We need a way to handle the 'PUBLIC' case if needed, or perhaps getLinksForRole handles null?
-  // For now, let's assume getLinksForRole needs a valid role, or we show minimal links.
-  const allAuthLinks = userRole ? getLinksForRole(userRole) : [];
-  
-  const profileLinkPaths = ["/edit-profile", "/dashboard"];
+  console.log("[Navbar] Loading States:", {
+    hasUser: !!user,
+    hasUserDetails: !!userDetails,
+    authLoading,
+    loading,
+    hasError: !!error,
+    showSkeleton,
+    userId: user?.id?.substring(0, 8) || 'none'
+  });
 
-  const mainLinks = userRole 
-    ? allAuthLinks.filter(link => !profileLinkPaths.includes(link.path))
-    : publicLinks;
-  
-  const profileLinks = userRole 
-    ? allAuthLinks.filter(link => profileLinkPaths.includes(link.path))
-    : [];
-
-
-  
-  // Determine if we should show the skeleton
-  // Show skeleton only when actually loading, not when there's an error
-  // If there's an error, we should show the navbar with public links
-  const showSkeleton = loading && !error;
-  
+  // 🚀 OPTIMIZACIÓN FASE 1.3: Renderizado condicional mejorado
   return (
     <Suspense fallback={<SkeletonNavbar />}>
       {showSkeleton ? (
         <SkeletonNavbar />
       ) : (
-        <NavbarClient mainLinks={mainLinks} profileLinks={profileLinks} user={user} /> 
+        <NavbarClient 
+          mainLinks={mainLinks} 
+          profileLinks={profileLinks} 
+          user={user} 
+        />
       )}
     </Suspense>
   );

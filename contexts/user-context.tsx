@@ -1,24 +1,25 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/utils/supabase/client"; // Use the new client
-import type { User as AuthUser } from "@supabase/supabase-js"; // Supabase Auth User type
-import type { User as DbUserType } from "@/types"; // Import role-specific types if defined
-import { signout as serverSignout } from "@/app/auth/login/actions"; // Server action for signout
+import { supabase } from "@/utils/supabase/client";
+import { useSupabase } from "@/components/supabase-provider";
+import type { User as AuthUser } from "@supabase/supabase-js";
+import type { User as DbUserType } from "@/types";
+import { signout as serverSignout } from "@/app/auth/login/actions";
 
-// Define a more detailed UserDetails type
-// Adjust based on your actual DbUserType and related tables
+// 🚀 OPTIMIZACIÓN FASE 1.2: Tipos mejorados con documentación
 interface DetailedUserDetails extends DbUserType {
-    player_id?: string | null; // Add optional fields for related IDs
+    player_id?: string | null;
     club_id?: string | null;
     coach_id?: string | null;
 }
 
 interface UserContextType {
   user: AuthUser | null;      
-  userDetails: DetailedUserDetails | null; // Use the detailed type
-  loading: boolean;
+  userDetails: DetailedUserDetails | null;
+  loading: boolean;           // 🔧 Ahora indica loading de detalles, no autenticación
+  authLoading: boolean;       // 🆕 Nuevo: loading específico de autenticación
   error: string | null;
   logout: () => Promise<void>;
 }
@@ -26,33 +27,57 @@ interface UserContextType {
 const UserContext = createContext<UserContextType>({
   user: null, 
   userDetails: null,
-  loading: true, 
+  loading: false,     // 🔧 Cambiado: ya no carga por defecto
+  authLoading: false, // 🆕 Nuevo estado
   error: null,
   logout: async () => {},
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [userDetails, setUserDetails] = useState<DetailedUserDetails | null>(null); // Use detailed type
-  const [loading, setLoading] = useState(true); // loading is true until initial check is complete
+  // 🚀 OPTIMIZACIÓN FASE 1.2: Usar initialUser del servidor
+  const { user: serverUser } = useSupabase();
+  
+  const [user, setUser] = useState<AuthUser | null>(serverUser); // 🔧 Inicializar con serverUser
+  const [userDetails, setUserDetails] = useState<DetailedUserDetails | null>(null);
+  const [loading, setLoading] = useState(false);           // 🔧 Solo para detalles
+  const [authLoading, setAuthLoading] = useState(false);   // 🆕 Para autenticación
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  // Function to fetch specific user details from your database
+  // 🚀 OPTIMIZACIÓN FASE 2: Cache simple en memoria
+  const userCache = useRef<{
+    [key: string]: {
+      data: DetailedUserDetails;
+      timestamp: number;
+    }
+  }>({});
+
+  // 🔧 OPTIMIZACIÓN FASE 2: Función optimizada para fetch de detalles con cache
   const fetchUserDetailsInternal = useCallback(async (userId: string) => {
     if (!userId) {
-      setUserDetails(null); // Clear details if no userId
+      setUserDetails(null);
       return;
     }
     
-    setError(null); // Clear previous error
+    // 🔧 OPTIMIZACIÓN FASE 2: Verificar cache (3 minutos de vida)
+    const cached = userCache.current[userId];
+    const now = Date.now();
+    
+    if (cached && (now - cached.timestamp) < 180000) { // 3 minutos
+      console.log('[UserContext] Using cached user details');
+      setUserDetails(cached.data);
+      return;
+    }
+    
+    setLoading(true);    // 🔧 Solo afecta loading de detalles
+    setError(null);
 
     try {
         const { data: basicUserData, error: dbError } = await supabase
             .from("users") 
-            .select("id, email, role")
+            .select("id, email, role, avatar_url")
             .eq("id", userId)
-            .maybeSingle(); // Use maybeSingle instead of single to handle "no rows" case
+            .maybeSingle();
 
         if (dbError) {
             setUserDetails(null); 
@@ -61,59 +86,85 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         if (!basicUserData) {
-            // User exists in auth but not in our users table
-            // This can happen when registration was incomplete or rejected
-    
             setUserDetails(null);
             setError("Tu registro está incompleto o fue bloqueado. Contacta al administrador por WhatsApp +5491169405063 para resolverlo.");
             return;
         }
 
-        
         let finalUserDetails: DetailedUserDetails = { ...basicUserData };
 
+        // 🔧 OPTIMIZACIÓN FASE 2: Queries paralelas optimizadas
+        const promises = [];
+        
         if (basicUserData.role === 'PLAYER') {
-            const { data: playerData, error: playerError } = await supabase
-                .from('players')
-                .select('id, status')
-                .eq('user_id', basicUserData.id)
-                .single();
-            if (!playerError && playerData) {
-                finalUserDetails.player_id = playerData.id;
-                
-                // Check if player is blocked due to DNI conflict
-                if (playerData.status === 'inactive') {
-                    setError("Tu cuenta fue bloqueada por un conflicto de datos. Contacta al administrador por WhatsApp +5491169405063 para resolverlo.");
-                }
-            }
+            promises.push(
+                supabase
+                    .from('players')
+                    .select('id, status')
+                    .eq('user_id', basicUserData.id)
+                    .single()
+                    .then(({ data: playerData, error: playerError }) => {
+                        if (!playerError && playerData) {
+                            finalUserDetails.player_id = playerData.id;
+                            
+                            if (playerData.status === 'inactive') {
+                                setError("Tu cuenta fue bloqueada por un conflicto de datos. Contacta al administrador por WhatsApp +5491169405063 para resolverlo.");
+                            }
+                        }
+                    })
+            );
         } else if (basicUserData.role === 'CLUB') {
-             const { data: clubData, error: clubError } = await supabase
-                .from('clubes')
-                .select('id')
-                .eq('user_id', basicUserData.id) 
-                .single();
-            if (!clubError && clubData) finalUserDetails.club_id = clubData.id;
+            promises.push(
+                supabase
+                    .from('clubes')
+                    .select('id')
+                    .eq('user_id', basicUserData.id) 
+                    .single()
+                    .then(({ data: clubData, error: clubError }) => {
+                        if (!clubError && clubData) {
+                            finalUserDetails.club_id = clubData.id;
+                        }
+                    })
+            );
         } else if (basicUserData.role === 'COACH') {
-             const { data: coachData, error: coachError } = await supabase
-                .from('coaches')
-                .select('id')
-                .eq('user_id', basicUserData.id) 
-                .single();
-            if (!coachError && coachData) finalUserDetails.coach_id = coachData.id;
+            promises.push(
+                supabase
+                    .from('coaches')
+                    .select('id')
+                    .eq('user_id', basicUserData.id) 
+                    .single()
+                    .then(({ data: coachData, error: coachError }) => {
+                        if (!coachError && coachData) {
+                            finalUserDetails.coach_id = coachData.id;
+                        }
+                    })
+            );
         }
+
+        // 🔧 Ejecutar todas las queries en paralelo
+        await Promise.all(promises);
+        
+        // 🔧 OPTIMIZACIÓN FASE 2: Guardar en cache
+        userCache.current[userId] = {
+          data: finalUserDetails,
+          timestamp: now
+        };
+        
         setUserDetails(finalUserDetails);
+        
     } catch (err: any) {
         setUserDetails(null);
         setError(`Unexpected error: ${err.message}`);
+    } finally {
+        setLoading(false);
     }
   }, []);
 
-  // Logout function with optimistic updates for better UX
+  // 🔧 OPTIMIZACIÓN FASE 1.2: Logout optimizado (sin cambios funcionales)
   const logout = useCallback(async () => {
     console.log("[UserContext] Starting optimistic logout process...");
     setError(null);
     
-    // OPTIMISTIC UPDATE: Clear state immediately for instant UI feedback
     const previousUser = user;
     const previousUserDetails = userDetails;
     
@@ -122,7 +173,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     setUserDetails(null);
     
     try {
-      // Try server action logout
       console.log("[UserContext] Calling server signout...");
       const result = await serverSignout(); 
       
@@ -130,43 +180,31 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (result.success) {
         console.log("[UserContext] Server signout successful");
-        
-        // DON'T call router.refresh() - it causes re-login loop
-        // The server action already revalidates paths
-        
         console.log("[UserContext] Optimistic logout completed successfully");
-        return; // Exit successfully
+        return;
       } else {
         console.warn("[UserContext] Server signout failed:", result.error);
         
-        // Special case: if session is already missing, treat as successful logout
         if (result.error === 'Auth session missing!') {
           console.log("[UserContext] Session already missing, logout successful");
-          return; // Exit successfully - don't refresh
+          return;
         }
         
-        // For other errors, try direct supabase logout as fallback
         console.log("[UserContext] Attempting direct Supabase logout...");
         const { error: directLogoutError } = await supabase.auth.signOut({ scope: 'local' });
         
         if (directLogoutError) {
           console.error("[UserContext] Direct logout also failed:", directLogoutError);
-          // Don't restore state, let the optimistic update stand
-          // But show error to user
           throw new Error(`Logout failed: ${directLogoutError.message}`);
         }
         
         console.log("[UserContext] Direct logout successful");
-        // Don't call router.refresh() here either
       }
     } catch (err: any) {
       console.error("[UserContext] Logout error:", err);
       
-      // Don't restore previous state - keep optimistic update
-      // The user appears logged out, which is better UX
       console.log("[UserContext] Keeping optimistic logout despite error");
       
-      // Force page redirect as last resort to ensure clean state
       if (typeof window !== 'undefined') {
         console.log("[UserContext] Force redirecting to login due to error...");
         setTimeout(() => {
@@ -176,58 +214,73 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       setError(err.message || "Error al cerrar sesión, pero la sesión se cerró localmente.");
-      // Don't throw - let the component handle the optimistic state
     } 
   }, [user, userDetails, router]);
 
-  // Effect to handle auth state changes
+  // 🚀 OPTIMIZACIÓN FASE 1.2: Effect optimizado para usar initialUser
   useEffect(() => {
     let isMounted = true;
     
-
-    async function initialLoad() {
-      try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // 🔧 OPTIMIZACIÓN CRÍTICA: Usar initialUser del servidor primero
+    async function initializeFromServer() {
+      console.log("[UserContext] Initializing from server user:", !!serverUser);
+      
+      if (!isMounted) return;
+      
+      // 🔧 Si tenemos serverUser, usarlo inmediatamente
+      if (serverUser) {
+        console.log("[UserContext] Using server user, fetching details...");
+        setUser(serverUser);
+        await fetchUserDetailsInternal(serverUser.id);
+      } else {
+        console.log("[UserContext] No server user, checking client session...");
         
-        // Don't treat missing session as an error - it's normal for non-authenticated users
-        if (sessionError && sessionError.message !== 'Auth session missing!') {
-          throw sessionError;
-        }
+        // 🔧 Solo si no hay serverUser, verificar en cliente
+        setAuthLoading(true);
+        
+        try {
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError && sessionError.message !== 'Auth session missing!') {
+            throw sessionError;
+          }
 
-        if (isMounted) {
-          const currentUser = session?.user ?? null;
-          setUser(currentUser);
-  
-          if (currentUser) {
-            await fetchUserDetailsInternal(currentUser.id);
-          } else {
-            setUserDetails(null); // Ensure userDetails is cleared if no user
+          if (isMounted) {
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+    
+            if (currentUser) {
+              console.log("[UserContext] Found client session, fetching details...");
+              await fetchUserDetailsInternal(currentUser.id);
+            } else {
+              setUserDetails(null);
+            }
           }
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          // Don't treat AuthSessionMissingError as an error - it's expected for non-authenticated users
-          if (err?.message !== 'Auth session missing!') {
-            setError("Failed during initial load: " + err.message);
+        } catch (err: any) {
+          if (isMounted) {
+            if (err?.message !== 'Auth session missing!') {
+              setError("Failed during initial load: " + err.message);
+            }
+            setUser(null);
+            setUserDetails(null);
           }
-          setUser(null); // Clear user on error
-          setUserDetails(null); // Clear details on error
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false); // This is the single point where initial loading is set to false
-  
+        } finally {
+          if (isMounted) {
+            setAuthLoading(false);
+          }
         }
       }
     }
 
-    initialLoad();
+    initializeFromServer();
 
+    // 🔧 Auth state listener optimizado
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
 
-
+        console.log("[UserContext] Auth state changed:", event);
+        
         const currentUser = session?.user ?? null;
         setUser(currentUser);
 
@@ -237,10 +290,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
           }
         } else {
           setUserDetails(null);
-          if (event === 'SIGNED_OUT') {
-            // Let the component handle navigation instead of auto-redirecting
-            // router.push('/login'); 
-          }
         }
       }
     );
@@ -248,22 +297,22 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       isMounted = false;
       subscription?.unsubscribe();
-      
     };
-  }, [router]); // Added router to dependency array for logout's router.push
+  }, [serverUser, fetchUserDetailsInternal]); // 🔧 Incluir serverUser en dependencias
 
+  // 🔧 OPTIMIZACIÓN FASE 1.2: Memoización mejorada
   const contextValue = useMemo(() => ({ 
     user,
     userDetails,
     loading,
+    authLoading,
     error,
     logout
-  }), [user, userDetails, loading, error, logout]);
+  }), [user, userDetails, loading, authLoading, error, logout]);
 
   return <UserContext.Provider value={contextValue}>{children}</UserContext.Provider>;
 }; 
 
-// Custom hook to use the User context
 export const useUser = () => {
   const context = useContext(UserContext);
   if (context === undefined) {

@@ -18,11 +18,17 @@ export default async function PlayerDashboard() {
     return <div>No autorizado</div>
   }
 
+  // 🚀 OPTIMIZACIÓN FASE 2: Queries optimizadas con campos específicos
   // Get player data with club information
   const { data: playerData } = await supabase
     .from("players")
     .select(`
-      *,
+      id,
+      first_name,
+      last_name,
+      score,
+      category_name,
+      profile_image_url,
       clubes (
         name
       )
@@ -30,32 +36,33 @@ export default async function PlayerDashboard() {
     .eq("user_id", user.id)
     .single()
 
-  // Get player ranking position
+  // Get player ranking position (método optimizado)
   let playerRanking = null
   if (playerData?.score) {
-    const { data: rankingData } = await supabase
+    const { count } = await supabase
       .from("players")
-      .select("score")
-      .not("score", "is", null)
-      .order("score", { ascending: false })
-
-    if (rankingData) {
-      const position = rankingData.findIndex(p => p.score <= playerData.score) + 1
-      playerRanking = {
-        position: position || rankingData.length + 1,
-        total: rankingData.length
-      }
+      .select("*", { count: "exact", head: true })
+      .gt("score", playerData.score)
+      .not("score", "is", null);
+    
+    const { count: totalCount } = await supabase
+      .from("players")
+      .select("*", { count: "exact", head: true })
+      .not("score", "is", null);
+    
+    playerRanking = {
+      position: (count || 0) + 1,
+      total: totalCount || 0
     }
   }
 
-  // Get upcoming tournaments
+  // Get upcoming tournaments (optimizada)
   const { data: upcomingTournaments } = await supabase
     .from("tournaments")
     .select(`
       id,
       name,
       start_date,
-      end_date,
       status,
       category_name,
       max_participants,
@@ -68,7 +75,7 @@ export default async function PlayerDashboard() {
     .order("start_date", { ascending: true })
     .limit(3)
 
-  // Get player's tournament inscriptions
+  // Get player's tournament inscriptions (optimizada)
   const { data: playerInscriptions } = await supabase
     .from("inscriptions")
     .select(`
@@ -136,7 +143,7 @@ export default async function PlayerDashboard() {
                   {playerData?.first_name || "Nombre"} {playerData?.last_name || "Apellido"}
                 </p>
                 <p className="text-sm text-gray-600">
-                  {playerData?.clubes?.name || "Sin club"}
+                  {playerData?.clubes?.[0]?.name || "Sin club"}
                 </p>
               </div>
             </div>

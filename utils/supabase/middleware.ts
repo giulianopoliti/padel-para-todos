@@ -5,9 +5,9 @@ import { checkRoutePermission, getRedirectPath } from "@/config/permissions"
 // Define user roles (ensure this matches config/permissions.ts and your user data)
 type Role = "PLAYER" | "CLUB" | "COACH" | "ADMIN"
 
-// Simple in-memory cache for session data (cleared on restart)
+// 🚀 OPTIMIZACIÓN FASE 2: Cache optimizado con mayor duración
 const sessionCache = new Map<string, { user: any; role: Role | null; isActive: boolean; timestamp: number }>()
-const CACHE_DURATION = 30 * 1000 // 30 seconds
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutos (optimizado para reducir queries redundantes)
 
 // Function to clear cache for a specific user (for logout)
 export function clearUserCache(userId: string) {
@@ -22,6 +22,19 @@ export function clearAllCache() {
   sessionCache.clear()
   console.log("[Middleware] Cleared all cache")
 }
+
+// 🚀 OPTIMIZACIÓN FASE 2: Cleanup automático del cache
+function cleanupExpiredCache() {
+  const now = Date.now()
+  for (const [key, value] of sessionCache.entries()) {
+    if (now - value.timestamp > CACHE_DURATION) {
+      sessionCache.delete(key)
+    }
+  }
+}
+
+// Cleanup cada 10 minutos
+setInterval(cleanupExpiredCache, 10 * 60 * 1000)
 
 // Protected routes that require authentication
 const PROTECTED_ROUTES = ["/dashboard", "/edit-profile", "/profile"]

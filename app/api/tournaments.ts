@@ -125,9 +125,8 @@ export async function getWeeklyWinners() {
             return [];
         }
 
-        // Get winner details for each tournament
-        const winnersWithDetails = [];
-        for (const tournament of tournaments) {
+        // 🚀 OPTIMIZACIÓN FASE 2: Paralelizar queries de detalles de ganadores
+        const winnerPromises = tournaments.map(async (tournament) => {
             const { data: couple, error: coupleError } = await supabase
                 .from('couples')
                 .select(`
@@ -143,7 +142,7 @@ export async function getWeeklyWinners() {
                 const player2 = Array.isArray(couple.player2) ? couple.player2[0] : couple.player2;
 
                 // Create plain object for serialization
-                winnersWithDetails.push({
+                return {
                     id: tournament.id,
                     tournamentName: tournament.name,
                     winnerImageUrl: tournament.winner_image_url,
@@ -153,9 +152,12 @@ export async function getWeeklyWinners() {
                         player1Name: `${player1?.first_name || ''} ${player1?.last_name || ''}`.trim(),
                         player2Name: `${player2?.first_name || ''} ${player2?.last_name || ''}`.trim(),
                     }
-                });
+                };
             }
-        }
+            return null;
+        });
+
+        const winnersWithDetails = (await Promise.all(winnerPromises)).filter(Boolean);
 
         return winnersWithDetails;
     } catch (error) {

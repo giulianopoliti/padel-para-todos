@@ -21,16 +21,23 @@ export async function getTop5MalePlayers() {
     return data;
 }
 
+// 🚀 OPTIMIZACIÓN FASE 2: Query optimizada con campos específicos
 export async function getTopPlayers(limit: number = 5) {
     const query = supabase
         .from("players")
         .select(`
-            *,
+            id,
+            first_name,
+            last_name,
+            score,
+            category_name,
+            profile_image_url,
             clubes (
                 name
             )
         `)
         .eq("gender", "MALE")
+        .not("score", "is", null)
         .order("score", { ascending: false })
         .limit(limit);
 
@@ -63,13 +70,13 @@ export async function getTopPlayers(limit: number = 5) {
             firstName: rawPlayer.first_name,
             lastName: rawPlayer.last_name,
             score: rawPlayer.score,
-            category: rawPlayer.category_name || rawPlayer.category || "Sin categoría",
-            preferredHand: rawPlayer.preferred_hand,
-            racket: rawPlayer.racket,
-            preferredSide: rawPlayer.preferred_side,
-            createdAt: rawPlayer.created_at,
+            category: rawPlayer.category_name || "Sin categoría",
+            preferredHand: undefined, // No necesario para ranking
+            racket: undefined, // No necesario para ranking
+            preferredSide: undefined, // No necesario para ranking
+            createdAt: new Date().toISOString(), // Placeholder para cumplir el tipo
             club_name: rawPlayer.clubes?.name || "Sin club",
-            gender: rawPlayer.gender || "MALE",
+            gender: "MALE",
             profileImage: profileImageUrl
         };
     }) || [];
@@ -124,7 +131,7 @@ export async function getRankedPlayers({
             countQuery.eq("club_id", clubId);
         }
 
-        // Ejecutar ambas consultas en paralelo
+        // 🚀 OPTIMIZACIÓN FASE 2: Ejecutar ambas consultas en paralelo
         const [countResult, playersResult] = await Promise.all([
             countQuery,
             baseQuery
