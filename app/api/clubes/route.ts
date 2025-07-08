@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getClubesWithServices } from '@/app/api/users'
+import { getClubesOptimized } from './actions'
 
+// 🚀 OPTIMIZACIÓN FASE 3.2: API route optimizada
 export async function GET(request: NextRequest) {
   try {
-    const clubes = await getClubesWithServices()
+    const clubes = await getClubesOptimized()
     return NextResponse.json(clubes)
   } catch (error) {
     console.error('Error fetching clubes:', error)
