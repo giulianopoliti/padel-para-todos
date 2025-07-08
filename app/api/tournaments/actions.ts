@@ -716,7 +716,7 @@ export async function getTournamentById(tournamentId: string) {
     .from('tournaments')
     .select(`
       *, 
-      clubes(id, name, address, cover_image_url, phone, email), 
+      clubes(id, name, address, cover_image_url, phone, phone2, email), 
       categories(name)
     `)
     .eq('id', tournamentId)

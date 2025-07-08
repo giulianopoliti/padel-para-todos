@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Trophy, Calendar, Users, Building, ArrowLeft } from "lucide-react"
+import { Trophy, Calendar, Users, Building, ArrowLeft, Phone, MapPin } from "lucide-react"
 import TournamentPageLayout from "./tournament-page-layout"
 import { cn } from "@/lib/utils"
 
@@ -14,6 +14,9 @@ interface TournamentData {
   end_date?: string
   clubes?: {
     name?: string
+    phone?: string
+    phone2?: string
+    address?: string
   }
 }
 
@@ -84,13 +87,103 @@ export default function TournamentFullLayout({
                 <Trophy className="h-5 w-5 lg:h-6 lg:w-6 text-slate-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl lg:text-2xl font-bold text-slate-900 mb-1 truncate">{tournament.name}</h1>
-                <div className="flex flex-wrap items-center gap-3 lg:gap-4 text-xs lg:text-sm text-slate-600">
+                <h1 className="text-xl lg:text-2xl font-bold text-slate-900 mb-2 truncate">{tournament.name}</h1>
+                
+                {/* Mobile Layout - Vertical stacking */}
+                <div className="block sm:hidden space-y-2 text-xs text-slate-600">
+                  {tournament.clubes?.name && (
+                    <div className="flex items-center gap-1">
+                      <Building className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">
+                        {tournament.clubes.name}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {(tournament.clubes?.phone || tournament.clubes?.phone2) && (
+                    <div className="flex items-center gap-3">
+                      {tournament.clubes?.phone && (
+                        <a 
+                          href={`tel:${tournament.clubes.phone}`}
+                          className="flex items-center gap-1 hover:text-slate-900 transition-colors"
+                        >
+                          <Phone className="h-3 w-3 flex-shrink-0" />
+                          <span>{tournament.clubes.phone}</span>
+                        </a>
+                      )}
+                      {tournament.clubes?.phone2 && (
+                        <a 
+                          href={`tel:${tournament.clubes.phone2}`}
+                          className="flex items-center gap-1 hover:text-slate-900 transition-colors"
+                        >
+                          <Phone className="h-3 w-3 flex-shrink-0" />
+                          <span>{tournament.clubes.phone2}</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  
+                  {tournament.clubes?.address && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">
+                        {tournament.clubes.address}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {tournament.start_date && (
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3 flex-shrink-0" />
+                      <span>
+                        {formatDate(tournament.start_date)}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-1">
+                    <Users className="h-3 w-3 flex-shrink-0" />
+                    <span>{individualInscriptions.length} jugadores, {coupleInscriptions.length} parejas</span>
+                  </div>
+                </div>
+
+                {/* Desktop Layout - Horizontal wrapping */}
+                <div className="hidden sm:flex flex-wrap items-center gap-3 lg:gap-4 text-xs lg:text-sm text-slate-600">
                   {tournament.clubes?.name && (
                     <div className="flex items-center gap-1">
                       <Building className="h-3 w-3 lg:h-4 lg:w-4" />
                       <span className="truncate max-w-[150px] sm:max-w-none">
                         {tournament.clubes.name}
+                      </span>
+                    </div>
+                  )}
+                  {(tournament.clubes?.phone || tournament.clubes?.phone2) && (
+                    <div className="flex items-center gap-3">
+                      {tournament.clubes?.phone && (
+                        <a 
+                          href={`tel:${tournament.clubes.phone}`}
+                          className="flex items-center gap-1 hover:text-slate-900 transition-colors"
+                        >
+                          <Phone className="h-3 w-3 lg:h-4 lg:w-4" />
+                          <span>{tournament.clubes.phone}</span>
+                        </a>
+                      )}
+                      {tournament.clubes?.phone2 && (
+                        <a 
+                          href={`tel:${tournament.clubes.phone2}`}
+                          className="flex items-center gap-1 hover:text-slate-900 transition-colors"
+                        >
+                          <Phone className="h-3 w-3 lg:h-4 lg:w-4" />
+                          <span>{tournament.clubes.phone2}</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  {tournament.clubes?.address && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3 lg:h-4 lg:w-4" />
+                      <span className="truncate max-w-[200px] sm:max-w-none">
+                        {tournament.clubes.address}
                       </span>
                     </div>
                   )}
