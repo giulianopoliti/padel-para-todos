@@ -707,35 +707,6 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
 
   return (
     <div className="flex flex-col">
-      {/* Header con botón de regenerar */}
-      <div className="flex justify-between items-center px-4 lg:px-8 py-4 border-b border-gray-200 bg-white">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Bracket Eliminatorio</h2>
-          <p className="text-sm text-gray-600">
-            {matches.length} matches • Algoritmo de seeding avanzado
-          </p>
-        </div>
-        <Button
-          onClick={handleGenerateBracket}
-          disabled={isGeneratingBracket}
-          variant="outline"
-          size="sm"
-          className="text-blue-600 border-blue-600 hover:bg-blue-50"
-        >
-          {isGeneratingBracket ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Regenerando...
-            </>
-          ) : (
-            <>
-              <Settings className="h-4 w-4 mr-2" />
-              Regenerar Bracket
-            </>
-          )}
-        </Button>
-      </div>
-
       <div
         ref={bracketRef}
         className="tournament-bracket overflow-x-auto overflow-y-auto bg-gray-50 p-2 lg:p-4"

@@ -703,7 +703,7 @@ export async function register(formData: FormData): Promise<RegisterResult> {
 
     return {
       success: true,
-      message: '¡Registro completado! Serás redirigido al inicio de sesión.',
+      message: '¡Registro completado! Serás redirigido al dashboard.',
       redirectUrl: '/login', // Or to a dashboard if auto-login after signup is implemented
     };
 
