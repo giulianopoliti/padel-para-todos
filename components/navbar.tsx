@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@/contexts/user-context";
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useEffect, useState } from "react";
 import { getLinksForRole } from "@/config/permissions";
 import type { User as AuthUser } from "@supabase/supabase-js";
 
@@ -62,13 +62,58 @@ const useNavbarLinks = (userRole: Role | null) => {
 export default function Navbar() {
   // 🚀 OPTIMIZACIÓN FASE 1.3: Usar nuevos estados de loading
   const { user, userDetails, loading, authLoading, error } = useUser();
-
-  // 🔧 OPTIMIZACIÓN FASE 1.3: Lógica de loading mejorada
-  const isInitialAuthLoading = authLoading;
-  const isUserDetailsLoading = user && loading;
-  const isUserDetailsWaiting = user && !userDetails && !error && !loading;
   
-  const showSkeleton = isInitialAuthLoading || isUserDetailsLoading || isUserDetailsWaiting;
+  // 🚀 FASE 1.3: Estado para forzar resolución de skeleton
+  const [forceShowNavbar, setForceShowNavbar] = useState(false);
+
+  // 🚀 FASE 1.3: Timer de recuperación para resolver skeleton colgado
+  useEffect(() => {
+    const maxWaitTime = 15000; // 15 segundos máximo
+    const timer = setTimeout(() => {
+      if ((authLoading || loading) && !forceShowNavbar) {
+        console.warn('[Navbar Recovery] Forcing skeleton to resolve after 15s timeout');
+        console.warn('[Navbar Recovery] States:', { authLoading, loading, hasUser: !!user, hasUserDetails: !!userDetails });
+        setForceShowNavbar(true);
+      }
+    }, maxWaitTime);
+
+    // Limpiar timer si ya no estamos cargando
+    if (!authLoading && !loading) {
+      setForceShowNavbar(false);
+    }
+    
+    return () => clearTimeout(timer);
+  }, [authLoading, loading, forceShowNavbar, user, userDetails]);
+
+  // 🚀 FASE 1.2: Lógica de loading simplificada y robusta
+  const showSkeleton = useMemo(() => {
+    // Solo mostrar skeleton si:
+    // 1. Estamos cargando autenticación inicial
+    // 2. O tenemos user pero estamos cargando detalles
+    // 3. NUNCA mostrar skeleton si hay error (fallback al navbar básico)
+    // 4. NUNCA mostrar skeleton si forceShowNavbar está activo
+    if (error) {
+      console.log('[Navbar] Error detected, not showing skeleton:', error);
+      return false;
+    }
+    
+    if (forceShowNavbar) {
+      console.log('[Navbar] Force showing navbar due to timeout recovery');
+      return false;
+    }
+    
+    const result = authLoading || (user && loading);
+    
+    console.log('[Navbar] Skeleton decision:', {
+      authLoading,
+      hasUser: !!user,
+      loading,
+      forceShowNavbar,
+      showSkeleton: result
+    });
+    
+    return result;
+  }, [authLoading, user, loading, error, forceShowNavbar]);
 
   // 🔧 OPTIMIZACIÓN FASE 1.5: Usar hook optimizado para links
   const userRole = userDetails?.role as Role | null;
