@@ -244,42 +244,44 @@ export default async function PlayerDashboard() {
             {upcomingTournaments && upcomingTournaments.length > 0 ? (
               <div className="space-y-3">
                 {upcomingTournaments.map((tournament) => {
-                                     const isInscribed = playerInscriptions?.some(
-                     (inscription) => (inscription.tournaments as any)?.id === tournament.id
-                   )
+                  const isInscribed = playerInscriptions?.some(
+                    (inscription) => (inscription.tournaments as any)?.id === tournament.id
+                  )
                   
                   return (
-                                         <div key={tournament.id} className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-all duration-300 hover:scale-102">
-                       <div className="flex items-start justify-between mb-2">
-                         <h4 className="font-medium text-gray-900 text-sm">{tournament.name}</h4>
-                         {isInscribed && (
-                           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                             Inscrito
-                           </Badge>
-                         )}
-                       </div>
-                       
-                       <div className="space-y-1 text-xs text-gray-600">
-                         {tournament.start_date && (
-                           <div className="flex items-center">
-                             <Calendar className="mr-1 h-3 w-3" />
-                             {formatDate(tournament.start_date)}
-                           </div>
-                         )}
-                         {(tournament.clubes as any)?.[0]?.name && (
-                           <div className="flex items-center">
-                             <MapPin className="mr-1 h-3 w-3" />
-                             {(tournament.clubes as any)[0].name}
-                           </div>
-                         )}
-                         {tournament.category_name && (
-                           <div className="flex items-center">
-                             <Trophy className="mr-1 h-3 w-3" />
-                             Categoría {tournament.category_name}
-                           </div>
-                         )}
-                       </div>
-                     </div>
+                    <Link key={tournament.id} href={`/tournaments/${tournament.id}`} className="block">
+                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-all duration-300 hover:scale-102 cursor-pointer hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-medium text-gray-900 text-sm">{tournament.name}</h4>
+                          {isInscribed && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                              Inscrito
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-1 text-xs text-gray-600">
+                          {tournament.start_date && (
+                            <div className="flex items-center">
+                              <Calendar className="mr-1 h-3 w-3" />
+                              {formatDate(tournament.start_date)}
+                            </div>
+                          )}
+                          {(tournament.clubes as any)?.[0]?.name && (
+                            <div className="flex items-center">
+                              <MapPin className="mr-1 h-3 w-3" />
+                              {(tournament.clubes as any)[0].name}
+                            </div>
+                          )}
+                          {tournament.category_name && (
+                            <div className="flex items-center">
+                              <Trophy className="mr-1 h-3 w-3" />
+                              Categoría {tournament.category_name}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
                   )
                 })}
               </div>
