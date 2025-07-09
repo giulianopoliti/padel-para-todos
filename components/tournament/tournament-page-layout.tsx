@@ -95,10 +95,14 @@ export default function TournamentPageLayout({
           </div>
         )
       case "brackets":
-        return isPublicView ? (
-          <ReadOnlyBracketTab tournamentId={tournamentId} />
-        ) : (
-          <TournamentBracketTab tournamentId={tournamentId} />
+        return (
+          <div className="h-full overflow-x-auto overflow-y-hidden">
+            {isPublicView ? (
+              <ReadOnlyBracketTab tournamentId={tournamentId} />
+            ) : (
+              <TournamentBracketTab tournamentId={tournamentId} />
+            )}
+          </div>
         )
       default:
         return null
@@ -121,11 +125,11 @@ export default function TournamentPageLayout({
           "lg:ml-56", // Account for desktop sidebar width (reduced from ml-64)
           "w-full",
           "pb-20 lg:pb-0", // Space for mobile FAB button
-          "overflow-x-hidden" // Prevent horizontal scroll
+          "overflow-hidden" // Allow horizontal scroll for brackets
         )}
       >
         {/* Content Container */}
-        <div className="flex-1 bg-white lg:rounded-tl-xl shadow-sm lg:ml-2 overflow-x-hidden">
+        <div className="flex-1 bg-white lg:rounded-tl-xl shadow-sm lg:ml-2 overflow-hidden">
           {/* Tab Content */}
           {renderContent()}
         </div>

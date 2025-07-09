@@ -242,7 +242,7 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
           }
           positions.push(currentMatchPos)
 
-          // Create connector lines from actual parents (simplified for read-only)
+          // Create connector lines from actual parents
           if (parent1 && parent2) {
             // Two parents case: draw lines meeting at midpoint
             const parent1CenterY = parent1.y + parent1.height / 2
@@ -251,9 +251,15 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
             const connectionX = Math.max(parent1.x + parent1.width, parent2.x + parent2.width) + 30
             const midPointY = (parent1CenterY + parent2CenterY) / 2
 
+            // Create lines: horizontal from parents + vertical connector + horizontal to current match
             lines.push(
+              // Horizontal line from parent1 to connection point
               { x1: parent1.x + parent1.width, y1: parent1CenterY, x2: connectionX, y2: parent1CenterY, roundIndex },
+              // Horizontal line from parent2 to connection point  
               { x1: parent2.x + parent2.width, y1: parent2CenterY, x2: connectionX, y2: parent2CenterY, roundIndex },
+              // Vertical line connecting the two horizontal lines
+              { x1: connectionX, y1: parent1CenterY, x2: connectionX, y2: parent2CenterY, roundIndex },
+              // Horizontal line from midpoint to current match
               { x1: connectionX, y1: midPointY, x2: currentMatchPos.x, y2: currentMatchCenterY, roundIndex }
             )
           } else if (parent1) {
@@ -263,13 +269,24 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
             lines.push(
               { x1: parent1.x + parent1.width, y1: parent1CenterY, x2: currentMatchPos.x, y2: currentMatchCenterY, roundIndex }
             )
+          } else if (parent2) {
+            // Single parent case (rare scenario)
+            const parent2CenterY = parent2.y + parent2.height / 2
+            const currentMatchCenterY = currentMatchPos.y + currentMatchPos.height / 2
+            lines.push(
+              { x1: parent2.x + parent2.width, y1: parent2CenterY, x2: currentMatchPos.x, y2: currentMatchCenterY, roundIndex }
+            )
           }
+          // If no parents found, no lines are drawn (which is correct for orphaned matches)
         })
       }
     })
 
     setMatchPositions(positions)
     setConnectorLines(lines)
+    
+    // DEBUG: Log temporal para verificar que las líneas se están creando
+    console.log(`ReadOnlyBracketVisualization - Created ${lines.length} connector lines:`, lines)
   }
 
   const handleOpenMatchDetails = async (match: Match) => {

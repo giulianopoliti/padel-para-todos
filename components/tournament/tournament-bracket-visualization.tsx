@@ -122,12 +122,12 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
     return () => window.removeEventListener('resize', updateViewportWidth)
   }, [])
 
-  // Responsive sizing based on screen size - SIGNIFICANTLY REDUCED for better fit
+  // Responsive sizing based on screen size - COMPACT for better bracket fit
   const isMobile = viewportWidth < 768
-  const matchSpacing = isMobile ? 40 : 50
-  const matchHeight = isMobile ? 110 : 120  // Increased for better footer visibility
-  const columnWidth = isMobile ? 200 : 250  // Slightly increased for better text fit
-  const matchWidth = isMobile ? 185 : 235   // Slightly increased for better text fit
+  const matchSpacing = isMobile ? 30 : 40  // Reduced spacing for more compact view
+  const matchHeight = isMobile ? 95 : 110  // Reduced height for compactness
+  const columnWidth = isMobile ? 180 : 250  // Reduced width for better fit
+  const matchWidth = isMobile ? 165 : 230   // Reduced width for more compact display
 
   // Calculate available width for bracket (accounting for sidebar and padding)
   const availableWidth = viewportWidth - (viewportWidth > 1024 ? 280 : 40)
@@ -319,49 +319,6 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
       return 60
     }
 
-    // Helper function to create connector lines from parent to current match
-    const createConnectorLines = (
-      parent: MatchPosition,
-      currentMatch: MatchPosition,
-      roundIndex: number,
-      midPointY?: number
-    ) => {
-      const parentCenterY = parent.y + parent.height / 2
-      const currentMatchCenterY = currentMatch.y + currentMatch.height / 2
-      const connectionX = parent.x + parent.width + 30
-
-      if (parent.match.status === "COMPLETED") {
-        // Line from parent to connection point
-        lines.push({
-          x1: parent.x + parent.width,
-          y1: parentCenterY,
-          x2: connectionX,
-          y2: parentCenterY,
-          roundIndex: roundIndex - 1,
-        })
-
-        if (midPointY !== undefined) {
-          // Vertical line to midpoint (when there are two parents)
-          lines.push({
-            x1: connectionX,
-            y1: parentCenterY,
-            x2: connectionX,
-            y2: midPointY,
-            roundIndex: roundIndex - 1,
-          })
-        } else {
-          // Direct line to current match (when there's only one parent)
-          lines.push({
-            x1: connectionX,
-            y1: parentCenterY,
-            x2: currentMatch.x,
-            y2: currentMatchCenterY,
-            roundIndex: roundIndex - 1,
-          })
-        }
-      }
-    }
-
     activeRounds.forEach((round, roundIndex) => {
       const roundMatches = matchesByRound[round]
       const x = roundIndex * columnWidth
@@ -392,6 +349,16 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
           const parent1 = findParentMatchByWinner(match.couple1_id || null, prevRoundPositions)
           const parent2 = findParentMatchByWinner(match.couple2_id || null, prevRoundPositions)
 
+          // DEBUG: Log para ver qué está pasando
+          console.log(`Match ${match.id} (${round}):`, {
+            couple1_id: match.couple1_id,
+            couple2_id: match.couple2_id,
+            parent1_found: !!parent1,
+            parent2_found: !!parent2,
+            prevRoundPositions_length: prevRoundPositions.length,
+            prevRoundWinners: prevRoundPositions.map(p => ({ id: p.match.id, winner_id: p.match.winner_id }))
+          })
+
           // Calculate position based on actual parent positions
           const centerY = calculateCenterY(parent1, parent2)
 
@@ -410,29 +377,30 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
             // Two parents case: draw lines meeting at midpoint
             const parent1CenterY = parent1.y + parent1.height / 2
             const parent2CenterY = parent2.y + parent2.height / 2
-            const midPointY = (parent1CenterY + parent2CenterY) / 2
             const currentMatchCenterY = currentMatchPos.y + currentMatchPos.height / 2
             const connectionX = Math.max(parent1.x + parent1.width, parent2.x + parent2.width) + 30
+            const midPointY = (parent1CenterY + parent2CenterY) / 2
 
-            createConnectorLines(parent1, currentMatchPos, roundIndex, midPointY)
-            createConnectorLines(parent2, currentMatchPos, roundIndex, midPointY)
-
-            // Final line from midpoint to current match
-            if (parent1.match.status === "COMPLETED" || parent2.match.status === "COMPLETED") {
-              lines.push({
-                x1: connectionX,
-                y1: midPointY,
-                x2: currentMatchPos.x,
-                y2: currentMatchCenterY,
-                roundIndex: roundIndex - 1,
-              })
-            }
+            // Create lines directly (simplified approach like read-only version)
+            lines.push(
+              { x1: parent1.x + parent1.width, y1: parent1CenterY, x2: connectionX, y2: parent1CenterY, roundIndex },
+              { x1: parent2.x + parent2.width, y1: parent2CenterY, x2: connectionX, y2: parent2CenterY, roundIndex },
+              { x1: connectionX, y1: midPointY, x2: currentMatchPos.x, y2: currentMatchCenterY, roundIndex }
+            )
           } else if (parent1) {
-            // Only one parent case (BYE scenario)
-            createConnectorLines(parent1, currentMatchPos, roundIndex)
+            // Single parent case
+            const parent1CenterY = parent1.y + parent1.height / 2
+            const currentMatchCenterY = currentMatchPos.y + currentMatchPos.height / 2
+            lines.push(
+              { x1: parent1.x + parent1.width, y1: parent1CenterY, x2: currentMatchPos.x, y2: currentMatchCenterY, roundIndex }
+            )
           } else if (parent2) {
-            // Only second parent case (rare BYE scenario)
-            createConnectorLines(parent2, currentMatchPos, roundIndex)
+            // Single parent case (rare scenario)
+            const parent2CenterY = parent2.y + parent2.height / 2
+            const currentMatchCenterY = currentMatchPos.y + currentMatchPos.height / 2
+            lines.push(
+              { x1: parent2.x + parent2.width, y1: parent2CenterY, x2: currentMatchPos.x, y2: currentMatchCenterY, roundIndex }
+            )
           }
           // If no parents found, no lines are drawn (which is correct for orphaned matches)
         })
@@ -441,6 +409,9 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
 
     setMatchPositions(positions)
     setConnectorLines(lines)
+    
+    // DEBUG: Log para ver cuántas líneas se crearon
+    console.log(`Created ${lines.length} connector lines:`, lines)
   }
 
   const handleOpenResultDialog = (match: Match) => {
@@ -720,14 +691,14 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
         <div
           className="relative py-4 lg:py-6"
           style={{ 
-            width: Math.min(totalWidthForLayout, availableWidth), 
+            width: totalWidthForLayout, 
             minHeight: calculatedTotalHeightForLayout,
             minWidth: 'fit-content'
           }}
         >
           <svg
             className="absolute top-0 left-0 pointer-events-none"
-            width={Math.min(totalWidthForLayout, availableWidth)}
+            width={totalWidthForLayout}
             height={calculatedTotalHeightForLayout}
             style={{ zIndex: 1 }}
           >
@@ -795,7 +766,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                     }`}
                   >
                     <div className="flex justify-between items-center min-h-6">
-                      <div className="font-medium text-slate-900 text-sm max-w-[170px] truncate">
+                      <div className="font-medium text-slate-900 text-sm max-w-[180px] truncate">
                         {match.couple1_player1_name && match.couple1_player2_name
                           ? formatCoupleNames(match.couple1_player1_name, match.couple1_player2_name)
                           : match.couple1_id === "BYE_MARKER"
@@ -822,7 +793,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                     }`}
                   >
                     <div className="flex justify-between items-center min-h-6">
-                      <div className="font-medium text-slate-900 text-sm max-w-[170px] truncate">
+                      <div className="font-medium text-slate-900 text-sm max-w-[180px] truncate">
                         {match.couple2_player1_name && match.couple2_player2_name
                           ? formatCoupleNames(match.couple2_player1_name, match.couple2_player2_name)
                           : match.couple2_id === "BYE_MARKER" || match.couple2_id === null
