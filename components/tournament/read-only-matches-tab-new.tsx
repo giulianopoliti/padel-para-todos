@@ -126,13 +126,33 @@ export default function ReadOnlyMatchesTabNew({ tournamentId }: ReadOnlyMatchesT
   const sortedZones = Object.keys(matchesByZone).sort()
   
   // Agrupar partidos eliminatorios por ronda para mostrar después de las zonas
+  // Filtrar partidos BYE de la sección de partidos eliminatorios
   const eliminationByRound: Record<string, any[]> = {}
-  eliminationMatches.forEach((match) => {
-    if (!eliminationByRound[match.round]) {
-      eliminationByRound[match.round] = []
-    }
-    eliminationByRound[match.round].push(match)
-  })
+  eliminationMatches
+    .filter((match) => {
+      // Filtrar partidos BYE: excluir si couple1_id o couple2_id es null o "BYE_MARKER"
+      const hasBye = 
+        match.couple1_id === null || 
+        match.couple2_id === null || 
+        match.couple1_id === "BYE_MARKER" || 
+        match.couple2_id === "BYE_MARKER" ||
+        !match.couple1_player1_name || 
+        !match.couple1_player2_name ||
+        !match.couple2_player1_name || 
+        !match.couple2_player2_name ||
+        match.couple1_player1_name.includes('BYE') ||
+        match.couple1_player2_name.includes('BYE') ||
+        match.couple2_player1_name.includes('BYE') ||
+        match.couple2_player2_name.includes('BYE')
+      
+      return !hasBye
+    })
+    .forEach((match) => {
+      if (!eliminationByRound[match.round]) {
+        eliminationByRound[match.round] = []
+      }
+      eliminationByRound[match.round].push(match)
+    })
 
   const roundOrder = ["32VOS", "16VOS", "8VOS", "4TOS", "SEMIFINAL", "FINAL"]
   const roundTranslation: Record<string, string> = {
@@ -163,59 +183,59 @@ export default function ReadOnlyMatchesTabNew({ tournamentId }: ReadOnlyMatchesT
           <CardContent className="p-0">
             <div className="border border-gray-200 rounded-b-lg overflow-hidden">
               <Table>
-                <TableHeader className="bg-slate-50">
-                  <TableRow className="border-b border-gray-200">
-                    <TableHead className="font-semibold text-slate-700">Pareja 1</TableHead>
-                    <TableHead className="font-semibold text-slate-700 text-center">Resultado</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Pareja 2</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {matchesByZone[zoneName].map((match) => (
-                    <TableRow key={match.id} className="hover:bg-slate-50 border-b border-gray-100">
-                      <TableCell>
-                        <CoupleNames 
-                          couple={match.couple1}
-                          playerNames={`${match.couple1_player1_name} / ${match.couple1_player2_name}`}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {match.status === "COMPLETED" ? (
-                          <div className="flex justify-center items-center gap-2">
-                            <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-                              {match.result_couple1}
-                            </span>
-                            <span className="text-slate-400">-</span>
-                            <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-                              {match.result_couple2}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <CoupleNames 
-                          couple={match.couple2}
-                          playerNames={`${match.couple2_player1_name} / ${match.couple2_player2_name}`}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {match.status === "COMPLETED" ? (
-                          <div className="flex items-center">
-                            <CheckCircle className="h-4 w-4 text-emerald-600 mr-2" />
-                            <span className="text-emerald-600 text-sm font-medium">Completado</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center">
-                            <Clock className="h-4 w-4 text-amber-600 mr-2" />
-                            <span className="text-amber-600 text-sm font-medium">Pendiente</span>
-                          </div>
-                        )}
-                      </TableCell>
+                                  <TableHeader className="bg-slate-50">
+                    <TableRow className="border-b border-gray-200">
+                      <TableHead className="font-semibold text-slate-700 w-[35%]">Pareja 1</TableHead>
+                      <TableHead className="font-semibold text-slate-700 text-center w-[15%]">Resultado</TableHead>
+                      <TableHead className="font-semibold text-slate-700 w-[35%]">Pareja 2</TableHead>
+                      <TableHead className="font-semibold text-slate-700 w-[15%]">Estado</TableHead>
                     </TableRow>
-                  ))}
+                  </TableHeader>
+                <TableBody>
+                                      {matchesByZone[zoneName].map((match) => (
+                      <TableRow key={match.id} className="hover:bg-slate-50 border-b border-gray-100">
+                        <TableCell className="w-[35%]">
+                          <CoupleNames 
+                            couple={match.couple1}
+                            playerNames={`${match.couple1_player1_name} / ${match.couple1_player2_name}`}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center w-[15%]">
+                          {match.status === "COMPLETED" ? (
+                            <div className="flex justify-center items-center gap-2">
+                              <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-1 rounded">
+                                {match.result_couple1}
+                              </span>
+                              <span className="text-slate-400">-</span>
+                              <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-1 rounded">
+                                {match.result_couple2}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="w-[35%]">
+                          <CoupleNames 
+                            couple={match.couple2}
+                            playerNames={`${match.couple2_player1_name} / ${match.couple2_player2_name}`}
+                          />
+                        </TableCell>
+                        <TableCell className="w-[15%]">
+                          {match.status === "COMPLETED" ? (
+                            <div className="flex items-center">
+                              <CheckCircle className="h-4 w-4 text-emerald-600 mr-2" />
+                              <span className="text-emerald-600 text-sm font-medium">Completado</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center">
+                              <Clock className="h-4 w-4 text-amber-600 mr-2" />
+                              <span className="text-amber-600 text-sm font-medium">Pendiente</span>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </div>
@@ -244,22 +264,22 @@ export default function ReadOnlyMatchesTabNew({ tournamentId }: ReadOnlyMatchesT
                 <Table>
                   <TableHeader className="bg-slate-50">
                     <TableRow className="border-b border-gray-200">
-                      <TableHead className="font-semibold text-slate-700">Pareja 1</TableHead>
-                      <TableHead className="font-semibold text-slate-700 text-center">Resultado</TableHead>
-                      <TableHead className="font-semibold text-slate-700">Pareja 2</TableHead>
-                      <TableHead className="font-semibold text-slate-700">Estado</TableHead>
+                      <TableHead className="font-semibold text-slate-700 w-[35%]">Pareja 1</TableHead>
+                      <TableHead className="font-semibold text-slate-700 text-center w-[15%]">Resultado</TableHead>
+                      <TableHead className="font-semibold text-slate-700 w-[35%]">Pareja 2</TableHead>
+                      <TableHead className="font-semibold text-slate-700 w-[15%]">Estado</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {eliminationByRound[roundKey].map((match) => (
                       <TableRow key={match.id} className="hover:bg-slate-50 border-b border-gray-100">
-                        <TableCell>
+                        <TableCell className="w-[35%]">
                           <CoupleNames 
                             couple={match.couple1}
                             playerNames={`${match.couple1_player1_name} / ${match.couple1_player2_name}`}
                           />
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center w-[15%]">
                           {match.status === "COMPLETED" ? (
                             <div className="flex justify-center items-center gap-2">
                               <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-1 rounded">
@@ -274,13 +294,13 @@ export default function ReadOnlyMatchesTabNew({ tournamentId }: ReadOnlyMatchesT
                             <span className="text-slate-400">-</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="w-[35%]">
                           <CoupleNames 
                             couple={match.couple2}
                             playerNames={`${match.couple2_player1_name} / ${match.couple2_player2_name}`}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="w-[15%]">
                           {match.status === "COMPLETED" ? (
                             <div className="flex items-center">
                               <CheckCircle className="h-4 w-4 text-emerald-600 mr-2" />

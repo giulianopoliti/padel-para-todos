@@ -104,7 +104,7 @@ export default function TournamentPageClient({ tournamentId }: TournamentPageCli
           .eq("is_pending", false);
 
         if (!inscriptionsError && inscriptions) {
-          const players = (inscriptions as PlayerResponse[])
+          const players = (inscriptions as unknown as PlayerResponse[])
             .filter(i => i.player !== null)
             .map(i => i.player as NonNullable<PlayerResponse["player"]>);
           setIndividualInscriptions(players);
