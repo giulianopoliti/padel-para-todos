@@ -29,7 +29,7 @@ export async function searchPlayer(searchTerm: string) {
     // Incluir TODOS los jugadores (reales y de prueba) para facilitar testing
     const { data, error } = await supabase
       .from('players')
-      .select('id, first_name, last_name, dni, es_prueba')
+      .select('id, first_name, last_name, dni')
       .or(`first_name.ilike.%${cleanTerm}%,last_name.ilike.%${cleanTerm}%,dni.ilike.%${cleanTerm}%`)
       .limit(20);
     
@@ -47,7 +47,7 @@ export async function searchPlayer(searchTerm: string) {
       // Intentar buscar todos los jugadores
       const { data: allPlayers, error: allPlayersError } = await supabase
         .from('players')
-        .select('id, first_name, last_name, dni, es_prueba')
+        .select('id, first_name, last_name, dni')
         .limit(20);
       
       if (allPlayersError) {

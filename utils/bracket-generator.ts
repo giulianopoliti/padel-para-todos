@@ -343,14 +343,13 @@ export function convertMatchesToDatabaseFormat(
 ): any[] {
   return matches.map(match => ({
     tournament_id: tournamentId,
-    couple1_id: match.couple1_id,
-    couple2_id: match.couple2_id,
+    couple1_id: match.pareja1?.id || null,
+    couple2_id: match.pareja2?.id || null,
     round: match.round,
-    status: match.status === 'COMPLETED' ? 'COMPLETED' : 'NOT_STARTED',
     order: match.order,
-    winner_id: match.winner_id,
-    zone_id: null, // Matches de eliminación no tienen zona
-    es_prueba: false
+    status: match.status,
+    winner_id: match.winner_id || null,
+    type: 'ELIMINATION', // Todos los matches generados aquí son de eliminación
   }))
 }
 

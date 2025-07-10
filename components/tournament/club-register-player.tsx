@@ -25,7 +25,6 @@ interface PlayerInfo {
   first_name: string | null; 
   last_name: string | null;
   dni?: string | null;
-  es_prueba?: boolean;
 }
 
 interface ClubRegisterPlayerProps {
@@ -345,11 +344,6 @@ export default function ClubRegisterPlayer({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{player.first_name} {player.last_name}</span>
-                      {player.es_prueba && (
-                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full border border-orange-200">
-                          PRUEBA
-                        </span>
-                      )}
                     </div>
                     {player.dni && (
                       <span className="text-xs text-gray-500">DNI: {player.dni}</span>
@@ -357,14 +351,10 @@ export default function ClubRegisterPlayer({
                   </div>
                   <Button 
                     onClick={() => handleRegisterExistingPlayer(player.id)}
-                    disabled={isRegistering}
                     size="sm"
+                    disabled={isRegistering}
                   >
-                    {isRegistering ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Inscribir"
-                    )}
+                    {isRegistering ? <Loader2 className="h-4 w-4 animate-spin" /> : "Inscribir"}
                   </Button>
                 </div>
               ))}

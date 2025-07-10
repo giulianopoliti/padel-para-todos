@@ -874,7 +874,6 @@ export async function registerCoupleForTournament(tournamentId: string, player1I
       )
     `)
     .eq('tournament_id', tournamentId)
-    .eq('is_pending', false)
     .or(`player_id.eq.${player1Id},player_id.eq.${player2Id}`);
 
   if (playerCheckError) {
@@ -904,7 +903,6 @@ export async function registerCoupleForTournament(tournamentId: string, player1I
       )
     `)
     .eq('tournament_id', tournamentId)
-    .eq('is_pending', false)
     .not('couple_id', 'is', null);
 
   if (coupleCheckError) {
@@ -966,7 +964,6 @@ export async function registerCoupleForTournament(tournamentId: string, player1I
     .select('id')
     .eq('tournament_id', tournamentId)
     .eq('couple_id', coupleIdToInsert)
-    .eq('is_pending', false)
     .maybeSingle();
 
   if (checkError) {
@@ -1006,7 +1003,6 @@ export async function getCouplesByTournamentId(tournamentId: string): Promise<an
     .select('couple_id')
     .eq('tournament_id', tournamentId)
     .not('couple_id', 'is', null)
-    .eq('is_pending', false); // Only fetch non-pending couples
 
   if (inscriptionsError) throw inscriptionsError;
   if (!inscriptionCouples || inscriptionCouples.length === 0) return [];
@@ -1031,7 +1027,6 @@ export async function registerAuthenticatedPlayerForTournament(tournamentId: str
     .select('id, couple_id, is_pending') // Select is_pending to check its status
     .eq('tournament_id', tournamentId)
     .eq('player_id', playerId)
-    // .eq('is_pending', false) // We want to check for ANY inscription by this player, then decide
     .maybeSingle();
 
   if (checkError) return { success: false, message: `Error al verificar: ${checkError.message}` };
@@ -1072,7 +1067,6 @@ export async function getTournamentDetailsWithInscriptions(tournamentId: string)
       .from('inscriptions')
       .select('*') // Consider selecting specific fields if not all are needed
       .eq('tournament_id', tournamentId)
-      .eq('is_pending', false); // Only fetch non-pending inscriptions
 
     if (inscriptionsError || !rawInscriptions) return { tournament, inscriptions: [] };
 
@@ -1170,7 +1164,6 @@ export async function registerPlayerForTournament(tournamentId: string, playerId
     .select('id, is_pending') // Select is_pending
     .eq('tournament_id', tournamentId)
     .eq('player_id', playerId)
-    // .eq('is_pending', false) // Check for any, then decide
     .maybeSingle();
 
   if (checkError) {
@@ -2011,9 +2004,7 @@ export async function requestCoupleInscription(
         // Let's try to insert player_id as null and see if DB allows, or if we must provide one.
         // Re-checking schema: player_id is NOT NULL.
         // So, one of the players must be associated, or the schema changes.
-        // For now, let's use player1Id as the primary contact for the inscription, even if it's a couple.
-        // OR, the schema needs a "contact_player_id" or similar if player_id isn't appropriate.
-        // Let's stick to the existing `player_id` and make it player1_id for the couple inscription.
+        // For now, let's use player1_id as the primary contact for the inscription, even if it's a couple.
         // This might need review based on how RLS and other logic use `inscriptions.player_id`.
         // A safer approach for couple inscriptions might be *not* to fill player_id here
         // if the DB allowed it, or to have a separate way to track the "requester" if needed.
@@ -2441,7 +2432,6 @@ export async function checkPlayerInscriptionStatus(tournamentId: string, playerI
       .select('id')
       .eq('tournament_id', tournamentId)
       .eq('player_id', playerId)
-      .eq('is_pending', false)
       .is('couple_id', null)
       .maybeSingle();
 
@@ -2466,7 +2456,6 @@ export async function checkPlayerInscriptionStatus(tournamentId: string, playerI
         )
       `)
       .eq('tournament_id', tournamentId)
-      .eq('is_pending', false)
       .not('couple_id', 'is', null);
 
     if (coupleError) {
@@ -2504,7 +2493,6 @@ export async function pairIndividualPlayers(tournamentId: string, player1Id: str
       .select('id, player_id')
       .eq('tournament_id', tournamentId)
       .eq('player_id', player1Id)
-      .eq('is_pending', false)
       .is('couple_id', null)
       .maybeSingle();
 
@@ -2522,7 +2510,6 @@ export async function pairIndividualPlayers(tournamentId: string, player1Id: str
       .select('id, player_id')
       .eq('tournament_id', tournamentId)
       .eq('player_id', player2Id)
-      .eq('is_pending', false)
       .is('couple_id', null)
       .maybeSingle();
 
@@ -2577,7 +2564,6 @@ export async function pairIndividualPlayers(tournamentId: string, player1Id: str
       .select('id')
       .eq('tournament_id', tournamentId)
       .eq('couple_id', coupleId)
-      .eq('is_pending', false)
       .maybeSingle();
 
     if (checkCoupleError) {
@@ -2596,7 +2582,6 @@ export async function pairIndividualPlayers(tournamentId: string, player1Id: str
         tournament_id: tournamentId, 
         couple_id: coupleId, 
         player_id: player1Id, // Usar player1 como contacto principal
-        is_pending: false
       })
       .select('id')
       .single(); 
@@ -2639,7 +2624,6 @@ export async function removeCoupleFromTournament(tournamentId: string, coupleId:
       .select('id')
       .eq('tournament_id', tournamentId)
       .eq('couple_id', coupleId)
-      .eq('is_pending', false)
       .maybeSingle();
 
     if (fetchError) {
@@ -3160,7 +3144,6 @@ async function generatePlayerTournamentHistory(tournamentId: string, supabase: a
       .from('inscriptions')
       .select('player_id')
       .eq('tournament_id', tournamentId)
-      .eq('is_pending', false)
       .is('couple_id', null)
       .not('player_id', 'is', null);
       
@@ -3187,7 +3170,6 @@ async function generatePlayerTournamentHistory(tournamentId: string, supabase: a
         )
       `)
       .eq('tournament_id', tournamentId)
-      .eq('is_pending', false)
       .not('couple_id', 'is', null);
       
     if (coupleError) {
@@ -3823,7 +3805,6 @@ export async function registerCoupleForTournamentAndRemoveIndividual(
         )
       `)
       .eq('tournament_id', tournamentId)
-      .eq('is_pending', false)
       .or(`player_id.eq.${player1Id},player_id.eq.${player2Id}`);
 
     if (checkError) {
@@ -3927,7 +3908,6 @@ export async function registerCoupleForTournamentAndRemoveIndividual(
       .select('id')
       .eq('tournament_id', tournamentId)
       .eq('couple_id', coupleIdToInsert)
-      .eq('is_pending', false)
       .maybeSingle();
 
     if (checkCoupleError) {
@@ -3949,7 +3929,6 @@ export async function registerCoupleForTournamentAndRemoveIndividual(
         tournament_id: tournamentId,
         couple_id: coupleIdToInsert,
         player_id: individualInscriptionToRemove.player_id, // Keep the original player_id as reference
-        is_pending: false
       })
       .select('id')
       .single();
@@ -4072,7 +4051,6 @@ async function extractCouplesSeededFromDatabase(tournamentId: string, supabase: 
       )
     `)
     .eq('tournament_id', tournamentId)
-    .eq('es_prueba', false)
     .order('created_at', { ascending: true }); // Ordenar por orden de creación
 
   if (zonesError) {
@@ -4277,8 +4255,7 @@ export async function generateEliminationBracketAction(tournamentId: string): Pr
       tournament_id: tournamentId,
       couple_id: couple.id,
       seed: couple.seed,
-      zone_id: couple.zone_id,
-      es_prueba: false
+      zone_id: couple.zone_id
     }));
 
     const { data: insertedSeeds, error: insertSeedsError } = await supabase
@@ -4376,8 +4353,7 @@ export async function checkZonesReadyForElimination(tournamentId: string): Promi
           status
         )
       `)
-      .eq('tournament_id', tournamentId)
-      .eq('es_prueba', false);
+      .eq('tournament_id', tournamentId);
 
     if (zonesError) {
       return { ready: false, message: `Error verificando zonas: ${zonesError.message}` };
