@@ -30,25 +30,25 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    id: "players",
-    label: "Jugadores",
-    icon: UserPlus,
-  },
-  {
     id: "couples",
     label: "Parejas",
     icon: Users,
   },
   {
-    id: "zones",
-    label: "Zonas",
-    icon: ListChecks,
-    requiresActive: true,
+    id: "players",
+    label: "Jugadores",
+    icon: UserPlus,
   },
   {
     id: "matches",
     label: "Partidos",
     icon: Trophy,
+    requiresActive: true,
+  },
+  {
+    id: "zones",
+    label: "Zonas",
+    icon: ListChecks,
     requiresActive: true,
   },
   {

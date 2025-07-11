@@ -6,6 +6,7 @@ import { UserProvider } from '@/contexts/user-context'
 import { Toaster } from '@/components/ui/toaster'
 import Navbar from '@/components/navbar'
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { getUserDetails } from '@/utils/db/getUserDetails'
 
 export const metadata = {
   title: 'Sistema de Torneos de Pádel',
@@ -19,37 +20,40 @@ export default async function MainLayout({
 }) {
   const supabase = await createClient()
 
-  // 🚀 OPTIMIZACIÓN FASE 1.1: Usar solo getUser() en lugar de doble autenticación
+  // 🚀 OPTIMIZACIÓN FASE 2: Obtener usuario y detalles del servidor
   // 
-  // ANTES: Hacíamos 2 llamadas costosas:
-  // 1. await supabase.auth.getUser() (500-1000ms)
-  // 2. await supabase.auth.getSession() (500-1000ms)
+  // ANTES: Solo obteníamos el usuario básico, los detalles se obtenían en el cliente
+  // DESPUÉS: Obtenemos tanto el usuario como sus detalles completos en el servidor
   // 
-  // DESPUÉS: Solo getUser() es suficiente porque:
-  // - getUser() devuelve el usuario actual si hay sesión válida
-  // - Es más eficiente que getSession() para verificar autenticación
-  // - El middleware ya se encarga de validar sesiones
-  // 
-  // IMPACTO ESPERADO: Reducción de 500-1000ms en carga inicial
+  // IMPACTO ESPERADO: Eliminación completa de los timeouts y queries adicionales del cliente
   const {
     data: { user },
     error: authError
   } = await supabase.auth.getUser()
 
-  // 🔧 OPTIMIZACIÓN FASE 1.1: Manejo de errores simplificado
-  // 
-  // ANTES: Validábamos user && session && !userError && !sessionError
-  // DESPUÉS: Solo validamos user && !authError
-  // 
-  // JUSTIFICACIÓN:
-  // - Si getUser() devuelve user, la sesión es válida
-  // - Si hay error de autenticación, user será null
-  // - Eliminamos complejidad innecesaria
+  // 🔧 OPTIMIZACIÓN FASE 2: Obtener detalles del usuario si está autenticado
+  let initialUserDetails = null
+  if (user && !authError) {
+    try {
+      initialUserDetails = await getUserDetails()
+      console.log("[Layout] Server-side user details fetched:", {
+        hasUser: !!user,
+        userId: user.id?.substring(0, 8) || 'none',
+        hasDetails: !!initialUserDetails,
+        role: initialUserDetails?.role || 'none',
+        hasRoleId: !!(initialUserDetails?.player_id || initialUserDetails?.club_id || initialUserDetails?.coach_id)
+      })
+    } catch (error) {
+      console.error("[Layout] Error fetching user details:", error)
+      // No bloquear la carga, solo loggear el error
+    }
+  }
+
+  // 🔧 OPTIMIZACIÓN FASE 2: Manejo de errores simplificado
   const initialUser = (user && !authError) ? user : null
 
-  // 📝 LOGGING MEJORADO: Más claro y específico
+  // 📝 LOGGING MEJORADO: Más información de diagnóstico
   if (authError) {
-    // Solo loggear errores reales, no ausencia de sesión
     if (authError.message !== 'Auth session missing!') {
       console.log("[Layout] Auth error detected:", authError.message)
     }
@@ -61,13 +65,14 @@ export default async function MainLayout({
     userId: user?.id?.substring(0, 8) || 'none',
     hasError: !!authError,
     errorType: authError?.message || 'none',
-    passedToProvider: !!initialUser
+    passedToProvider: !!initialUser,
+    hasInitialDetails: !!initialUserDetails
   })
 
   return (
     <SupabaseProvider initialUser={initialUser}>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
-        <UserProvider> 
+        <UserProvider initialUserDetails={initialUserDetails}> 
           <Navbar />
           {children}
           <Toaster />

@@ -1,4 +1,6 @@
-import type { Tournament, Category, AmericanMatch, LargeMatch, Couple, User } from "@/types"
+import type { Tournament, Category, AmericanMatch, LargeMatch, Couple, User, BaseMatch } from "@/types"
+
+type MatchStatus = BaseMatch['status'];
 
 // Esta interfaz ahora solo contiene datos básicos del torneo
 export interface BaseTournamentProps {
@@ -15,8 +17,10 @@ export interface BaseTournamentProps {
 }
 
 export interface MatchTableProps {
-  matches: AmericanMatch[] | LargeMatch[]
-  formatDate: (dateString: string) => string
+  matches: BaseMatch[];
+  formatDate: (date: string | undefined) => string;
+  isOwner: boolean;
+  onUpdateMatch: (matchId: string, data: { status?: MatchStatus; court?: string }) => Promise<void>;
 }
 
 // Eliminamos RegistrationButtonProps por ahora, ya que no se usará

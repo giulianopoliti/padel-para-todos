@@ -1,22 +1,46 @@
-Estoy desarrollando una aplicación Next.js para gestionar torneos de pádel usando Supabase para la autenticación y la base de datos.
+Estoy trabajando en una aplicación donde los clubes pueden organizar torneos.
+Tengo dos páginas:
 
-Actualmente, tengo esta estructura de carpetas:
-- `/tournaments`: Página pública para ver todos los torneos.
-- `/tournaments/[id]`: Detalles del torneo (públicos).
-- `/tournaments/MyTournaments`: Para que los clubes gestionen sus propios torneos.
+/tournaments: muestra todos los torneos públicos.
 
-El problema es que si un club ha iniciado sesión y quiere editar su propio torneo, debe ir a `MyTournaments/[id]`. Quiero **fusionar todo en una ruta unificada** como `/tournaments/[id]` y, según el rol y la propiedad del usuario, mostrar la vista correcta.
+/tournaments/my-tournaments: muestra los torneos organizados por el club logueado.
 
-### Requisitos:
-- Si el usuario **no ha iniciado sesión**, mostrar la vista pública y una solicitud para iniciar sesión antes de registrarse.
-- Si el usuario es un **club** y **es el propietario del torneo**, mostrar una vista de edición. - Si el usuario es **jugador**, mostrar una vista de registro.
-- Si el usuario **no está relacionado con el torneo**, mostrar una vista pública de solo lectura.
-- Usar la sesión de Supabase para determinar la información y el acceso del usuario.
-- Mantener el código escalable, limpio y modular (considerar un patrón de diseño si resulta útil).
-- Sugerir una estructura de carpetas para `/tournaments/[id]` con una separación clara entre la lógica y la interfaz de usuario.
-- Idealmente, sugerir una forma de encapsular la lógica de acceso de forma clara (por ejemplo, en un asistente o middleware).
+Actualmente, los clubes solo pueden editar torneos desde /my-tournaments, lo cual es confuso.
 
-Ayuda:
-1. Refactorizar las carpetas en `/tournaments/[id]`
-2. Implementar el control de acceso y la representación de vistas de forma limpia.
-3. Hacer que el código sea más fácil de mantener y legible, evitando la lógica espagueti.
+🎯 Lo que quiero implementar
+Quiero que desde /tournaments/[id], si el club está logueado y ese torneo le pertenece, pueda modificarlo directamente desde esa misma vista, con las mismas funcionalidades de edición que ya existen.
+
+Si el torneo no le pertenece, debe mantener el modo solo lectura (como ahora).
+
+🧠 Requisitos clave
+✅ Detectar si el usuario actual está logueado como club.
+
+✅ Verificar si el torneo corresponde a ese club.
+
+✅ Si sí, mostrar los componentes de edición (botones, inputs, formularios, etc.).
+
+✅ Si no, mantener el modo solo lectura como actualmente.
+
+✅ Que el componente de torneo reutilice los mismos subcomponentes (no duplicar lógica de edición).
+
+✅ No romper la vista actual de /my-tournaments, pero puede quedar solo como acceso directo a los torneos propios.
+
+🛠️ Sugerencias técnicas
+Podés usar un prop como editable: boolean para pasarle al componente de torneo si debe renderizarse editable o no.
+
+Usá un hook como useIsTorneoEditable(torneo, user) que encapsule la lógica de permisos y sea reutilizable.
+Quiero que usemos el usercontext que se utiliza en la navbar.
+
+Evitá tener ramas if o JSX duplicado. Lo ideal sería que el componente ya sepa si debe estar en modo edición.
+Tene en cuenta que hay una page de @club en tournaments, que es probable que se este renderizando cuando estas logeado como club, no la borremos aun, cambiemosle el nombre a la folder. Ya que un club que no es propietario del torneo no deberia poder editar, es decir deberia ver la vista publica. 
+
+
+✨ UX Final deseada
+Cuando un club entra a un torneo que organizó, lo puede administrar desde la misma página /tournaments/[id].
+Quiero que la pagina de un club si es propietario del torneo en tournaments/id, sea igual a la vista de /tournaments/my-tournaments/id. 
+
+Si entra a un torneo ajeno, ve la info normalmente pero sin opción de editar.
+
+/my-tournaments sigue existiendo, pero solo como vista de acceso rápido.
+
+Quiero que primero idees un plan de accion y me digas como funciona ahora exactamente, no veo una parallel route para clubes, pero si me logeo como club funciona, quiero que lo hagamos de una manera escalable y que entienda. Primero explicame todo.

@@ -1,3 +1,7 @@
+import type { Database } from '@/database.types';
+
+type MatchStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED';
+
 export type Role = "CLUB" | "PLAYER" | "COACH"
 export type Round = "ZONE" | "32VOS" | "16VOS" | "8VOS" | "4TOS" | "SEMIFINAL" | "FINAL"
 export type Category = {
@@ -103,8 +107,9 @@ export interface BaseMatch {
   couple_2: Couple;
   created_at: string;
   round: Round;
-  status: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
-  category: string;
+  status: MatchStatus;
+  court?: string;
+  date?: string; // Adding date field since it's used in the table
 }
 
 export interface AmericanMatch extends BaseMatch {
@@ -131,6 +136,14 @@ export type User = {
   avatar_url?: string // User profile avatar URL
   auth_id?: string
   created_at?: string
+}
+
+// 🚀 TIPO OPTIMIZADO: Detalles completos del usuario con IDs de rol específicos
+export interface DetailedUserDetails extends User {
+  player_id?: string | null;
+  club_id?: string | null;
+  coach_id?: string | null;
+  player_status?: string | null; // Para manejar el estado del jugador (active/inactive)
 }
 
 export type Zone = {

@@ -7,7 +7,9 @@ type Role = "PLAYER" | "CLUB" | "COACH" | "ADMIN"
 
 // 🚀 OPTIMIZACIÓN FASE 2: Cache optimizado con mayor duración
 const sessionCache = new Map<string, { user: any; role: Role | null; isActive: boolean; timestamp: number }>()
-const CACHE_DURATION = 5 * 60 * 1000 // 5 minutos (optimizado para reducir queries redundantes)
+const CACHE_DURATION = process.env.NODE_ENV === 'development' 
+  ? 1000 // 1 segundo en desarrollo
+  : 5 * 60 * 1000 // 5 minutos en producción
 
 // Function to clear cache for a specific user (for logout)
 export function clearUserCache(userId: string) {
