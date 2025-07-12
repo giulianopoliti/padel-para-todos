@@ -5,7 +5,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Trophy, Loader2, CheckCircle, Clock, Users } from "lucide-react"
 import { fetchTournamentMatches } from "@/app/api/tournaments/actions"
+import MatchStatusBadge from "./match-status-badge"
+import { Database } from "@/database.types"
 import Link from "next/link"
+
+type MatchStatus = Database["public"]["Enums"]["match_status"]
 
 interface ReadOnlyMatchesTabNewProps {
   tournamentId: string
@@ -201,7 +205,7 @@ export default function ReadOnlyMatchesTabNew({ tournamentId }: ReadOnlyMatchesT
                           />
                         </TableCell>
                         <TableCell className="text-center w-[15%]">
-                          {match.status === "COMPLETED" ? (
+                          {match.status === "FINISHED" ? (
                             <div className="flex justify-center items-center gap-2">
                               <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-1 rounded">
                                 {match.result_couple1}
@@ -222,17 +226,10 @@ export default function ReadOnlyMatchesTabNew({ tournamentId }: ReadOnlyMatchesT
                           />
                         </TableCell>
                         <TableCell className="w-[15%]">
-                          {match.status === "COMPLETED" ? (
-                            <div className="flex items-center">
-                              <CheckCircle className="h-4 w-4 text-emerald-600 mr-2" />
-                              <span className="text-emerald-600 text-sm font-medium">Completado</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              <Clock className="h-4 w-4 text-amber-600 mr-2" />
-                              <span className="text-amber-600 text-sm font-medium">Pendiente</span>
-                            </div>
-                          )}
+                          <MatchStatusBadge 
+                            status={match.status as MatchStatus}
+                            court={match.court}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -280,7 +277,7 @@ export default function ReadOnlyMatchesTabNew({ tournamentId }: ReadOnlyMatchesT
                           />
                         </TableCell>
                         <TableCell className="text-center w-[15%]">
-                          {match.status === "COMPLETED" ? (
+                          {match.status === "FINISHED" ? (
                             <div className="flex justify-center items-center gap-2">
                               <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-1 rounded">
                                 {match.result_couple1}
@@ -301,17 +298,10 @@ export default function ReadOnlyMatchesTabNew({ tournamentId }: ReadOnlyMatchesT
                           />
                         </TableCell>
                         <TableCell className="w-[15%]">
-                          {match.status === "COMPLETED" ? (
-                            <div className="flex items-center">
-                              <CheckCircle className="h-4 w-4 text-emerald-600 mr-2" />
-                              <span className="text-emerald-600 text-sm font-medium">Completado</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              <Clock className="h-4 w-4 text-amber-600 mr-2" />
-                              <span className="text-amber-600 text-sm font-medium">Pendiente</span>
-                            </div>
-                          )}
+                          <MatchStatusBadge 
+                            status={match.status as MatchStatus}
+                            court={match.court}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}

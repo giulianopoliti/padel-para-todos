@@ -24,6 +24,7 @@ export function useTournamentMatches(tournamentId: string) {
             tournament_id,
             round,
             status,
+            court,
             created_at,
             zone_info:zone_id(name),
             couple1:couples!matches_couple1_id_fkey(
@@ -71,6 +72,7 @@ export function useTournamentMatches(tournamentId: string) {
               tournament_id: match.tournament_id || tournamentId,
               round: (match.round || 'ZONE') as Round,
               status: match.status || 'PENDING',
+              court: match.court,
               created_at: match.created_at,
               zone_name: match.zone_info?.name,
               couple_1: {

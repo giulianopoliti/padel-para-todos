@@ -130,7 +130,7 @@ export default function TournamentDetailsTabs({
             </TabsContent>
 
             <TabsContent value="matches" className="p-8">
-              <TournamentMatchesTab tournamentId={tournamentId} />
+              <TournamentMatchesTab tournamentId={tournamentId} isOwner={true} />
             </TabsContent>
 
             <TabsContent value="brackets" className="p-0">

@@ -4,8 +4,23 @@ import { Calendar, ClipboardList } from "lucide-react"
 import type { MatchTableProps } from "./tournament-types"
 import type { BaseMatch } from "@/types"
 import MatchActions from "./match-actions"
+import MatchStatusBadge from "./match-status-badge"
 
-export default function MatchTable({ matches, formatDate, isOwner, onUpdateMatch }: MatchTableProps) {
+// Utilidad para traducir el valor de round a un nombre amigable
+const getRoundLabel = (round: string) => {
+  switch (round) {
+    case 'ZONE': return 'Zona';
+    case '32VOS': return '32avos';
+    case '16VOS': return '16avos';
+    case '8VOS': return 'Octavos';
+    case '4TOS': return 'Cuartos';
+    case 'SEMIFINAL': return 'Semifinal';
+    case 'FINAL': return 'Final';
+    default: return round;
+  }
+};
+
+export default function MatchTable({ matches, formatDate, isOwner, onUpdateMatch, onOpenResultDialog }: MatchTableProps) {
   return (
     <Tabs defaultValue="matches" className="bg-white rounded-lg shadow-sm border border-slate-100 hover:border-teal-100 transition-all duration-300">
       <TabsList className="w-full border-b border-slate-200 rounded-t-lg bg-slate-50">
@@ -30,13 +45,15 @@ export default function MatchTable({ matches, formatDate, isOwner, onUpdateMatch
                   <TableHead className="text-slate-700">Pareja 2</TableHead>
                   <TableHead className="text-slate-700">Resultado</TableHead>
                   <TableHead className="text-slate-700">Estado</TableHead>
+                  <TableHead className="text-slate-700">Cancha</TableHead>
+                  <TableHead className="text-slate-700">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {matches.map((match) => (
                   <TableRow key={match.id} className="hover:bg-slate-50 border-b border-slate-100">
                     <TableCell className="text-slate-700">{formatDate(match.created_at)}</TableCell>
-                    <TableCell className="text-slate-700">{match.round}</TableCell>
+                    <TableCell className="text-slate-700">{getRoundLabel(match.round)}</TableCell>
                     <TableCell className="text-slate-700 font-medium">
                       {match.couple_1.player_1} - {match.couple_1.player_2}
                     </TableCell>
@@ -44,13 +61,30 @@ export default function MatchTable({ matches, formatDate, isOwner, onUpdateMatch
                       {match.couple_2.player_1} - {match.couple_2.player_2}
                     </TableCell>
                     <TableCell className="text-slate-700">
-                      {('score' in match && typeof match.score === 'string') ? match.score : '—'}
+                      {(match.result_couple1 !== undefined && match.result_couple1 !== null &&
+                        match.result_couple2 !== undefined && match.result_couple2 !== null)
+                        ? `${match.result_couple1} - ${match.result_couple2}`
+                        : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <MatchStatusBadge
+                        status={match.status}
+                        court={match.court}
+                      />
+                    </TableCell>
+                    <TableCell className="text-slate-700">
+                      {match.status === 'IN_PROGRESS' && match.court ? (
+                        <span className="text-blue-600 font-medium">Cancha {match.court}</span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <MatchActions
-                        match={match}
+                        match={{ id: match.id, status: match.status, court: match.court || undefined }}
                         isOwner={isOwner}
                         onUpdateMatch={onUpdateMatch}
+                        onOpenResultDialog={() => onOpenResultDialog?.(match)}
                       />
                     </TableCell>
                   </TableRow>

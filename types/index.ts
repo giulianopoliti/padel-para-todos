@@ -1,6 +1,6 @@
 import type { Database } from '@/database.types';
 
-type MatchStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED';
+type MatchStatus = Database["public"]["Enums"]["match_status"];
 
 export type Role = "CLUB" | "PLAYER" | "COACH"
 export type Round = "ZONE" | "32VOS" | "16VOS" | "8VOS" | "4TOS" | "SEMIFINAL" | "FINAL"
@@ -107,9 +107,12 @@ export interface BaseMatch {
   couple_2: Couple;
   created_at: string;
   round: Round;
-  status: MatchStatus;
-  court?: string;
+  status: MatchStatus; // Uses: PENDING, IN_PROGRESS, FINISHED, CANCELED
+  court?: string | null;
   date?: string; // Adding date field since it's used in the table
+  // Optional result fields (games or sets won by each couple)
+  result_couple1?: string | null;
+  result_couple2?: string | null;
 }
 
 export interface AmericanMatch extends BaseMatch {

@@ -42,7 +42,7 @@ export interface BracketMatch {
   order: number
   pareja1: CoupleWithSeed | null
   pareja2: CoupleWithSeed | null
-  status: 'NOT_STARTED' | 'COMPLETED'
+  status: 'PENDING' | 'FINISHED'
   winner_id?: string | null
   couple1_id?: string | null
   couple2_id?: string | null
@@ -229,15 +229,15 @@ export function createBracketMatches(
     const pareja2 = participants[index2]
     
     // Determinar el estado del match
-    let status: 'NOT_STARTED' | 'COMPLETED' = 'NOT_STARTED'
+    let status: 'PENDING' | 'FINISHED' = 'PENDING'
     let winner_id: string | null = null
     
     // Si una pareja es null (BYE), la otra avanza automáticamente
     if (pareja1 === null && pareja2 !== null) {
-      status = 'COMPLETED'
+      status = 'FINISHED'
       winner_id = pareja2.id
     } else if (pareja1 !== null && pareja2 === null) {
-      status = 'COMPLETED'
+      status = 'FINISHED'
       winner_id = pareja1.id
     }
 
@@ -601,7 +601,7 @@ export function exampleSeeding(): void {
   matches.forEach(match => {
     const p1 = match.pareja1 ? `Seed ${match.pareja1.seed.toString().padStart(2)} (Zona ${match.pareja1.zona})` : 'BYE';
     const p2 = match.pareja2 ? `Seed ${match.pareja2.seed.toString().padStart(2)} (Zona ${match.pareja2.zona})` : 'BYE';
-    const status = match.status === 'COMPLETED' ? ' ✅' : '';
+    const status = match.status === 'FINISHED' ? ' ✅' : '';
     console.log(`   Match ${match.order.toString().padStart(2)}: ${p1} vs ${p2}${status}`);
   });
 
@@ -627,7 +627,7 @@ export function exampleSeeding(): void {
   console.log(`   - Total parejas procesadas: ${exampleCouples.length}`);
   console.log(`   - Seeds asignados: ${seeded.length}`);
   console.log(`   - Matches generados: ${matches.length}`);
-  console.log(`   - BYEs automáticos: ${matches.filter(m => m.status === 'COMPLETED').length}`);
+  console.log(`   - BYEs automáticos: ${matches.filter(m => m.status === 'FINISHED').length}`);
 }
 
 // Función para testing rápido - descomenta para probar

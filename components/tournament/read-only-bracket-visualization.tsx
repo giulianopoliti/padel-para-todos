@@ -120,7 +120,7 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
           (match: any) => match.type === "ELIMINATION" || (match.round && match.round !== "ZONE"),
         )
 
-        const sortedMatches = [...knockoutMatches].sort((a, b) => {
+        const sortedMatches = [...knockoutMatches].sort((a: any, b: any) => {
           const roundOrderMap: Record<string, number> = {
             "32VOS": 0,
             "16VOS": 1,
@@ -137,9 +137,21 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
           const orderA = typeof a.order === "number" ? a.order : Number.POSITIVE_INFINITY
           const orderB = typeof b.order === "number" ? b.order : Number.POSITIVE_INFINITY
           return orderA - orderB
-        })
+        }).map(match => ({
+          ...match,
+          couple1: Array.isArray(match.couple1) ? {
+            ...match.couple1[0],
+            player1_details: Array.isArray(match.couple1[0]?.player1_details) ? match.couple1[0].player1_details[0] : match.couple1[0]?.player1_details,
+            player2_details: Array.isArray(match.couple1[0]?.player2_details) ? match.couple1[0].player2_details[0] : match.couple1[0]?.player2_details,
+          } : match.couple1,
+          couple2: Array.isArray(match.couple2) ? {
+            ...match.couple2[0],
+            player1_details: Array.isArray(match.couple2[0]?.player1_details) ? match.couple2[0].player1_details[0] : match.couple2[0]?.player1_details,
+            player2_details: Array.isArray(match.couple2[0]?.player2_details) ? match.couple2[0].player2_details[0] : match.couple2[0]?.player2_details,
+          } : match.couple2
+        }))
 
-        setMatches(sortedMatches)
+        setMatches(sortedMatches as Match[])
       } else {
         setError(result.error || "Error al cargar los partidos de llaves")
       }
@@ -435,7 +447,7 @@ export default function ReadOnlyBracketVisualization({ tournamentId }: ReadOnlyB
 
           {matchPositions.map((position, index) => {
             const match = position.match
-            const isCompleted = match.status === "COMPLETED"
+            const isCompleted = match.status === "FINISHED"
 
             return (
               <div

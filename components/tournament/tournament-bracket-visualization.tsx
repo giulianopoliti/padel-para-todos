@@ -16,15 +16,17 @@ import { Loader2, GitFork, CheckCircle, Clock, Trophy, ArrowRight, Settings, Use
 import Link from "next/link"
 import MatchResultDialog from "@/components/tournament/match-result-dialog"
 import SeedingExampleDemo from "@/components/tournament/seeding-example-demo"
+import MatchStatusBadge from "@/components/tournament/match-status-badge"
+import { Round } from "@/types"
+import type { Database } from '@/database.types'
 
-interface TournamentBracketVisualizationProps {
-  tournamentId: string
-}
+type MatchStatus = Database["public"]["Enums"]["match_status"]
 
+// Import Match type from match-result-dialog.tsx
 interface Match {
   id: string
   round: string
-  status: string
+  status: "PENDING" | "IN_PROGRESS" | "FINISHED" | "CANCELED"
   couple1_id?: string | null
   couple2_id?: string | null
   couple1_player1_name?: string
@@ -36,6 +38,12 @@ interface Match {
   winner_id?: string | null
   zone_name?: string | null
   order?: number
+}
+
+// Extended match type for our visualization needs
+interface BracketMatch extends Match {
+  court?: string | null
+  type?: string
   // Additional detailed information from fetchTournamentMatches
   couple1?: {
     id: string
@@ -70,7 +78,7 @@ interface Match {
 }
 
 interface MatchPosition {
-  match: Match
+  match: BracketMatch
   x: number
   y: number
   width: number
@@ -85,17 +93,19 @@ interface ConnectorLine {
   roundIndex: number
 }
 
-
+interface TournamentBracketVisualizationProps {
+  tournamentId: string
+}
 
 export default function TournamentBracketVisualization({ tournamentId }: TournamentBracketVisualizationProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isAdvancing, setIsAdvancing] = useState(false)
   const [isGeneratingBracket, setIsGeneratingBracket] = useState(false)
-  const [matches, setMatches] = useState<Match[]>([])
+  const [matches, setMatches] = useState<BracketMatch[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
+  const [selectedMatch, setSelectedMatch] = useState<BracketMatch | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [selectedMatchForDetails, setSelectedMatchForDetails] = useState<Match | null>(null)
+  const [selectedMatchForDetails, setSelectedMatchForDetails] = useState<BracketMatch | null>(null)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [matchDetailsLoading, setMatchDetailsLoading] = useState(false)
   const [playerDetails, setPlayerDetails] = useState<Record<string, any>>({})
@@ -179,7 +189,41 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
           (match: any) => match.type === "ELIMINATION" || (match.round && match.round !== "ZONE"),
         )
 
-        const sortedMatches = [...knockoutMatches].sort((a, b) => {
+        // Transform API response to BracketMatch type
+        const transformedMatches: BracketMatch[] = knockoutMatches.map((match: any) => ({
+          id: match.id,
+          round: match.round,
+          status: match.status,
+          couple1_id: match.couple1_id,
+          couple2_id: match.couple2_id,
+          couple1_player1_name: match.couple1_player1_name,
+          couple1_player2_name: match.couple1_player2_name,
+          couple2_player1_name: match.couple2_player1_name,
+          couple2_player2_name: match.couple2_player2_name,
+          result_couple1: match.result_couple1,
+          result_couple2: match.result_couple2,
+          winner_id: match.winner_id,
+          zone_name: match.zone_name,
+          order: match.order,
+          court: match.court,
+          type: match.type,
+          couple1: match.couple1 ? {
+            id: match.couple1.id,
+            player1_id: match.couple1.player1_id,
+            player2_id: match.couple1.player2_id,
+            player1_details: match.couple1.player1_details,
+            player2_details: match.couple1.player2_details
+          } : undefined,
+          couple2: match.couple2 ? {
+            id: match.couple2.id,
+            player1_id: match.couple2.player1_id,
+            player2_id: match.couple2.player2_id,
+            player1_details: match.couple2.player1_details,
+            player2_details: match.couple2.player2_details
+          } : undefined
+        }))
+
+        const sortedMatches = [...transformedMatches].sort((a: BracketMatch, b: BracketMatch) => {
           const roundOrderMap: Record<string, number> = {
             "32VOS": 0,
             "16VOS": 1,
@@ -193,19 +237,19 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
 
           if (roundAIndex !== roundBIndex) return roundAIndex - roundBIndex
 
-          const orderA = typeof a.order === "number" ? a.order : Number.POSITIVE_INFINITY
-          const orderB = typeof b.order === "number" ? b.order : Number.POSITIVE_INFINITY
+          const orderA = a.order ?? Number.POSITIVE_INFINITY
+          const orderB = b.order ?? Number.POSITIVE_INFINITY
           return orderA - orderB
         })
 
         setMatches(sortedMatches)
 
-        const currentRoundVal = getCurrentRound(sortedMatches)
+        const currentRoundVal: string = getCurrentRound(sortedMatches)
         setCurrentTournamentRound(currentRoundVal)
 
         if (!isTournamentFinished && currentRoundVal === "FINAL") {
-          const finalRoundMatches = sortedMatches.filter((match: Match) => match.round === "FINAL")
-          if (finalRoundMatches.length > 0 && finalRoundMatches.every((match: Match) => match.status === "COMPLETED")) {
+          const finalRoundMatches = sortedMatches.filter((match: BracketMatch) => match.round === "FINAL")
+          if (finalRoundMatches.length > 0 && finalRoundMatches.every((match: BracketMatch) => match.status === "FINISHED")) {
             setIsTournamentFinished(true)
           }
         }
@@ -284,7 +328,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
   const calculatePositionsAndLines = () => {
     const roundOrder = ["32VOS", "16VOS", "8VOS", "4TOS", "SEMIFINAL", "FINAL"]
 
-    const matchesByRound: Record<string, Match[]> = {}
+    const matchesByRound: Record<string, BracketMatch[]> = {}
     matches.forEach((match) => {
       const round = match.round || "Unknown"
       if (!matchesByRound[round]) {
@@ -414,12 +458,12 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
     console.log(`Created ${lines.length} connector lines:`, lines)
   }
 
-  const handleOpenResultDialog = (match: Match) => {
+  const handleOpenResultDialog = (match: BracketMatch) => {
     setSelectedMatch(match)
     setIsDialogOpen(true)
   }
 
-  const handleOpenMatchDetails = async (match: Match) => {
+  const handleOpenMatchDetails = async (match: BracketMatch) => {
     setSelectedMatchForDetails(match)
     setIsDetailsDialogOpen(true)
     setMatchDetailsLoading(true)
@@ -497,11 +541,11 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
     }
   }
 
-  const getCurrentRound = (matchesData: Match[]) => {
+  const getCurrentRound = (matchesData: BracketMatch[]) => {
     const rounds = ["32VOS", "16VOS", "8VOS", "4TOS", "SEMIFINAL", "FINAL"]
     for (const round of rounds) {
       const roundMatches = matchesData.filter((match) => match.round === round)
-      if (roundMatches.length > 0 && roundMatches.some((match) => match.status !== "COMPLETED")) {
+      if (roundMatches.length > 0 && roundMatches.some((match) => match.status !== "FINISHED")) {
         return round
       }
     }
@@ -515,8 +559,8 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
 
   const allCurrentRoundMatchesCompleted = () => {
     if (!currentTournamentRound || matches.length === 0) return false
-    const currentRoundMatches = matches.filter((match: Match) => match.round === currentTournamentRound)
-    return currentRoundMatches.length > 0 && currentRoundMatches.every((match: Match) => match.status === "COMPLETED")
+    const currentRoundMatches = matches.filter((match: BracketMatch) => match.round === currentTournamentRound)
+    return currentRoundMatches.length > 0 && currentRoundMatches.every((match: BracketMatch) => match.status === "FINISHED")
   }
 
   if (isLoading) {
@@ -657,7 +701,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
     FINAL: "Final",
   }
 
-  const matchesByRound: Record<string, Match[]> = {}
+  const matchesByRound: Record<string, BracketMatch[]> = {}
   matches.forEach((match) => {
     const round = match.round || "Unknown"
     if (!matchesByRound[round]) {
@@ -736,7 +780,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
 
           {matchPositions.map((position, index) => {
             const match = position.match
-            const isCompleted = match.status === "COMPLETED"
+            const isCompleted = match.status === "FINISHED"
             const isBye =
               match.couple1_id === "BYE_MARKER" || match.couple2_id === "BYE_MARKER" || match.couple2_id === null
 
@@ -811,14 +855,10 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                   {/* Footer */}
                   <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 flex justify-between items-center min-h-[40px]">
                     <div className="flex items-center gap-2">
-                      {isCompleted ? (
-                        <CheckCircle className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-                      ) : (
-                        <Clock className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                      )}
-                      <span className={`text-xs font-medium ${isCompleted ? "text-emerald-700" : "text-amber-600"}`}>
-                        {isCompleted ? "Completado" : "Pendiente"}
-                      </span>
+                      <MatchStatusBadge 
+                        status={match.status} 
+                        court={match.court}
+                      />
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -883,7 +923,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
             ) : (
               <div className="space-y-6">
                 {/* Header del resultado si está completado */}
-                {selectedMatchForDetails.status === "COMPLETED" && (
+                {selectedMatchForDetails.status === "FINISHED" && (
                   <div className="text-center">
                     <Badge variant="default" className="bg-emerald-600 text-white text-lg px-4 py-2">
                       Resultado: {selectedMatchForDetails.result_couple1} - {selectedMatchForDetails.result_couple2}
@@ -894,7 +934,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
                   {/* Pareja 1 */}
                   <div className={`space-y-4 p-6 rounded-lg border-2 ${
-                    selectedMatchForDetails.status === "COMPLETED" && selectedMatchForDetails.winner_id === selectedMatchForDetails.couple1_id
+                    selectedMatchForDetails.status === "FINISHED" && selectedMatchForDetails.winner_id === selectedMatchForDetails.couple1_id
                       ? "border-emerald-500 bg-emerald-50"
                       : "border-gray-200 bg-white"
                   }`}>
@@ -972,7 +1012,7 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                   
                   {/* Pareja 2 */}
                   <div className={`space-y-4 p-6 rounded-lg border-2 ${
-                    selectedMatchForDetails.status === "COMPLETED" && selectedMatchForDetails.winner_id === selectedMatchForDetails.couple2_id
+                    selectedMatchForDetails.status === "FINISHED" && selectedMatchForDetails.winner_id === selectedMatchForDetails.couple2_id
                       ? "border-emerald-500 bg-emerald-50"
                       : "border-gray-200 bg-white"
                   }`}>
@@ -1050,8 +1090,8 @@ export default function TournamentBracketVisualization({ tournamentId }: Tournam
                   </div>
                   <div className="text-center">
                     <p className="text-sm text-gray-600">Estado</p>
-                    <Badge variant={selectedMatchForDetails.status === "COMPLETED" ? "default" : "secondary"}>
-                      {selectedMatchForDetails.status === "COMPLETED" ? "Completado" : "Pendiente"}
+                    <Badge variant={selectedMatchForDetails.status === "FINISHED" ? "default" : "secondary"}>
+                      {selectedMatchForDetails.status === "FINISHED" ? "Completado" : "Pendiente"}
                     </Badge>
                   </div>
                   {selectedMatchForDetails.zone_name && (

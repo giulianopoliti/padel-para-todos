@@ -1,24 +1,32 @@
 'use server';
 
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 import type { Database } from '@/database.types';
-import type { BaseMatch } from '@/types';
+import { revalidatePath } from 'next/cache';
+
+type MatchStatus = Database["public"]["Enums"]["match_status"];
 
 export async function updateMatch(
   matchId: string,
   data: {
-    status?: BaseMatch['status'];
+    status?: MatchStatus;
     court?: string | undefined;
   }
 ) {
   try {
-    const supabase = createServerComponentClient<Database>({ cookies });
+    const supabase = await createClient();
 
     // Verify user is authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('No autorizado');
+    console.log('Auth check:', { userId: user?.id, authError });
+    
+    if (authError) {
+      console.error('Authentication error:', authError);
+      throw new Error('Error de autenticación');
+    }
+    
+    if (!user) {
+      throw new Error('No autorizado - Usuario no encontrado');
     }
 
     // Get match to verify permissions
@@ -28,7 +36,14 @@ export async function updateMatch(
       .eq('id', matchId)
       .single();
 
-    if (matchError || !match || !match.tournament_id) {
+    console.log('Match check:', { matchId, match, matchError });
+
+    if (matchError) {
+      console.error('Match error:', matchError);
+      throw new Error('Error al buscar el partido');
+    }
+
+    if (!match || !match.tournament_id) {
       throw new Error('Partido no encontrado');
     }
 
@@ -39,7 +54,14 @@ export async function updateMatch(
       .eq('id', match.tournament_id)
       .single();
 
-    if (tournamentError || !tournament || !tournament.club_id) {
+    console.log('Tournament check:', { tournamentId: match.tournament_id, tournament, tournamentError });
+
+    if (tournamentError) {
+      console.error('Tournament error:', tournamentError);
+      throw new Error('Error al buscar el torneo');
+    }
+
+    if (!tournament || !tournament.club_id) {
       throw new Error('Torneo no encontrado');
     }
 
@@ -50,7 +72,14 @@ export async function updateMatch(
       .eq('user_id', user.id)
       .single();
 
-    if (clubError || !club || club.id !== tournament.club_id) {
+    console.log('Club check:', { userId: user.id, club, clubError });
+
+    if (clubError) {
+      console.error('Club error:', clubError);
+      throw new Error('Error al verificar permisos del club');
+    }
+
+    if (!club || club.id !== tournament.club_id) {
       throw new Error('No autorizado para modificar este partido');
     }
 
@@ -64,12 +93,66 @@ export async function updateMatch(
       .eq('id', matchId);
 
     if (updateError) {
+      console.error('Update error:', updateError);
       throw new Error('Error al actualizar el partido');
     }
+
+    // Revalidate both tournament paths to ensure UI updates
+    revalidatePath(`/tournaments/${match.tournament_id}`);
+    revalidatePath(`/my-tournaments/${match.tournament_id}`);
 
     return { success: true };
   } catch (error) {
     console.error('Error updating match:', error);
     throw error;
+  }
+}
+
+export async function startMatch(matchId: string, court: string) {
+  try {
+    await updateMatch(matchId, {
+      status: 'IN_PROGRESS',
+      court: court
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Error starting match:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
+  }
+}
+
+export async function finalizeMatch(matchId: string) {
+  try {
+    await updateMatch(matchId, {
+      status: 'FINISHED'
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Error finalizing match:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
+  }
+}
+
+export async function cancelMatch(matchId: string) {
+  try {
+    await updateMatch(matchId, {
+      status: 'CANCELED'
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Error canceling match:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
+  }
+}
+
+export async function changeMatchCourt(matchId: string, court: string) {
+  try {
+    await updateMatch(matchId, {
+      court: court
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Error changing match court:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
   }
 } 

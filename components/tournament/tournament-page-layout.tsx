@@ -10,11 +10,7 @@ import TournamentMatchesTab from "./tournament-matches-tab"
 import ReadOnlyMatchesTabNew from "./read-only-matches-tab-new"
 import TournamentBracketTab from "./tournament-bracket-tab"
 import ReadOnlyBracketTab from "./read-only-bracket-tab"
-import MatchTable from "./match-table"
-import { updateMatch } from "@/app/api/matches/actions"
-import type { Database } from '@/database.types'
-import { useTournamentMatches } from "@/hooks/use-tournament-matches"
-import type { BaseMatch } from "@/types"
+// Eliminamos MatchTable y dependencias
 
 interface PlayerInfo {
   id: string
@@ -61,30 +57,7 @@ export default function TournamentPageLayout({
 }: TournamentPageLayoutProps) {
   const isTournamentActive = tournamentStatus !== "NOT_STARTED"
   const [activeTab, setActiveTab] = useState(isTournamentActive ? "matches" : "couples")
-  const { matches, loading: matchesLoading } = useTournamentMatches(tournamentId)
-
-  // Function to update match status and court
-  const handleUpdateMatch = async (matchId: string, data: { status?: BaseMatch['status']; court?: string }) => {
-    try {
-      await updateMatch(matchId, data);
-      // The UI will update automatically through the real-time subscription
-    } catch (error) {
-      console.error('Error updating match:', error);
-      throw error;
-    }
-  };
-
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return '—';
-    const date = new Date(dateString);
-    return date.toLocaleDateString("es-ES", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  // Eliminamos lógica local de partidos; TournamentMatchesTab maneja todo
 
   const renderContent = () => {
     switch (activeTab) {
@@ -96,6 +69,7 @@ export default function TournamentPageLayout({
             tournamentStatus={tournamentStatus}
             maxPlayers={maxPlayers}
             allPlayers={allPlayers}
+            isPublicView={isPublicView}
           />
         )
       case "couples":
@@ -119,12 +93,7 @@ export default function TournamentPageLayout({
             {isPublicView ? (
               <ReadOnlyMatchesTabNew tournamentId={tournamentId} />
             ) : (
-              <MatchTable
-                matches={matches}
-                formatDate={formatDate}
-                isOwner={!isPublicView}
-                onUpdateMatch={handleUpdateMatch}
-              />
+              <TournamentMatchesTab tournamentId={tournamentId} isOwner={!isPublicView} />
             )}
           </div>
         )

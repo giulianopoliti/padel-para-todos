@@ -89,7 +89,7 @@ function getHeadToHeadResult(
   matches: MatchForHeadToHead[]
 ): number {
   const directMatch = matches.find(m => 
-    m.status === 'COMPLETED' && (
+    m.status === 'FINISHED' && (
       (m.couple1_id === couple1Id && m.couple2_id === couple2Id) ||
       (m.couple1_id === couple2Id && m.couple2_id === couple1Id)
     )
@@ -1285,11 +1285,11 @@ export async function fetchTournamentZones(tournamentId: string) {
           .from("matches")
           .select("couple1_id, couple2_id, winner_id, status")
           .eq("zone_id", zone.id)
-          .eq("status", "COMPLETED");
+          .eq("status", "FINISHED");
 
         const couplesWithStats = await Promise.all(
           couples.map(async (couple) => {
-            const { data: matches, error: mError } = await supabase.from("matches").select("*").eq("zone_id", zone.id).or(`couple1_id.eq.${couple.id},couple2_id.eq.${couple.id}`).eq("status", "COMPLETED");
+            const { data: matches, error: mError } = await supabase.from("matches").select("*").eq("zone_id", zone.id).or(`couple1_id.eq.${couple.id},couple2_id.eq.${couple.id}`).eq("status", "FINISHED");
             let p=0,w=0,l=0,s=0,c=0,pts=0;
             if (!mError && matches) {
               matches.forEach(m => {
@@ -1333,18 +1333,68 @@ export async function fetchTournamentZones(tournamentId: string) {
 export async function fetchTournamentMatches(tournamentId: string) {
   const supabase = await createClient();
   try {
-    const { data: matches, error } = await supabase.from("matches").select(`*,zone_info:zone_id(name),couple1:couples!matches_couple1_id_fkey(id,player1_id,player2_id,player1_details:players!couples_player1_id_fkey(id,first_name,last_name),player2_details:players!couples_player2_id_fkey(id,first_name,last_name)),couple2:couples!matches_couple2_id_fkey(id,player1_id,player2_id,player1_details:players!couples_player1_id_fkey(id,first_name,last_name),player2_details:players!couples_player2_id_fkey(id,first_name,last_name))`).eq("tournament_id", tournamentId).order("created_at");
+    const { data: matches, error } = await supabase
+      .from("matches")
+      .select(`
+        id,
+        status,
+        court,
+        round,
+        result_couple1,
+        result_couple2,
+        winner_id,
+        zone_info:zone_id(name),
+        couple1:couples!matches_couple1_id_fkey(
+          id,
+          player1_id,
+          player2_id,
+          player1_details:players!couples_player1_id_fkey(id,first_name,last_name),
+          player2_details:players!couples_player2_id_fkey(id,first_name,last_name)
+        ),
+        couple2:couples!matches_couple2_id_fkey(
+          id,
+          player1_id,
+          player2_id,
+          player1_details:players!couples_player1_id_fkey(id,first_name,last_name),
+          player2_details:players!couples_player2_id_fkey(id,first_name,last_name)
+        )
+      `)
+      .eq("tournament_id", tournamentId)
+      .order("created_at");
+    
     if (error || !matches) return { success: false, error: error?.message || "Error obteniendo partidos" };
-    const pMatches = matches.map(m => ({ ...m, zone_name: m.zone_info?.name, couple1_player1_name: `${m.couple1?.player1_details?.first_name||""} ${m.couple1?.player1_details?.last_name||""}`.trim(), couple1_player2_name: `${m.couple1?.player2_details?.first_name||""} ${m.couple1?.player2_details?.last_name||""}`.trim(), couple2_player1_name: `${m.couple2?.player1_details?.first_name||""} ${m.couple2?.player1_details?.last_name||""}`.trim(), couple2_player2_name: `${m.couple2?.player2_details?.first_name||""} ${m.couple2?.player2_details?.last_name||""}`.trim() }));
+    
+    const pMatches = matches.map((m: any) => {
+      const zoneInfo = Array.isArray(m.zone_info) ? m.zone_info[0] : m.zone_info;
+      const couple1 = Array.isArray(m.couple1) ? m.couple1[0] : m.couple1;
+      const couple2 = Array.isArray(m.couple2) ? m.couple2[0] : m.couple2;
+
+      const getName = (details: any[] | undefined) => {
+        const d = Array.isArray(details) ? details[0] : details;
+        return `${d?.first_name || ""} ${d?.last_name || ""}`.trim();
+      };
+
+      return {
+        ...m,
+        zone_name: zoneInfo?.name,
+        couple1_player1_name: getName(couple1?.player1_details),
+        couple1_player2_name: getName(couple1?.player2_details),
+        couple2_player1_name: getName(couple2?.player1_details),
+        couple2_player2_name: getName(couple2?.player2_details)
+      };
+    });
+    
     return { success: true, matches: pMatches };
-  } catch (e:any) { return { success: false, error: e.message || "Error inesperado obteniendo partidos" }; }
+  } catch (e:any) {
+    return { success: false, error: e.message || "Error inesperado obteniendo partidos" };
+  }
 }
 
 // --- ACTION: updateMatchResult (Refactored) ---
 export async function updateMatchResult({ matchId, result_couple1, result_couple2, winner_id }: UpdateMatchResultParams) {
   const supabase = await createClient();
   try {
-    const { error: updateError } = await supabase.from("matches").update({ result_couple1, result_couple2, winner_id, status: "COMPLETED" }).eq("id", matchId);
+    const { error: updateError } = await supabase.from("matches").update({ result_couple1, result_couple2, winner_id, status: "FINISHED" }).eq("id", matchId);
     if (updateError) return { success: false, error: `Error actualizando resultado: ${updateError.message}` };
 
     let tournamentIdForReval: string | null = null;
@@ -1387,8 +1437,8 @@ export async function updateMatchResult({ matchId, result_couple1, result_couple
 
     // Paso 3: Si el partido es la final y se completó, actualizar el estado del torneo
     // Usar updatedMatch aquí es mejor porque refleja el estado DESPUÉS de la actualización del partido (status: COMPLETED)
-    if (updatedMatch && updatedMatch.round === 'FINAL' && updatedMatch.status === 'COMPLETED') { // Asegurarse de que el partido realmente se completó
-      console.log('[updateMatchResult] Match is FINAL and COMPLETED. Tournament ID:', updatedMatch.tournament_id, 'Winner couple_id:', winner_id);
+    if (updatedMatch && updatedMatch.round === 'FINAL' && updatedMatch.status === 'FINISHED') { // Asegurarse de que el partido realmente se completó
+      console.log('[updateMatchResult] Match is FINAL and FINISHED. Tournament ID:', updatedMatch.tournament_id, 'Winner couple_id:', winner_id);
       
       const { data: tournamentBeforeUpdate, error: fetchTournamentError } = await supabase
         .from('tournaments')
@@ -1620,7 +1670,7 @@ export async function createKnockoutStageMatchesAction(tournamentId: string) {
 
       let couple1_id: string | null = null;
       let couple2_id: string | null = null;
-      let status = 'NOT_STARTED';
+      let status = 'PENDING';
       let winner_id: string | null = null;
 
       if (participant1Data.type === 'couple') couple1_id = participant1Data.data.couple_id;
@@ -1631,27 +1681,27 @@ export async function createKnockoutStageMatchesAction(tournamentId: string) {
       
       // Caso 1: Pareja vs Pareja
       if (participant1Data.type === 'couple' && participant2Data.type === 'couple') {
-        status = 'NOT_STARTED';
+        status = 'PENDING';
         winner_id = null;
         console.log(`[createKnockoutStageMatchesAction] Match ${matchOrderInRound + 1} (Order ${matchOrderInRound}): Couple Seed ${participant1Data.seed} (ID: ${couple1_id}) vs Couple Seed ${participant2Data.seed} (ID: ${couple2_id})`);
       } 
       // Caso 2: Pareja (P1) vs BYE implícito (P2 es un 'bye' sin couple_id_for_bye)
       else if (participant1Data.type === 'couple' && participant2Data.type === 'bye' && !participant2Data.couple_id_for_bye) {
-        status = 'COMPLETED'; // P1 avanza por BYE
+        status = 'FINISHED'; // P1 avanza por BYE
         winner_id = couple1_id;
         couple2_id = null; // No hay oponente real
         console.log(`[createKnockoutStageMatchesAction] Match ${matchOrderInRound + 1} (Order ${matchOrderInRound}): Couple Seed ${participant1Data.seed} (ID: ${couple1_id}) gets BYE (vs empty slot ${participant2Data.seed})`);
       }
       // Caso 3: BYE implícito (P1 es 'bye' sin couple_id_for_bye) vs Pareja (P2)
       else if (participant1Data.type === 'bye' && !participant1Data.couple_id_for_bye && participant2Data.type === 'couple') {
-        status = 'COMPLETED'; // P2 avanza por BYE
+        status = 'FINISHED'; // P2 avanza por BYE
         winner_id = couple2_id;
         couple1_id = null; // No hay oponente real
         console.log(`[createKnockoutStageMatchesAction] Match ${matchOrderInRound + 1} (Order ${matchOrderInRound}): Couple Seed ${participant2Data.seed} (ID: ${couple2_id}) gets BYE (vs empty slot ${participant1Data.seed})`);
       }
       // Caso 4: Pareja que recibió BYE (P1) vs BYE implícito (P2) -> P1 avanza
       else if (participant1Data.type === 'bye' && participant1Data.couple_id_for_bye && participant2Data.type === 'bye' && !participant2Data.couple_id_for_bye) {
-        status = 'COMPLETED';
+        status = 'FINISHED';
         winner_id = participant1Data.couple_id_for_bye; // La pareja que tenía el BYE avanza
         couple1_id = participant1Data.couple_id_for_bye;
         couple2_id = null;
@@ -1659,7 +1709,7 @@ export async function createKnockoutStageMatchesAction(tournamentId: string) {
       }
       // Caso 5: BYE implícito (P1) vs Pareja que recibió BYE (P2) -> P2 avanza
       else if (participant1Data.type === 'bye' && !participant1Data.couple_id_for_bye && participant2Data.type === 'bye' && participant2Data.couple_id_for_bye) {
-        status = 'COMPLETED';
+        status = 'FINISHED';
         winner_id = participant2Data.couple_id_for_bye; // La pareja que tenía el BYE avanza
         couple1_id = null;
         couple2_id = participant2Data.couple_id_for_bye;
@@ -1736,7 +1786,7 @@ export async function createKnockoutStageMatchesAction(tournamentId: string) {
       const result = await _createMatch(supabase, matchData); // Assuming _createMatch handles insert and returns {success, match, error}
       if (result.success && result.match) {
         createdMatches.push(result.match);
-        if (matchData.status === 'COMPLETED' && matchData.winner_id) { 
+        if (matchData.status === 'FINISHED' && matchData.winner_id) { 
           // BYE matches do NOT award points - players advance automatically without playing
           // await _calculateAndApplyScoreChanges(matchData.winner_id, null, supabase); // BYE matches don't award points
           console.log(`[createKnockoutStageMatchesAction] BYE match created for ${matchData.winner_id}, no points awarded.`);
@@ -1789,9 +1839,9 @@ export async function advanceToNextStageAction(tournamentId: string) {
     console.log(`[advanceToNextStageAction] currentRMatches count: ${currentRMatches.length}`);
     console.log(`[advanceToNextStageAction] currentRMatches (first 3):`, JSON.stringify(currentRMatches.slice(0,3), null, 2));
 
-    if (!currentRMatches.every(m => m.status === "COMPLETED")) {
+    if (!currentRMatches.every(m => m.status === "FINISHED")) {
         console.error("[advanceToNextStageAction] Not all current round matches are completed. Uncompleted matches:", 
-            JSON.stringify(currentRMatches.filter(m => m.status !== "COMPLETED"), null, 2)
+            JSON.stringify(currentRMatches.filter(m => m.status !== "FINISHED"), null, 2)
         );
         return { success: false, error: "No todos los partidos de la ronda actual están completados." };
     }
@@ -1832,12 +1882,12 @@ export async function advanceToNextStageAction(tournamentId: string) {
       const winner1 = winners[i];
       const c1_id = winner1.winnerId;
       let c2_id: string | null = null;
-      let match_status = "NOT_STARTED";
+      let match_status = "PENDING";
       let match_winner_id: string | null = null;
       let winner2 = null;
 
       if (i + 1 >= winners.length) { // Odd number of winners, last one gets a BYE
-        match_status = "COMPLETED"; 
+        match_status = "FINISHED"; 
         match_winner_id = c1_id;
         console.log(`[advanceToNextStageAction] Winner ${c1_id} (from match order ${winner1.originalMatchOrder}) gets a BYE to ${nextRound}`);
       } else {
@@ -1865,7 +1915,7 @@ export async function advanceToNextStageAction(tournamentId: string) {
           const result = await _createMatch(supabase, matchData);
           if (result.success && result.match) {
             createdNextRMatches.push(result.match);
-            if (matchData.status === 'COMPLETED' && matchData.winner_id) { // BYE match, NO points awarded
+            if (matchData.status === 'FINISHED' && matchData.winner_id) { // BYE match, NO points awarded
               // await _calculateAndApplyScoreChanges(matchData.winner_id, null, supabase, tournamentId); // BYE matches don't award points
               console.log(`[advanceToNextStageAction] BYE match created for ${matchData.winner_id}, no points awarded.`);
             }
@@ -2238,7 +2288,7 @@ export async function populateTournamentSeedCouples(tournamentId: string): Promi
         .from("matches")
         .select("couple1_id, couple2_id, winner_id, status")
         .eq("zone_id", zone.id)
-        .eq("status", "COMPLETED");
+        .eq("status", "FINISHED");
 
       // Convert zone couples to CoupleWithExtendedStats format  
       const couplesWithExtendedStats: CoupleWithExtendedStats[] = zone.couples.map((couple: any): CoupleWithExtendedStats => ({
@@ -4082,7 +4132,7 @@ async function extractCouplesSeededFromDatabase(tournamentId: string, supabase: 
       .select('couple1_id, couple2_id, winner_id, result_couple1, result_couple2, status')
       .eq('tournament_id', tournamentId)
       .eq('zone_id', zone.id)
-      .eq('status', 'COMPLETED');
+      .eq('status', 'FINISHED');
 
     if (matchesError) {
       console.error(`[extractCouplesSeeded] Error fetching matches for zone ${zoneName}:`, matchesError);
@@ -4367,7 +4417,7 @@ export async function checkZonesReadyForElimination(tournamentId: string): Promi
     const zonesStatus = zones.map(zone => {
       const couplesCount = zone.zone_couples?.[0]?.count || 0;
       const matches = zone.matches || [];
-      const completedMatches = matches.filter(m => m.status === 'COMPLETED').length;
+      const completedMatches = matches.filter(m => m.status === 'FINISHED').length;
       const totalMatches = matches.length;
       
       totalCouples += couplesCount;

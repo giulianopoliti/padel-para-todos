@@ -174,7 +174,7 @@ export default function EnhancedBracketDemo() {
     {
       id: "1",
       round: "4TOS",
-      status: "COMPLETED",
+      status: "FINISHED",
       couple1_player1_name: "M. Politi",
       couple1_player2_name: "G. Politi",
       couple2_player1_name: "M. Rodriguez",
@@ -187,7 +187,7 @@ export default function EnhancedBracketDemo() {
     {
       id: "2",
       round: "4TOS",
-      status: "COMPLETED",
+      status: "FINISHED",
       couple1_player1_name: "J. Politi",
       couple1_player2_name: "I. Politi",
       couple2_player1_name: "S. Torres",
@@ -200,7 +200,7 @@ export default function EnhancedBracketDemo() {
     {
       id: "3",
       round: "4TOS",
-      status: "COMPLETED",
+      status: "FINISHED",
       couple1_player1_name: "J. Valdez",
       couple1_player2_name: "E. Martinez",
       couple2_player1_name: "F. Lopez",
@@ -213,7 +213,7 @@ export default function EnhancedBracketDemo() {
     {
       id: "4",
       round: "4TOS",
-      status: "COMPLETED",
+      status: "FINISHED",
       couple1_player1_name: "T. Rojas",
       couple1_player2_name: "S. Hernandez",
       couple2_player1_name: "J. Acosta",
@@ -227,7 +227,7 @@ export default function EnhancedBracketDemo() {
     {
       id: "5",
       round: "SEMIFINAL",
-      status: "COMPLETED",
+      status: "FINISHED",
       couple1_player1_name: "M. Politi",
       couple1_player2_name: "G. Politi",
       couple2_player1_name: "S. Torres",
@@ -240,7 +240,7 @@ export default function EnhancedBracketDemo() {
     {
       id: "6",
       round: "SEMIFINAL",
-      status: "COMPLETED",
+      status: "FINISHED",
       couple1_player1_name: "J. Valdez",
       couple1_player2_name: "E. Martinez",
       couple2_player1_name: "J. Acosta",
@@ -631,7 +631,7 @@ export default function EnhancedBracketDemo() {
                     {/* Partidos */}
                     {matchPositions.map((position, index) => {
                       const match = position.match
-                      const isCompleted = match.status === "COMPLETED"
+                      const isCompleted = match.status === "FINISHED"
                       const roundIndex = activeRoundsForLayout.indexOf(match.round)
 
                       return (

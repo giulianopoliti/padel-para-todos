@@ -6,12 +6,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Trophy, Loader2, CheckCircle, Clock, Edit, ArrowRight, Users } from "lucide-react"
 import { fetchTournamentMatches, createKnockoutStageMatchesAction } from "@/app/api/tournaments/actions"
+import { updateMatch } from "@/app/api/matches/actions"
 import MatchResultDialog from "@/components/tournament/match-result-dialog"
+import MatchStatusBadge from "@/components/tournament/match-status-badge"
+import MatchActionsMenu from "@/components/tournament/match-actions-menu"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
+import { Database } from "@/database.types"
+import MatchTable from "@/components/tournament/match-table"
+
+type MatchStatus = Database["public"]["Enums"]["match_status"]
 
 interface TournamentMatchesTabProps {
   tournamentId: string
+  isOwner?: boolean
 }
 
 // Componente para nombres de jugadores clickeables
@@ -50,7 +58,7 @@ const CoupleNames = ({ couple, playerNames }: {
   )
 }
 
-export default function TournamentMatchesTab({ tournamentId }: TournamentMatchesTabProps) {
+export default function TournamentMatchesTab({ tournamentId, isOwner = false }: TournamentMatchesTabProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isAdvancing, setIsAdvancing] = useState(false)
   const [matches, setMatches] = useState<any[]>([])
@@ -65,6 +73,7 @@ export default function TournamentMatchesTab({ tournamentId }: TournamentMatches
         setIsLoading(true)
         const result = await fetchTournamentMatches(tournamentId)
         if (result.success && result.matches) {
+          console.log('Matches data:', result.matches.map(m => ({ id: m.id, status: m.status, court: m.court })))
           setMatches(result.matches)
         } else {
           setError(result.error || "Error al cargar los partidos")
@@ -94,7 +103,31 @@ export default function TournamentMatchesTab({ tournamentId }: TournamentMatches
     })
   }
 
-  const allMatchesCompleted = matches.length > 0 && matches.every((match) => match.status === "COMPLETED")
+  const handleUpdateMatch = async (matchId: string, data: { status?: MatchStatus; court?: string }) => {
+    try {
+      await updateMatch(matchId, data)
+      toast({
+        title: "Partido actualizado",
+        description: "El estado del partido ha sido actualizado correctamente",
+        variant: "default"
+      })
+      
+      // Recargar partidos
+      const result = await fetchTournamentMatches(tournamentId)
+      if (result.success && result.matches) {
+        setMatches(result.matches)
+      }
+    } catch (error) {
+      console.error("Error updating match:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el partido. Intenta nuevamente.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const allMatchesCompleted = matches.length > 0 && matches.every((match) => match.status === "FINISHED")
 
   const handleAdvanceToNextStage = async () => {
     setIsAdvancing(true)
@@ -166,258 +199,121 @@ export default function TournamentMatchesTab({ tournamentId }: TournamentMatches
   // Agrupar partidos por zona en lugar de por ronda
   const matchesByZone: Record<string, any[]> = {}
   const eliminationMatches: any[] = []
-  
+
   matches.forEach((match) => {
-    // Si el match tiene zona, agrupar por zona
-    if (match.zone_name && match.round === "ZONE") {
-      if (!matchesByZone[match.zone_name]) {
-        matchesByZone[match.zone_name] = []
+    if (match.zone_info) {
+      const zoneName = match.zone_info.name
+      if (!matchesByZone[zoneName]) {
+        matchesByZone[zoneName] = []
       }
-      matchesByZone[match.zone_name].push(match)
-    } else if (match.round && match.round !== "ZONE") {
-      // Partidos eliminatorios (8vos, 4tos, etc.)
-      eliminationMatches.push(match)
+      matchesByZone[zoneName].push({
+        ...match,
+        couple_1: {
+          player_1: match.couple1_player1_name,
+          player_2: match.couple1_player2_name
+        },
+        couple_2: {
+          player_1: match.couple2_player1_name,
+          player_2: match.couple2_player2_name
+        }
+      })
+    } else {
+      eliminationMatches.push({
+        ...match,
+        couple_1: {
+          player_1: match.couple1_player1_name,
+          player_2: match.couple1_player2_name
+        },
+        couple_2: {
+          player_1: match.couple2_player1_name,
+          player_2: match.couple2_player2_name
+        }
+      })
     }
   })
 
-  // Ordenar zonas alfabéticamente
-  const sortedZones = Object.keys(matchesByZone).sort()
-  
-  // Agrupar partidos eliminatorios por ronda para mostrar después de las zonas
-  // Filtrar partidos BYE de la sección de partidos eliminatorios
-  const eliminationByRound: Record<string, any[]> = {}
-  eliminationMatches
-    .filter((match) => {
-      // Filtrar partidos BYE: excluir si couple1_id o couple2_id es null o "BYE_MARKER"
-      const hasBye = 
-        match.couple1_id === null || 
-        match.couple2_id === null || 
-        match.couple1_id === "BYE_MARKER" || 
-        match.couple2_id === "BYE_MARKER" ||
-        !match.couple1_player1_name || 
-        !match.couple1_player2_name ||
-        !match.couple2_player1_name || 
-        !match.couple2_player2_name ||
-        match.couple1_player1_name.includes('BYE') ||
-        match.couple1_player2_name.includes('BYE') ||
-        match.couple2_player1_name.includes('BYE') ||
-        match.couple2_player2_name.includes('BYE')
-      
-      return !hasBye
+  const formatDate = (date: string | undefined) => {
+    if (!date) return '—'
+    return new Date(date).toLocaleDateString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
     })
-    .forEach((match) => {
-      if (!eliminationByRound[match.round]) {
-        eliminationByRound[match.round] = []
-      }
-      eliminationByRound[match.round].push(match)
-    })
-
-  const roundOrder = ["32VOS", "16VOS", "8VOS", "4TOS", "SEMIFINAL", "FINAL"]
-  const roundTranslation: Record<string, string> = {
-    "32VOS": "32vos de Final",
-    "16VOS": "16vos de Final", 
-    "8VOS": "Octavos de Final",
-    "4TOS": "Cuartos de Final",
-    "SEMIFINAL": "Semifinales",
-    "FINAL": "Final",
   }
 
   return (
     <div className="space-y-6">
-      {/* Partidos de Zonas */}
-      {sortedZones.map((zoneName) => (
-        <Card key={zoneName} className="border-gray-200 shadow-sm">
-          <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200 py-4 px-6">
-            <h3 className="text-lg font-semibold text-blue-900 flex items-center gap-3">
-              <div className="bg-blue-200 p-2 rounded-lg">
-                <Users className="h-5 w-5 text-blue-700" />
-              </div>
-              {zoneName}
-              <span className="text-sm font-normal text-blue-700 ml-2">
-                ({matchesByZone[zoneName].length} partidos)
-              </span>
-            </h3>
-          </div>
-          <CardContent className="p-0">
-            <div className="border border-gray-200 rounded-b-lg overflow-hidden">
-              <Table>
-                                  <TableHeader className="bg-slate-50">
-                    <TableRow className="border-b border-gray-200">
-                      <TableHead className="font-semibold text-slate-700 w-[30%]">Pareja 1</TableHead>
-                      <TableHead className="font-semibold text-slate-700 text-center w-[15%]">Resultado</TableHead>
-                      <TableHead className="font-semibold text-slate-700 w-[30%]">Pareja 2</TableHead>
-                      <TableHead className="font-semibold text-slate-700 w-[15%]">Estado</TableHead>
-                      <TableHead className="font-semibold text-slate-700 text-right w-[10%]">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                <TableBody>
-                                      {matchesByZone[zoneName].map((match) => (
-                      <TableRow key={match.id} className="hover:bg-slate-50 border-b border-gray-100">
-                        <TableCell className="w-[30%]">
-                          <CoupleNames 
-                            couple={match.couple1}
-                            playerNames={`${match.couple1_player1_name} / ${match.couple1_player2_name}`}
-                          />
-                        </TableCell>
-                        <TableCell className="text-center w-[15%]">
-                          {match.status === "COMPLETED" ? (
-                            <div className="flex justify-center items-center gap-2">
-                              <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-                                {match.result_couple1}
-                              </span>
-                              <span className="text-slate-400">-</span>
-                              <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-                                {match.result_couple2}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-slate-400">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="w-[30%]">
-                          <CoupleNames 
-                            couple={match.couple2}
-                            playerNames={`${match.couple2_player1_name} / ${match.couple2_player2_name}`}
-                          />
-                        </TableCell>
-                        <TableCell className="w-[15%]">
-                          {match.status === "COMPLETED" ? (
-                            <div className="flex items-center">
-                              <CheckCircle className="h-4 w-4 text-emerald-600 mr-2" />
-                              <span className="text-emerald-600 text-sm font-medium">Completado</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              <Clock className="h-4 w-4 text-amber-600 mr-2" />
-                              <span className="text-amber-600 text-sm font-medium">Pendiente</span>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right w-[10%]">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-slate-300 text-slate-700 hover:bg-slate-50"
-                            onClick={() => handleOpenResultDialog(match)}
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            {match.status === "COMPLETED" ? "Editar" : "Cargar"}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-
-      {/* Partidos Eliminatorios */}
-      {roundOrder
-        .filter((roundKey) => eliminationByRound[roundKey])
-        .map((roundKey) => (
-          <Card key={roundKey} className="border-gray-200 shadow-sm">
-            <div className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200 py-4 px-6">
-              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-3">
-                <div className="bg-slate-200 p-2 rounded-lg">
-                  <Trophy className="h-5 w-5 text-slate-600" />
-                </div>
-                {roundTranslation[roundKey]}
-                <span className="text-sm font-normal text-slate-600 ml-2">
-                  ({eliminationByRound[roundKey].length} partidos)
-                </span>
-              </h3>
-            </div>
+      {/* Partidos por zona */}
+      {Object.entries(matchesByZone).map(([zoneName, zoneMatches]) => {
+        // Si el nombre de la zona es 'Zone A', 'Zone B', etc., mostrar solo la letra
+        let label = zoneName;
+        if (/^Zone\s+/i.test(zoneName)) {
+          label = zoneName.replace(/^Zone\s+/i, '');
+        }
+        return (
+          <Card key={zoneName} className="overflow-hidden">
             <CardContent className="p-0">
-              <div className="border border-gray-200 rounded-b-lg overflow-hidden">
-                <Table>
-                  <TableHeader className="bg-slate-50">
-                    <TableRow className="border-b border-gray-200">
-                      <TableHead className="font-semibold text-slate-700 w-[30%]">Pareja 1</TableHead>
-                      <TableHead className="font-semibold text-slate-700 text-center w-[15%]">Resultado</TableHead>
-                      <TableHead className="font-semibold text-slate-700 w-[30%]">Pareja 2</TableHead>
-                      <TableHead className="font-semibold text-slate-700 w-[15%]">Estado</TableHead>
-                      <TableHead className="font-semibold text-slate-700 text-right w-[10%]">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {eliminationByRound[roundKey].map((match) => (
-                      <TableRow key={match.id} className="hover:bg-slate-50 border-b border-gray-100">
-                        <TableCell className="w-[30%]">
-                          <CoupleNames 
-                            couple={match.couple1}
-                            playerNames={`${match.couple1_player1_name} / ${match.couple1_player2_name}`}
-                          />
-                        </TableCell>
-                        <TableCell className="text-center w-[15%]">
-                          {match.status === "COMPLETED" ? (
-                            <div className="flex justify-center items-center gap-2">
-                              <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-                                {match.result_couple1}
-                              </span>
-                              <span className="text-slate-400">-</span>
-                              <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-1 rounded">
-                                {match.result_couple2}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-slate-400">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="w-[30%]">
-                          <CoupleNames 
-                            couple={match.couple2}
-                            playerNames={`${match.couple2_player1_name} / ${match.couple2_player2_name}`}
-                          />
-                        </TableCell>
-                        <TableCell className="w-[15%]">
-                          {match.status === "COMPLETED" ? (
-                            <div className="flex items-center">
-                              <CheckCircle className="h-4 w-4 text-emerald-600 mr-2" />
-                              <span className="text-emerald-600 text-sm font-medium">Completado</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              <Clock className="h-4 w-4 text-amber-600 mr-2" />
-                              <span className="text-amber-600 text-sm font-medium">Pendiente</span>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right w-[10%]">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-slate-300 text-slate-700 hover:bg-slate-50"
-                            onClick={() => handleOpenResultDialog(match)}
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            {match.status === "COMPLETED" ? "Editar" : "Cargar"}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Zona {label}
+                </h3>
               </div>
+              <MatchTable
+                matches={zoneMatches}
+                formatDate={formatDate}
+                isOwner={isOwner}
+                onUpdateMatch={handleUpdateMatch}
+                onOpenResultDialog={handleOpenResultDialog}
+              />
             </CardContent>
           </Card>
-        ))}
+        );
+      })}
+
+      {/* Partidos de eliminación */}
+      {eliminationMatches.length > 0 && (
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900">
+                Fase Eliminatoria
+              </h3>
+            </div>
+            <MatchTable
+              matches={eliminationMatches}
+              formatDate={formatDate}
+              isOwner={isOwner}
+              onUpdateMatch={handleUpdateMatch}
+              onOpenResultDialog={handleOpenResultDialog}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Botón para avanzar a la siguiente etapa */}
-      {allMatchesCompleted && (
+      {isOwner && allMatchesCompleted && !eliminationMatches.length && (
         <div className="flex justify-center mt-8">
           <Button
             onClick={handleAdvanceToNextStage}
-            disabled={isAdvancing || isLoading}
-            className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-3 rounded-lg shadow-sm"
+            disabled={isAdvancing}
+            className="bg-teal-600 hover:bg-teal-700 text-white"
           >
-            {isAdvancing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ArrowRight className="mr-2 h-5 w-5" />}
-            Avanzar a la siguiente etapa
+            {isAdvancing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generando siguiente etapa...
+              </>
+            ) : (
+              <>
+                <ArrowRight className="mr-2 h-4 w-4" />
+                Avanzar a fase eliminatoria
+              </>
+            )}
           </Button>
         </div>
       )}
 
+      {/* Diálogo para editar resultado */}
       {selectedMatch && (
         <MatchResultDialog
           isOpen={isDialogOpen}

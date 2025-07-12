@@ -12,7 +12,7 @@ import { updateMatchResult } from "@/app/api/tournaments/actions"
 interface Match {
   id: string
   round: string
-  status: string
+  status: "PENDING" | "IN_PROGRESS" | "FINISHED" | "CANCELED"
   couple1_id?: string | null
   couple2_id?: string | null
   couple1_player1_name?: string
@@ -29,11 +29,14 @@ interface Match {
 interface MatchResultDialogProps {
   isOpen: boolean
   onClose: () => void
-  match: Match
+  match: Match | null
   onSave: () => void
 }
 
 export default function MatchResultDialog({ isOpen, onClose, match, onSave }: MatchResultDialogProps) {
+  if (!match) {
+    return null
+  }
   const [result_couple1, setResult_couple1] = useState<string>(match.result_couple1?.toString() || "")
   const [result_couple2, setResult_couple2] = useState<string>(match.result_couple2?.toString() || "")
   const [isSubmitting, setIsSubmitting] = useState(false)

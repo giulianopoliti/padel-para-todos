@@ -29,6 +29,7 @@ interface TournamentPlayersTabProps {
   tournamentStatus: string
   maxPlayers?: number
   allPlayers?: PlayerInfo[]
+  isPublicView?: boolean
 }
 
 export default function TournamentPlayersTab({
@@ -37,6 +38,7 @@ export default function TournamentPlayersTab({
   tournamentStatus,
   maxPlayers = 32,
   allPlayers = [],
+  isPublicView = false,
 }: TournamentPlayersTabProps) {
   const [registerPlayerDialogOpen, setRegisterPlayerDialogOpen] = useState(false)
   const [pairPlayersDialogOpen, setPairPlayersDialogOpen] = useState(false)
@@ -328,7 +330,7 @@ export default function TournamentPlayersTab({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
-            {canPairPlayers && user && (
+            {canPairPlayers && user && !isPublicView && (
               <Button
                 onClick={() => setPairPlayersDialogOpen(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
@@ -340,7 +342,7 @@ export default function TournamentPlayersTab({
               </Button>
             )}
             
-            {!isTournamentActive && (
+            {!isTournamentActive && !isPublicView && (
               <>
                 {isPlayer && !isPlayerAlreadyRegistered ? (
                   <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -450,7 +452,7 @@ export default function TournamentPlayersTab({
                       ) : (
                         <span className="text-slate-400 text-sm">Sin puntaje</span>
                       )}
-                      {!isTournamentActive && (
+                      {!isTournamentActive && !isPublicView && (
                         <>
                           {isPlayer && player.id === userDetails.player_id ? (
                             <Button
@@ -491,7 +493,7 @@ export default function TournamentPlayersTab({
                     <TableHead className="font-semibold text-slate-700">DNI</TableHead>
                     <TableHead className="font-semibold text-slate-700">Teléfono</TableHead>
                     <TableHead className="font-semibold text-slate-700 text-center">Puntaje</TableHead>
-                    {!isTournamentActive && (
+                    {!isTournamentActive && !isPublicView && (
                       <TableHead className="font-semibold text-slate-700 text-center">Acciones</TableHead>
                     )}
                   </TableRow>
@@ -512,7 +514,7 @@ export default function TournamentPlayersTab({
                           <span className="text-slate-400">—</span>
                         )}
                       </TableCell>
-                      {!isTournamentActive && (
+                      {!isTournamentActive && !isPublicView && (
                         <TableCell className="text-center">
                           {isPlayer && player.id === userDetails.player_id ? (
                             <Button

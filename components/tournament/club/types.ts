@@ -30,7 +30,7 @@ export interface MatchInfo {
   round: string
   zone?: string
   winner_id?: string | null
-  status: "PENDING" | "COMPLETED"
+  status: "PENDING" | "FINISHED"
   couple1?: CoupleInfo
   couple2?: CoupleInfo
   couple1_name?: string

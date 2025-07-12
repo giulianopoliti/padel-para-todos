@@ -21,6 +21,7 @@ export interface MatchTableProps {
   formatDate: (date: string | undefined) => string;
   isOwner: boolean;
   onUpdateMatch: (matchId: string, data: { status?: MatchStatus; court?: string }) => Promise<void>;
+  onOpenResultDialog?: (match: BaseMatch) => void;
 }
 
 // Eliminamos RegistrationButtonProps por ahora, ya que no se usará
